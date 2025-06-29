@@ -48,7 +48,7 @@ func (s *Server) InsertLog(level, message, source string) {
 		return
 	}
 	if s.db != nil {
-		if _, err := s.db.Exec(`INSERT INTO logs(level, message, source) VALUES($1,$2,$3)`, level, message, source); err != nil {
+		if err := s.db.InsertLog(level, message, source); err != nil {
 			log.Printf("insert log error: %v", err)
 		}
 		return
@@ -134,6 +134,8 @@ func (s *Server) setupRoutes() {
 
 	// CORS middleware
 	s.router.Use(s.corsMiddleware)
+	// Request logging middleware
+	s.router.Use(s.loggingMiddleware)
 }
 
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
@@ -148,6 +150,28 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		start := time.Now()
+		next.ServeHTTP(rec, r)
+		msg := fmt.Sprintf("%s %s %d %v", r.Method, r.URL.Path, rec.status, time.Since(start).Truncate(time.Millisecond))
+		if err := s.db.InsertLog("info", msg, "api"); err != nil {
+			log.Printf("request log error: %v", err)
+		}
 	})
 }
 
@@ -311,7 +335,7 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.db != nil {
-		rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT $1`, limit)
+		rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY timestamp DESC LIMIT $1`, limit)
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
