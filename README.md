@@ -141,6 +141,14 @@ make test-memory
 make install
 ```
 
+### Build the dashboard
+
+```bash
+npm run build
+```
+
+This command compiles the React UI into the `dist/` directory.
+
 ## 📊 **Performance Tuning**
 
 ### **For Maximum RPS:**
@@ -210,6 +218,16 @@ Real-time statistics saved to `stats_*.json`:
   "uptime": "2m15s"
 }
 ```
+
+## Python Tools
+
+Several helper scripts are written in Python. Install their dependencies with:
+
+```bash
+pip install -r requirements.txt
+```
+
+These scripts rely on the [`paramiko`](https://www.paramiko.org/) library for SSH automation.
 
 ---
 
