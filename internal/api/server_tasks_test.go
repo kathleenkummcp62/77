@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"testing"
 
+	"fmt"
+
 	dbpkg "vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
 )
@@ -112,5 +114,61 @@ func TestTasksHandlers(t *testing.T) {
 	resp2.Body.Close()
 	if resp2.StatusCode != http.StatusOK {
 		t.Fatalf("delete status %d", resp2.StatusCode)
+	}
+}
+
+func TestTasksBulkDeleteHandler(t *testing.T) {
+	srv, cleanup := setupTasksServer(t)
+	defer cleanup()
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	create := func() int {
+		body := bytes.NewBufferString(`{"vpn_type":"openvpn","server":"srv"}`)
+		resp, err := http.Post(ts.URL+"/api/tasks", "application/json", body)
+		if err != nil {
+			t.Fatalf("post: %v", err)
+		}
+		defer resp.Body.Close()
+		var pr struct {
+			Success bool
+			Data    map[string]int `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&pr); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if !pr.Success {
+			t.Fatalf("create failed")
+		}
+		return pr.Data["id"]
+	}
+
+	id1 := create()
+	id2 := create()
+
+	reqBody := bytes.NewBufferString(fmt.Sprintf(`{"ids":[%d,%d]}`, id1, id2))
+	resp, err := http.Post(ts.URL+"/api/tasks/bulk_delete", "application/json", reqBody)
+	if err != nil {
+		t.Fatalf("bulk delete: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+
+	resp, err = http.Get(ts.URL + "/api/tasks")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	var list struct {
+		Success bool                     `json:"success"`
+		Data    []map[string]interface{} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	if len(list.Data) != 0 {
+		t.Fatalf("expected no tasks after bulk delete")
 	}
 }
