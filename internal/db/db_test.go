@@ -28,6 +28,8 @@ func TestConnect(t *testing.T) {
 		}
 	}
 
-	check("tasks")
-	check("credentials")
+	tables := []string{"vendor_urls", "credentials", "proxies", "tasks", "logs"}
+	for _, tbl := range tables {
+		check(tbl)
+	}
 }

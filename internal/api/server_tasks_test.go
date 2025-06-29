@@ -44,8 +44,11 @@ func TestTasksHandlers(t *testing.T) {
 	srv, cleanup := setupTasksServer(t)
 	defer cleanup()
 
-	if !tableExists(t, srv.db.DB, "tasks") || !tableExists(t, srv.db.DB, "credentials") {
-		t.Fatalf("expected tasks and credentials tables to exist")
+	tables := []string{"vendor_urls", "credentials", "proxies", "tasks", "logs"}
+	for _, tbl := range tables {
+		if !tableExists(t, srv.db.DB, tbl) {
+			t.Fatalf("expected table %s to exist", tbl)
+		}
 	}
 
 	ts := httptest.NewServer(srv.router)
@@ -112,5 +115,59 @@ func TestTasksHandlers(t *testing.T) {
 	resp2.Body.Close()
 	if resp2.StatusCode != http.StatusOK {
 		t.Fatalf("delete status %d", resp2.StatusCode)
+	}
+}
+
+// TestTasksInvalidJSON verifies that the tasks endpoints return an error when
+// provided malformed JSON.
+func TestTasksInvalidJSON(t *testing.T) {
+	srv, cleanup := setupTasksServer(t)
+	defer cleanup()
+
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/api/tasks", "application/json", bytes.NewBufferString("{"))
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	var out APIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if out.Success || out.Error == "" {
+		t.Fatalf("expected error response")
+	}
+
+	req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/1", bytes.NewBufferString("{"))
+	req.Header.Set("Content-Type", "application/json")
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	defer resp2.Body.Close()
+	out = APIResponse{}
+	json.NewDecoder(resp2.Body).Decode(&out)
+	if out.Success || out.Error == "" {
+		t.Fatalf("expected error on update")
+	}
+}
+
+// TestNotFound ensures the server returns 404 for unknown routes.
+func TestNotFound(t *testing.T) {
+	srv, cleanup := setupTasksServer(t)
+	defer cleanup()
+
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/does-not-exist")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
