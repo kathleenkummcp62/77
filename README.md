@@ -211,6 +211,16 @@ Real-time statistics saved to `stats_*.json`:
 }
 ```
 
+## Python Tools
+
+Several helper scripts are written in Python. Install their dependencies with:
+
+```bash
+pip install -r requirements.txt
+```
+
+These scripts rely on the [`paramiko`](https://www.paramiko.org/) library for SSH automation.
+
 ---
 
 **⚡ Built for maximum performance with real-world validation!**
