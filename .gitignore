@@ -2,7 +2,7 @@
 node_modules/
 
 # Сборка
-# Build output directory
+# Build output directory (compiled frontend assets)
 dist/
 
 # Конфигурация среды

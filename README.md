@@ -31,6 +31,12 @@
 
 ## 🚀 **Quick Start**
 
+### Build the dashboard
+Run the command below to compile the frontend assets into the `dist/` directory:
+
+```bash
+npm run build
+```
 ### Build & Run:
 ```bash
 # Build optimized binary
