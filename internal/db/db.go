@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/fergusstrange/embedded-postgres"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -37,10 +38,64 @@ func ConnectFromApp(c config.Config) (*DB, error) {
 	return Connect(ConfigFromApp(c))
 }
 
+// InitSchema creates required tables if they do not already exist. It is safe
+// to call multiple times; the queries will execute only once per DB instance.
+func (d *DB) InitSchema() error {
+	d.initOnce.Do(func() {
+		queries := []string{
+			`CREATE TABLE IF NOT EXISTS vendor_urls (
+                                id SERIAL PRIMARY KEY,
+                                url TEXT NOT NULL
+                        )`,
+			`CREATE TABLE IF NOT EXISTS credentials (
+                                id SERIAL PRIMARY KEY,
+                                ip TEXT NOT NULL,
+                                username TEXT NOT NULL,
+                                password TEXT NOT NULL
+                        )`,
+			`CREATE TABLE IF NOT EXISTS proxies (
+                                id SERIAL PRIMARY KEY,
+                                address TEXT NOT NULL,
+                                username TEXT,
+                                password TEXT
+                        )`,
+			`CREATE TABLE IF NOT EXISTS tasks (
+                                id SERIAL PRIMARY KEY,
+                                vpn_type TEXT NOT NULL,
+                                server TEXT,
+                                status TEXT,
+                                progress INT DEFAULT 0,
+                                processed INT DEFAULT 0,
+                                goods INT DEFAULT 0,
+                                bads INT DEFAULT 0,
+                                errors INT DEFAULT 0,
+                                rps INT DEFAULT 0,
+                                created_at TIMESTAMPTZ DEFAULT NOW()
+                        )`,
+			`CREATE TABLE IF NOT EXISTS logs (
+                                id SERIAL PRIMARY KEY,
+                                timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                level TEXT,
+                                message TEXT,
+                                source TEXT
+                        )`,
+		}
+		for _, q := range queries {
+			if _, err := d.Exec(q); err != nil {
+				d.initErr = err
+				return
+			}
+		}
+	})
+	return d.initErr
+}
+
 // DB wraps the SQL database with optional embedded instance.
 type DB struct {
 	*sql.DB
 	embedded *embeddedpostgres.EmbeddedPostgres
+	initOnce sync.Once
+	initErr  error
 }
 
 // Connect tries to connect to the provided DSN. If it fails,
@@ -55,7 +110,12 @@ func Connect(cfg Config) (*DB, error) {
 	db, err := sql.Open("pgx", c.DSN)
 	if err == nil {
 		if err = db.Ping(); err == nil {
-			return &DB{DB: db}, nil
+			conn := &DB{DB: db}
+			if err = conn.InitSchema(); err != nil {
+				conn.Close()
+				return nil, err
+			}
+			return conn, nil
 		}
 		db.Close()
 	}
@@ -89,7 +149,13 @@ func Connect(cfg Config) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{DB: db, embedded: ep}, nil
+	conn := &DB{DB: db, embedded: ep}
+	if err = conn.InitSchema(); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 // Close closes the connection and stops embedded Postgres if running.
