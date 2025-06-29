@@ -165,8 +165,16 @@ func runDashboard(port int) {
 	statsManager := stats.New()
 	go statsManager.Start()
 
+	// Connect to the database using default configuration. The db.Connect
+	// helper automatically falls back to an embedded instance if the
+	// configured DSN is unavailable.
+	dbCfg := db.ConfigFromApp(*config.Default())
+	database, err := db.Connect(dbCfg)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
 	// Initialize API server with WebSocket support
-	server := api.NewServer(statsManager, port, nil)
+	server := api.NewServer(statsManager, port, database)
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -175,6 +183,7 @@ func runDashboard(port int) {
 	go func() {
 		<-sigChan
 		log.Println("🛑 Shutdown signal received...")
+		database.Close()
 		os.Exit(0)
 	}()
 
