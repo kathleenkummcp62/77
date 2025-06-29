@@ -5,9 +5,9 @@ import { VendorURL, CredentialPair, ProxySetting, Task } from "../../types";
 import toast from "react-hot-toast";
 import { Link } from "lucide-react";
 
-interface Selectable<T> extends T {
+type Selectable<T extends { id: number }> = T & {
   selected?: boolean;
-}
+};
 
 async function fetchJSON(path: string, options?: RequestInit) {
   const res = await fetch(path, {
@@ -119,7 +119,7 @@ export function DataStore() {
 
   const updateItem = async <T extends { id: number }>(
     path: string,
-    item: T,
+    item: Selectable<T>,
     list: Selectable<T>[],
     setList: (l: Selectable<T>[]) => void,
   ) => {
@@ -265,7 +265,7 @@ export function DataStore() {
           <input
             className="w-full border p-1"
             value={item.url}
-            onChange={(e) => onChange({ url: e.target.value } as any)}
+            onChange={(e) => onChange({ url: e.target.value })}
           />
         ),
         <div className="flex space-x-2">
@@ -289,13 +289,13 @@ export function DataStore() {
             <input
               className="border p-1 flex-1"
               value={item.login}
-              onChange={(e) => onChange({ login: e.target.value } as any)}
+              onChange={(e) => onChange({ login: e.target.value })}
               placeholder="login"
             />
             <input
               className="border p-1 flex-1"
               value={item.password}
-              onChange={(e) => onChange({ password: e.target.value } as any)}
+              onChange={(e) => onChange({ password: e.target.value })}
               placeholder="password"
             />
           </div>
@@ -331,19 +331,19 @@ export function DataStore() {
             <input
               className="border p-1 flex-1"
               value={item.address}
-              onChange={(e) => onChange({ address: e.target.value } as any)}
+              onChange={(e) => onChange({ address: e.target.value })}
               placeholder="host:port"
             />
             <input
               className="border p-1 flex-1"
               value={item.username || ""}
-              onChange={(e) => onChange({ username: e.target.value } as any)}
+              onChange={(e) => onChange({ username: e.target.value })}
               placeholder="user"
             />
             <input
               className="border p-1 flex-1"
               value={item.password || ""}
-              onChange={(e) => onChange({ password: e.target.value } as any)}
+              onChange={(e) => onChange({ password: e.target.value })}
               placeholder="pass"
             />
           </div>
@@ -387,19 +387,19 @@ export function DataStore() {
             <input
               className="border p-1 flex-1"
               value={item.vpn_type || ""}
-              onChange={(e) => onChange({ vpn_type: e.target.value } as any)}
+              onChange={(e) => onChange({ vpn_type: e.target.value })}
               placeholder="vpn"
             />
             <input
               className="border p-1 flex-1"
               value={item.server || ""}
-              onChange={(e) => onChange({ server: e.target.value } as any)}
+              onChange={(e) => onChange({ server: e.target.value })}
               placeholder="server"
             />
             <input
               className="border p-1 flex-1"
               value={item.status || ""}
-              onChange={(e) => onChange({ status: e.target.value } as any)}
+              onChange={(e) => onChange({ status: e.target.value })}
               placeholder="status"
             />
           </div>
