@@ -165,43 +165,57 @@ https://example.com:443:test:test:remote_access
 https://example.net:443:admin:pass:ANYCONNECT
 ```
 
-## 📚 **Database Tables**
+## 🗄️ **Database Schema**
 
 The API server relies on PostgreSQL for storing runtime information.
 When the server starts it calls `InitSchema`, creating all tables if
 they don't already exist. The `db.Connect` helper automatically
 invokes this function so the schema is created even when an embedded
-database is launched. This means the application works with an
-empty database out of the box.
+database is launched. If no external database is reachable `db.Connect`
+falls back to an embedded Postgres instance so the application works
+with an empty database out of the box.
 
 ### **tasks**
 
-Tracks the progress of each scanning job. Columns include:
+Stores the task queue. Columns include:
 
 - `id` – primary key
-- `vpn_type` or `vendor_url_id` – the VPN type or linked vendor URL
 - `vendor` – VPN vendor name
-- `url` – URL associated with the task's vendor
-- `proxy` – optional proxy used for the task
-- `server` – target server address
-- `status` – current job state
-- `progress` – credentials processed so far
-- `processed` – total credentials count
-- `goods`, `bads`, `errors` – result statistics
-- `rps` – requests per second
-- `created_at` – creation timestamp
+- `url` – vendor URL
+- `login` – login associated with the task
+- `password` – password used for the task
+- `proxy` – optional proxy address
 
 ### **credentials**
 
-Holds the credential sets used for scanning. Each entry has the fields:
+Stores reusable login information. Each row contains:
 
 - `id` – primary key
-- `ip` – VPN gateway IP or hostname
-- `username` – login name
-- `password` – password
 - `vendor` – VPN vendor name
-- `url` – vendor URL the credentials belong to
-- `proxy` – optional proxy to test with
+- `url` – vendor URL
+- `login` – username or login
+- `password` – password
+- `proxy` – optional proxy address
+
+### **vendor_urls**
+
+- `id` – primary key
+- `url` – vendor URL string
+
+### **proxies**
+
+- `id` – primary key
+- `address` – proxy address
+- `username` – proxy username
+- `password` – proxy password
+
+### **logs**
+
+- `id` – primary key
+- `timestamp` – time of log entry
+- `level` – log level
+- `message` – log message
+- `source` – log origin
 
 ### **REST API Endpoints**
 
@@ -221,20 +235,15 @@ credentials:
 
 ### **/api/tasks Request & Response Format**
 
-The task endpoints accept and return JSON. Each task object may contain the
+The task endpoints accept and return JSON. Each task object contains the
 following fields:
 
 - `id` – unique task identifier
-- `vendor` or `vpn_type` – VPN vendor name (or a `vendor_url_id` pointing to the
-  `vendor_urls` table)
-- `url` – URL associated with the vendor
-- `server` – target server address
-- `proxy` – optional proxy to route traffic through
-- `status` – current task state
-- `progress`, `processed` – progress metrics
-- `goods`, `bads`, `errors` – result counters
-- `rps` – requests per second
-- `created_at` – creation timestamp
+- `vendor` – VPN vendor name
+- `url` – vendor URL
+- `login` – login to test
+- `password` – password to test
+- `proxy` – optional proxy address
 
 To create a task send a JSON object with the same fields (except `id`). The
 server responds with:
@@ -254,19 +263,46 @@ curl http://localhost:8080/api/tasks
 # Create a new task
 curl -X POST http://localhost:8080/api/tasks \
   -H "Content-Type: application/json" \
-  -d '{"vpn_type":"fortinet","server":"1.2.3.4"}'
+  -d '{"vendor":"fortinet","url":"https://vpn.example.com","login":"user","password":"pass","proxy":""}'
 
 # Update a task
 curl -X PUT http://localhost:8080/api/tasks/1 \
   -H "Content-Type: application/json" \
-  -d '{"status":"running"}'
+  -d '{"vendor":"cisco","url":"https://vpn.example.org","login":"u2","password":"p2","proxy":""}'
 
 # Delete a task
 curl -X DELETE http://localhost:8080/api/tasks/1
 ```
 
+### **/api/credentials Request & Response Format**
+
+The credentials endpoints use the same JSON structure as tasks. A typical
+payload looks like:
+
+```json
+{
+  "vendor": "fortinet",
+  "url": "https://vpn.example.com",
+  "login": "user",
+  "password": "pass",
+  "proxy": ""
+}
+```
+
+```bash
+# List credentials
+curl http://localhost:8080/api/credentials
+
+# Create credential entry
+curl -X POST http://localhost:8080/api/credentials \
+  -H "Content-Type: application/json" \
+  -d '{"vendor":"fortinet","url":"https://vpn.example.com","login":"user","password":"pass","proxy":""}'
+```
+
 These tables—including `tasks`, `credentials`, `vendor_urls` and `proxies`—are
-automatically initialized when the server launches with the embedded database.
+automatically initialized when the server launches. The `db.Connect` helper
+creates them on first run and falls back to an embedded Postgres instance when
+no external database is reachable.
 
 ## 🔧 **Advanced Features**
 
