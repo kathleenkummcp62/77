@@ -110,19 +110,19 @@ func main() {
 	statsManager := stats.New()
 	go statsManager.Start()
 
-	// Start dashboard server in background
-	go func() {
-		server := api.NewServer(statsManager, *dashboardPort, database)
-		if err := server.Start(); err != nil {
-			log.Printf("⚠️  Dashboard server error: %v", err)
-		}
-	}()
-
 	// Initialize ultra-fast bruteforce engine
 	engine, err := bruteforce.New(cfg, statsManager, nil)
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize ultra-fast engine: %v", err)
 	}
+
+	// Start dashboard server in background
+	go func() {
+		server := api.NewServer(statsManager, *dashboardPort, database, engine)
+		if err := server.Start(); err != nil {
+			log.Printf("⚠️  Dashboard server error: %v", err)
+		}
+	}()
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -174,7 +174,7 @@ func runDashboard(port int) {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	// Initialize API server with WebSocket support
-	server := api.NewServer(statsManager, port, database)
+	server := api.NewServer(statsManager, port, database, nil)
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)

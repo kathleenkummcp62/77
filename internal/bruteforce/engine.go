@@ -564,3 +564,21 @@ func (e *Engine) rpsMonitor() {
 func (e *Engine) Stop() {
 	e.cancel()
 }
+
+// StartTask launches the engine asynchronously with the provided VPN type.
+// It reuses the Engine's configuration but updates the VPN type if supplied.
+func (e *Engine) StartTask(vpnType string) error {
+	if vpnType != "" {
+		e.config.VPNType = vpnType
+	}
+	go func() {
+		_ = e.Start()
+	}()
+	return nil
+}
+
+// StopTask signals the running engine to stop.
+func (e *Engine) StopTask(vpnType string) error {
+	e.Stop()
+	return nil
+}

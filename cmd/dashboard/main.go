@@ -43,7 +43,7 @@ func main() {
 	defer database.Close()
 
 	// Initialize API server with WebSocket support
-	server := api.NewServer(statsManager, *port, database)
+	server := api.NewServer(statsManager, *port, database, nil)
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)

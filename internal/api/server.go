@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"vpn-bruteforce-client/internal/aggregator"
+	"vpn-bruteforce-client/internal/bruteforce"
 	"vpn-bruteforce-client/internal/config"
 	"vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
@@ -28,6 +29,7 @@ type Server struct {
 	wsServer *websocket.Server
 	router   *mux.Router
 	port     int
+	engine   bruteforce.TaskEngine
 
 	// useVendorTasks indicates that the tasks table stores a vendor_url_id
 	// reference instead of a vpn_type column. The handlers adapt their SQL
@@ -41,7 +43,7 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
-func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
+func NewServer(stats *stats.Stats, port int, database *db.DB, engine bruteforce.TaskEngine) *Server {
 	wsServer := websocket.NewServer(stats, database)
 
 	s := &Server{
@@ -50,6 +52,7 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 		wsServer: wsServer,
 		router:   mux.NewRouter(),
 		port:     port,
+		engine:   engine,
 	}
 
 	if s.db == nil {
@@ -224,12 +227,25 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.engine != nil {
+		if err := s.engine.StartTask(vpnType); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+	}
+
 	// Broadcast start command via WebSocket
 	s.wsServer.BroadcastMessage("scanner_command", map[string]interface{}{
 		"action":   "start",
 		"vpn_type": vpnType,
 		"status":   "starting",
 	})
+
+	if s.db != nil {
+		if _, err := s.db.Exec(`UPDATE tasks SET status='running' WHERE vpn_type=$1`, vpnType); err != nil {
+			log.Printf("update task status: %v", err)
+		}
+	}
 
 	log.Printf("🚀 Starting %s scanner via API", vpnType)
 	s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
@@ -251,12 +267,25 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.engine != nil {
+		if err := s.engine.StopTask(vpnType); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+	}
+
 	// Broadcast stop command via WebSocket
 	s.wsServer.BroadcastMessage("scanner_command", map[string]interface{}{
 		"action":   "stop",
 		"vpn_type": vpnType,
 		"status":   "stopping",
 	})
+
+	if s.db != nil {
+		if _, err := s.db.Exec(`UPDATE tasks SET status='stopped' WHERE vpn_type=$1`, vpnType); err != nil {
+			log.Printf("update task status: %v", err)
+		}
+	}
 
 	log.Printf("🛑 Stopping %s scanner via API", vpnType)
 	s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{

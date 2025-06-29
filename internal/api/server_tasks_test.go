@@ -26,7 +26,7 @@ func setupTasksServer(t *testing.T) (*Server, func()) {
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	srv := NewServer(stats.New(), 0, db)
+	srv := NewServer(stats.New(), 0, db, nil)
 	return srv, func() { db.Close() }
 }
 

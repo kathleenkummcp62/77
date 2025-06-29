@@ -41,7 +41,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 		t.Fatalf("init schema: %v", err)
 	}
 
-	srv := NewServer(stats.New(), 0, db)
+	srv := NewServer(stats.New(), 0, db, nil)
 	return srv, func() {
 		sqlDB.Close()
 		pg.Stop()
