@@ -71,6 +71,13 @@ The script automatically builds the dashboard if the `dist/` directory is missin
 Create a `credentials.txt` file **in the project root** with your own IP addresses, usernames, and passwords before running. The file also accepts optional `vendor`, `url` and `proxy` fields after the password (up to six semicolon-separated values). The `credentials.txt.example` file shows the required format.
 The tracked `credentials.txt` in this repository only contains placeholder values. Replace those placeholders with your real credentials (or point `config.yaml` to another file) when testing.
 
+Example entries using all six fields:
+
+```text
+vpn1.example.com;user1;pass1;fortinet;https://vpn1.example.com:443;
+vpn2.example.com;user2;pass2;fortinet;https://vpn2.example.com:443;http://10.0.0.1:8080
+```
+
 ### Using your own credentials locally
 
 1. Copy `credentials.txt.example` to `credentials.txt`.
@@ -171,9 +178,11 @@ The API server relies on PostgreSQL for storing runtime information.
 When the server starts it calls `InitSchema`, creating all tables if
 they don't already exist. The `db.Connect` helper automatically
 invokes this function so the schema is created even when an embedded
-database is launched. If no external database is reachable `db.Connect`
-falls back to an embedded Postgres instance so the application works
-with an empty database out of the box.
+database is launched. The embedded database therefore starts with the
+`tasks`, `credentials`, `vendor_urls` and `proxies` tables ready to
+use. If no external database is reachable `db.Connect` falls back to an
+embedded Postgres instance so the application works with an empty
+database out of the box.
 
 ### **tasks**
 
@@ -272,6 +281,22 @@ curl -X PUT http://localhost:8080/api/tasks/1 \
 
 # Delete a task
 curl -X DELETE http://localhost:8080/api/tasks/1
+```
+
+#### Example Responses
+
+```json
+{
+  "success": true,
+  "data": []
+}
+
+{
+  "success": true,
+  "data": {"id": 1, "vendor": "fortinet", "url": "https://vpn.example.com", "login": "user", "password": "pass", "proxy": ""}
+}
+
+{ "success": true }
 ```
 
 ### **/api/credentials Request & Response Format**
