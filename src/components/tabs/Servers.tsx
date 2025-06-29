@@ -21,12 +21,12 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// ✅ РЕАЛЬНЫЕ ВОРКЕРЫ ДЛЯ КАЛИБРОВКИ
+// Example worker servers used for UI demonstrations only
 const realServers = [
   {
-    ip: '192.0.2.10',
+    ip: 'server1.example.com',
     username: 'root',
-    password: 'examplePassword1',
+    password: 'placeholder',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -42,9 +42,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '192.0.2.11',
+    ip: 'server2.example.com',
     username: 'root',
-    password: 'examplePassword2',
+    password: 'placeholder',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -60,9 +60,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '192.0.2.12',
+    ip: 'server3.example.com',
     username: 'root',
-    password: 'examplePassword3',
+    password: 'placeholder',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -78,9 +78,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '192.0.2.13',
+    ip: 'server4.example.com',
     username: 'root',
-    password: 'examplePassword4',
+    password: 'placeholder',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
