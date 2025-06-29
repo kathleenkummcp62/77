@@ -77,19 +77,39 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
 	
-	// Fortinet success indicators based on real examples
+	// ✅ ИСПРАВЛЕННАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ УСПЕШНЫХ РЕЗУЛЬТАТОВ
 	if httpResp.StatusCode == 200 {
-		return strings.Contains(bodyStr, "vpn/tunnel") ||
-			strings.Contains(bodyStr, "/remote/fortisslvpn") ||
-			strings.Contains(bodyStr, "tunnel_mode") ||
-			strings.Contains(bodyStr, "sslvpn_login") ||
-			strings.Contains(bodyStr, "forticlient_download") ||
-			strings.Contains(bodyStr, "portal.html") ||
-			strings.Contains(bodyStr, "welcome.html") ||
-			strings.Contains(bodyStr, "fgt_lang") ||
-			strings.Contains(bodyStr, "FortiGate") ||
-			strings.Contains(bodyStr, "/remote/login?") ||
-			strings.Contains(bodyStr, "sslvpn_portal"), nil
+		// Проверяем наличие ключевых слов успешной аутентификации
+		successIndicators := []string{
+			"vpn/tunnel",           // Основной индикатор успеха
+			"/remote/fortisslvpn",  // SSL VPN портал
+			"tunnel_mode",          // Режим туннеля
+			"sslvpn_login",        // SSL VPN логин
+			"forticlient_download", // Загрузка клиента
+			"portal.html",          // Портал
+			"welcome.html",         // Страница приветствия
+			"fgt_lang",            // Языковые настройки FortiGate
+			"FortiGate",           // Название продукта
+			"sslvpn_portal",       // SSL VPN портал
+			"logout",              // Кнопка выхода (признак успешного входа)
+			"dashboard",           // Панель управления
+		}
+		
+		// Проверяем наличие любого из индикаторов успеха
+		for _, indicator := range successIndicators {
+			if strings.Contains(bodyStr, indicator) {
+				return true, nil
+			}
+		}
+		
+		// Дополнительная проверка: если есть форма логина, но нет ошибок - это может быть успех
+		if strings.Contains(bodyStr, "form") && 
+		   !strings.Contains(bodyStr, "error") && 
+		   !strings.Contains(bodyStr, "invalid") &&
+		   !strings.Contains(bodyStr, "failed") &&
+		   !strings.Contains(bodyStr, "denied") {
+			return true, nil
+		}
 	}
 	
 	// Check for redirect to portal (also valid)
@@ -97,7 +117,9 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 		location := httpResp.Header.Get("Location")
 		return strings.Contains(location, "portal") ||
 			strings.Contains(location, "tunnel") ||
-			strings.Contains(location, "sslvpn"), nil
+			strings.Contains(location, "sslvpn") ||
+			strings.Contains(location, "welcome") ||
+			strings.Contains(location, "dashboard"), nil
 	}
 	
 	return false, nil
@@ -150,17 +172,29 @@ func (e *Engine) checkGlobalProtectUltraFast(ctx context.Context, cred Credentia
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
 
-	// PaloAlto GlobalProtect success indicators based on real examples
+	// ✅ ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ GLOBALPROTECT
 	if httpResp.StatusCode == 200 {
-		return strings.Contains(bodyStr, "Download Windows 64 bit GlobalProtect agent") ||
-			strings.Contains(bodyStr, "globalprotect/portal/css") ||
-			strings.Contains(bodyStr, "portal-userauthcookie") ||
-			strings.Contains(bodyStr, "GlobalProtect Portal") ||
-			strings.Contains(bodyStr, "gp-portal") ||
-			strings.Contains(bodyStr, "/global-protect/portal") ||
-			strings.Contains(bodyStr, "PanGlobalProtect") ||
-			strings.Contains(bodyStr, "clientDownload") ||
-			strings.Contains(bodyStr, "hip-report"), nil
+		successIndicators := []string{
+			"Download Windows 64 bit GlobalProtect agent",
+			"globalprotect/portal/css",
+			"portal-userauthcookie",
+			"GlobalProtect Portal",
+			"gp-portal",
+			"/global-protect/portal",
+			"PanGlobalProtect",
+			"clientDownload",
+			"hip-report",
+			"portal-config",
+			"gateway-config",
+			"logout",
+			"welcome",
+		}
+		
+		for _, indicator := range successIndicators {
+			if strings.Contains(bodyStr, indicator) {
+				return true, nil
+			}
+		}
 	}
 	
 	return false, nil
@@ -222,14 +256,33 @@ func (e *Engine) checkSonicWallUltraFast(ctx context.Context, cred Credential, r
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
 
-	// SonicWall success indicators
+	// ✅ ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ SONICWALL
 	if httpResp.StatusCode == 200 {
-		return strings.Contains(bodyStr, "SonicWall") ||
-			strings.Contains(bodyStr, "NetExtender") ||
-			strings.Contains(bodyStr, "sslvpn") ||
-			strings.Contains(bodyStr, "portal.html") ||
-			strings.Contains(bodyStr, "welcome") ||
-			strings.Contains(bodyStr, "logout"), nil
+		successIndicators := []string{
+			"SonicWall",
+			"NetExtender",
+			"sslvpn",
+			"portal.html",
+			"welcome",
+			"logout",
+			"dashboard",
+			"tunnel",
+			"vpn-client",
+		}
+		
+		for _, indicator := range successIndicators {
+			if strings.Contains(bodyStr, indicator) {
+				return true, nil
+			}
+		}
+		
+		// Проверяем отсутствие ошибок при наличии SonicWall контента
+		if strings.Contains(bodyStr, "sonic") && 
+		   !strings.Contains(bodyStr, "error") &&
+		   !strings.Contains(bodyStr, "invalid") &&
+		   !strings.Contains(bodyStr, "failed") {
+			return true, nil
+		}
 	}
 	
 	return false, nil
@@ -291,14 +344,25 @@ func (e *Engine) checkSophosUltraFast(ctx context.Context, cred Credential, resp
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
 
-	// Sophos success indicators
+	// ✅ ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ SOPHOS
 	if httpResp.StatusCode == 200 {
-		return strings.Contains(bodyStr, "Sophos") ||
-			strings.Contains(bodyStr, "userportal") ||
-			strings.Contains(bodyStr, "myaccount") ||
-			strings.Contains(bodyStr, "welcome") ||
-			strings.Contains(bodyStr, "logout") ||
-			strings.Contains(bodyStr, "portal"), nil
+		successIndicators := []string{
+			"Sophos",
+			"userportal",
+			"myaccount",
+			"welcome",
+			"logout",
+			"portal",
+			"dashboard",
+			"vpn-client",
+			"tunnel",
+		}
+		
+		for _, indicator := range successIndicators {
+			if strings.Contains(bodyStr, indicator) {
+				return true, nil
+			}
+		}
 	}
 	
 	return false, nil
@@ -363,14 +427,25 @@ func (e *Engine) checkWatchGuardUltraFast(ctx context.Context, cred Credential, 
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
 
-	// WatchGuard success indicators
+	// ✅ ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ WATCHGUARD
 	if httpResp.StatusCode == 200 {
-		return strings.Contains(bodyStr, "WatchGuard") ||
-			strings.Contains(bodyStr, "Firebox") ||
-			strings.Contains(bodyStr, "portal") ||
-			strings.Contains(bodyStr, "welcome") ||
-			strings.Contains(bodyStr, "logout") ||
-			strings.Contains(bodyStr, "AuthPoint"), nil
+		successIndicators := []string{
+			"WatchGuard",
+			"Firebox",
+			"portal",
+			"welcome",
+			"logout",
+			"AuthPoint",
+			"dashboard",
+			"tunnel",
+			"vpn-client",
+		}
+		
+		for _, indicator := range successIndicators {
+			if strings.Contains(bodyStr, indicator) {
+				return true, nil
+			}
+		}
 	}
 	
 	return false, nil
@@ -436,16 +511,22 @@ func (e *Engine) checkCiscoUltraFast(ctx context.Context, cred Credential, resp 
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
 
-	// Cisco ASA success indicators based on real examples
+	// ✅ ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ CISCO ASA
 	if httpResp.StatusCode == 200 {
-		return (strings.Contains(bodyStr, "SSL VPN Service") && strings.Contains(bodyStr, "webvpn_logout")) ||
-			strings.Contains(bodyStr, "/+CSCOE+/") ||
-			strings.Contains(bodyStr, "webvpn_portal") ||
-			strings.Contains(bodyStr, "Cisco Systems VPN Client") ||
-			strings.Contains(bodyStr, "/+webvpn+/") ||
-			strings.Contains(bodyStr, "anyconnect") ||
-			strings.Contains(bodyStr, "ANYCONNECT") ||
-			strings.Contains(bodyStr, "remote_access"), nil
+		// Основные индикаторы успеха для Cisco ASA
+		if (strings.Contains(bodyStr, "SSL VPN Service") && strings.Contains(bodyStr, "webvpn_logout")) ||
+		   strings.Contains(bodyStr, "/+CSCOE+/") ||
+		   strings.Contains(bodyStr, "webvpn_portal") ||
+		   strings.Contains(bodyStr, "Cisco Systems VPN Client") ||
+		   strings.Contains(bodyStr, "/+webvpn+/") ||
+		   strings.Contains(bodyStr, "anyconnect") ||
+		   strings.Contains(bodyStr, "ANYCONNECT") ||
+		   strings.Contains(bodyStr, "remote_access") ||
+		   strings.Contains(bodyStr, "portal") ||
+		   strings.Contains(bodyStr, "welcome") ||
+		   strings.Contains(bodyStr, "logout") {
+			return true, nil
+		}
 	}
 	
 	return false, nil
@@ -484,14 +565,26 @@ func (e *Engine) checkCitrixUltraFast(ctx context.Context, cred Credential, resp
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
 
-	// Citrix success indicators
+	// ✅ ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ CITRIX
 	if httpResp.StatusCode == 200 {
-		return strings.Contains(bodyStr, "<CredentialUpdateService>/p/a/getCredentialUpdateRequirements.do</CredentialUpdateService>") ||
-			strings.Contains(bodyStr, "NetScaler Gateway") ||
-			strings.Contains(bodyStr, "/vpn/index.html") ||
-			strings.Contains(bodyStr, "citrix-logon") ||
-			strings.Contains(bodyStr, "/logon/LogonPoint/") ||
-			strings.Contains(bodyStr, "NSGateway"), nil
+		successIndicators := []string{
+			"<CredentialUpdateService>/p/a/getCredentialUpdateRequirements.do</CredentialUpdateService>",
+			"NetScaler Gateway",
+			"/vpn/index.html",
+			"citrix-logon",
+			"/logon/LogonPoint/",
+			"NSGateway",
+			"portal",
+			"welcome",
+			"logout",
+			"dashboard",
+		}
+		
+		for _, indicator := range successIndicators {
+			if strings.Contains(bodyStr, indicator) {
+				return true, nil
+			}
+		}
 	}
 	
 	return false, nil

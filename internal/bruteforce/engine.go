@@ -235,7 +235,7 @@ func (e *Engine) processCredentialUltraFast(cred Credential, buf []byte) {
 	// Update RPS counter
 	atomic.AddInt64(&e.actualRPS, 1)
 
-	// Advanced error handling
+	// ✅ УЛУЧШЕННАЯ ОБРАБОТКА ОШИБОК И РЕЗУЛЬТАТОВ
 	if err != nil {
 		e.handleAdvancedError(cred.IP, err, duration)
 		return
@@ -252,6 +252,10 @@ func (e *Engine) processCredentialUltraFast(cred Credential, buf []byte) {
 		}
 	} else {
 		e.stats.IncrementBads()
+		if e.config.Verbose {
+			fmt.Printf("\n❌ INVALID: %s;%s;%s (%.2fms)", 
+				cred.IP, cred.Username, cred.Password, float64(duration.Nanoseconds())/1e6)
+		}
 	}
 }
 
@@ -280,26 +284,50 @@ func (e *Engine) checkVPNUltraFast(ctx context.Context, cred Credential, resp *R
 func (e *Engine) handleAdvancedError(ip string, err error, duration time.Duration) {
 	errStr := err.Error()
 	
-	// Classify error types
+	// ✅ УЛУЧШЕННАЯ КЛАССИФИКАЦИЯ ОШИБОК
 	switch {
-	case strings.Contains(errStr, "timeout"):
+	case strings.Contains(errStr, "timeout") || strings.Contains(errStr, "deadline exceeded"):
 		e.stats.IncrementOffline()
 		e.trackError(ip, "timeout")
-	case strings.Contains(errStr, "connection refused"):
+		if e.config.Verbose {
+			fmt.Printf("\n⏰ TIMEOUT: %s (%.2fms)", ip, float64(duration.Nanoseconds())/1e6)
+		}
+	case strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "connect: connection refused"):
 		e.stats.IncrementOffline()
 		e.trackError(ip, "refused")
-	case strings.Contains(errStr, "no route to host"):
+		if e.config.Verbose {
+			fmt.Printf("\n🚫 REFUSED: %s", ip)
+		}
+	case strings.Contains(errStr, "no route to host") || strings.Contains(errStr, "network unreachable"):
 		e.stats.IncrementOffline()
 		e.trackError(ip, "unreachable")
-	case strings.Contains(errStr, "too many requests") || strings.Contains(errStr, "rate limit"):
+		if e.config.Verbose {
+			fmt.Printf("\n🌐 UNREACHABLE: %s", ip)
+		}
+	case strings.Contains(errStr, "too many requests") || strings.Contains(errStr, "rate limit") || strings.Contains(errStr, "429"):
 		e.stats.IncrementIPBlock()
 		e.trackIPBlock(ip)
+		if e.config.Verbose {
+			fmt.Printf("\n🚧 RATE_LIMITED: %s", ip)
+		}
+	case strings.Contains(errStr, "certificate") || strings.Contains(errStr, "tls") || strings.Contains(errStr, "ssl"):
+		e.stats.IncrementErrors()
+		e.trackError(ip, "ssl_error")
+		if e.config.Verbose {
+			fmt.Printf("\n🔒 SSL_ERROR: %s", ip)
+		}
 	case duration > e.config.Timeout*2:
 		e.stats.IncrementOffline()
 		e.trackError(ip, "slow")
+		if e.config.Verbose {
+			fmt.Printf("\n🐌 SLOW: %s (%.2fms)", ip, float64(duration.Nanoseconds())/1e6)
+		}
 	default:
 		e.stats.IncrementErrors()
 		e.trackError(ip, "unknown")
+		if e.config.Verbose {
+			fmt.Printf("\n❓ ERROR: %s - %s", ip, errStr)
+		}
 	}
 }
 
