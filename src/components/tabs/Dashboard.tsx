@@ -20,7 +20,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // ✅ РЕАЛЬНЫЕ СЕРВЕРЫ (БЕЗ ВЫДУМАННЫХ ДАННЫХ)
 const realServers = [
   {
-    ip: '194.0.234.203',
+    ip: '192.0.2.10',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -35,7 +35,7 @@ const realServers = [
     current_task: 'Idle - Ready for tasks'
   },
   {
-    ip: '77.90.185.26',
+    ip: '192.0.2.11',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -50,7 +50,7 @@ const realServers = [
     current_task: 'Idle - Ready for tasks'
   },
   {
-    ip: '185.93.89.206',
+    ip: '192.0.2.12',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -65,7 +65,7 @@ const realServers = [
     current_task: 'Idle - Ready for tasks'
   },
   {
-    ip: '185.93.89.35',
+    ip: '192.0.2.13',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -341,16 +341,16 @@ export function Dashboard() {
           <div>
             <h4 className="font-medium text-gray-900 mb-2">Fortinet VPN</h4>
             <div className="space-y-1 text-sm">
-              <code className="block bg-gray-100 p-1 rounded">https://200.113.15.26:4443;guest;guest</code>
-              <code className="block bg-gray-100 p-1 rounded">https://195.150.192.5:443;guest;guest</code>
+              <code className="block bg-gray-100 p-1 rounded">https://example.com:4443;guest;guest</code>
+              <code className="block bg-gray-100 p-1 rounded">https://example.org:443;guest;guest</code>
               <p className="text-xs text-gray-500 mt-1">9 valid credentials available</p>
             </div>
           </div>
           <div>
             <h4 className="font-medium text-gray-900 mb-2">GlobalProtect</h4>
             <div className="space-y-1 text-sm">
-              <code className="block bg-gray-100 p-1 rounded">https://216.229.124.44:443;test;test</code>
-              <code className="block bg-gray-100 p-1 rounded">https://72.26.131.86:443;test;test</code>
+              <code className="block bg-gray-100 p-1 rounded">https://example.net:443;test;test</code>
+              <code className="block bg-gray-100 p-1 rounded">https://example.net:443;test;test</code>
               <p className="text-xs text-gray-500 mt-1">3 valid credentials available</p>
             </div>
           </div>

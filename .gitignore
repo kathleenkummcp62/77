@@ -1,7 +1,14 @@
+# Dependencies
 node_modules/
 
-# Build output
+# Сборка
 dist/
 
+# Конфигурация среды
 .env
+
+# Файлы статистики
 stats_*.json
+
+# Файлы с чувствительными данными
+credentials*.txt
