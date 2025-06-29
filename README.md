@@ -37,7 +37,7 @@
 make build
 
 # Build dashboard assets (only if you need the dashboard)
-npm run build
+npm run build  # generates the dist/ directory so you can view the dashboard locally
 
 # Run with auto-detection
 ./vpn-ultra-fast -type=fortinet -input=credentials.txt -threads=3000 -rate=8000
@@ -165,7 +165,7 @@ make install
 npm run build
 ```
 This command compiles the React UI into the `dist/` directory.
-Run this whenever you need the dashboard or after editing any UI files to regenerate the assets.
+Since `dist/` is ignored in git, run this whenever you need the dashboard or after editing any UI files to regenerate the assets locally.
 
 ### Dashboard Settings Categories
 
