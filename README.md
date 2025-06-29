@@ -69,10 +69,16 @@ streaming_mode: true
 Store your server and VPN credentials **outside** of the repository.
 Use files such as `credentials.txt` or `credentials_test.txt` for the real values
 and add these names to `.gitignore` so they are never committed.
-Sample files (`credentials.txt.example` and `credentials_test.txt.example`) are
-provided for reference.
-Configure paths to the actual files via environment variables or `config.yaml`
-so sensitive data stays on your machine.
+Sample placeholder files (`credentials.txt.example` and `credentials_test.txt.example`)
+are provided for reference only.
+
+Supply the path to your real credential files at runtime using one of these methods:
+
+1. **Environment variable** – set `INPUT_FILE=/full/path/credentials.txt` before
+   launching the app.
+2. **config.yaml** – change the `input_file` value to point to your credential file.
+
+This keeps sensitive data on your machine and out of the repository and built assets.
 
 For example, set the path to your credential file using the `INPUT_FILE` environment variable:
 
