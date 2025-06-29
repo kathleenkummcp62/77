@@ -156,8 +156,8 @@ make install
 ```bash
 npm run build
 ```
-
 This command compiles the React UI into the `dist/` directory.
+Run this after editing any UI files to regenerate the dashboard assets.
 
 ## 📊 **Performance Tuning**
 
