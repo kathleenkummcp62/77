@@ -36,7 +36,7 @@
 # Build optimized binary
 make build
 
-# Build dashboard assets
+# Build dashboard assets (only if you need the dashboard)
 npm run build
 
 # Run with auto-detection
@@ -157,7 +157,7 @@ make install
 npm run build
 ```
 This command compiles the React UI into the `dist/` directory.
-Run this after editing any UI files to regenerate the dashboard assets.
+Run this whenever you need the dashboard or after editing any UI files to regenerate the assets.
 
 ### Dashboard Settings Categories
 
