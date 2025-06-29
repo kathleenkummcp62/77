@@ -29,22 +29,22 @@ interface TerminalMessage {
 }
 
 export function Terminal() {
-  const [activeSession, setActiveSession] = useState<string>('194.0.234.203');
+  const [activeSession, setActiveSession] = useState<string>('192.0.2.10');
   const [command, setCommand] = useState('');
   const [messages, setMessages] = useState<TerminalMessage[]>([
     {
       id: '1',
       type: 'system',
-      content: 'Connected to 194.0.234.203',
+      content: 'Connected to 192.0.2.10',
       timestamp: new Date(Date.now() - 300000),
-      server: '194.0.234.203'
+      server: '192.0.2.10'
     },
     {
       id: '2',
       type: 'command',
       content: 'cd /root/NAM/Servis && ls -la',
       timestamp: new Date(Date.now() - 240000),
-      server: '194.0.234.203'
+      server: '192.0.2.10'
     },
     {
       id: '3',
@@ -58,21 +58,21 @@ drwxr-xr-x 3 root root 4096 Jan 15 09:15 ..
 -rw-r--r-- 1 root root 1024 Jan 15 10:30 stats_12345.json
 -rw-r--r-- 1 root root 5120 Jan 15 10:28 valid.txt`,
       timestamp: new Date(Date.now() - 235000),
-      server: '194.0.234.203'
+      server: '192.0.2.10'
     },
     {
       id: '4',
       type: 'command',
       content: 'python3 sers1.py',
       timestamp: new Date(Date.now() - 180000),
-      server: '194.0.234.203'
+      server: '192.0.2.10'
     },
     {
       id: '5',
       type: 'output',
       content: '[INFO] Starting Fortinet VPN scanner...\n[INFO] Loaded 15420 credentials\n[INFO] Using 2500 threads\n🔥 G:1247 B:8934 E:156 Off:89 Blk:23 | ⚡2847.3/s | ⏱️2m15s',
       timestamp: new Date(Date.now() - 175000),
-      server: '194.0.234.203'
+      server: '192.0.2.10'
     }
   ]);
   const [commandHistory, setCommandHistory] = useState<string[]>([
@@ -87,10 +87,10 @@ drwxr-xr-x 3 root root 4096 Jan 15 09:15 ..
   const inputRef = useRef<HTMLInputElement>(null);
 
   const sessions: TerminalSession[] = [
-    { id: '194.0.234.203', server: '194.0.234.203', status: 'connected', lastActivity: '2 min ago' },
-    { id: '77.90.185.26', server: '77.90.185.26', status: 'connected', lastActivity: '5 min ago' },
-    { id: '185.93.89.206', server: '185.93.89.206', status: 'disconnected', lastActivity: '1 hour ago' },
-    { id: '185.93.89.35', server: '185.93.89.35', status: 'connected', lastActivity: '30 sec ago' }
+    { id: '192.0.2.10', server: '192.0.2.10', status: 'connected', lastActivity: '2 min ago' },
+    { id: '192.0.2.11', server: '192.0.2.11', status: 'connected', lastActivity: '5 min ago' },
+    { id: '192.0.2.12', server: '192.0.2.12', status: 'disconnected', lastActivity: '1 hour ago' },
+    { id: '192.0.2.13', server: '192.0.2.13', status: 'connected', lastActivity: '30 sec ago' }
   ];
 
   const quickCommands = [
@@ -152,11 +152,11 @@ root      12346  0.3  1.8  34567  7234 pts/1    S+   10:31   0:01 python3 sers3.
     } else if (lowerCmd.includes('cat') && lowerCmd.includes('stats')) {
       return `{"goods":1247,"bads":8934,"errors":156,"offline":89,"ipblock":23,"processed":10449,"rps":2847.3,"timestamp":${Date.now()}}`;
     } else if (lowerCmd.includes('tail') && lowerCmd.includes('valid')) {
-      return `200.113.15.26:4443;guest;guest
-195.150.192.5:443;admin;password123
+      return `example.com:4443;guest;guest
+example.org:443;admin;password123
 88.117.174.186:443;test;test123
-216.229.124.44:443;user;pass
-72.26.131.86:443;demo;demo`;
+example.net:443;user;pass
+example.net:443;demo;demo`;
     } else if (lowerCmd.includes('uname')) {
       return `Linux vpn-worker 5.4.0-74-generic #83-Ubuntu SMP Sat May 8 02:35:39 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
               total        used        free      shared  buff/cache   available

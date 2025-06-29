@@ -24,9 +24,9 @@ import toast from 'react-hot-toast';
 // ✅ РЕАЛЬНЫЕ ВОРКЕРЫ ДЛЯ КАЛИБРОВКИ
 const realServers = [
   {
-    ip: '194.0.234.203',
+    ip: '192.0.2.10',
     username: 'root',
-    password: '1jt5a7p4FZTM0vY',
+    password: 'examplePassword1',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -42,9 +42,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '77.90.185.26',
+    ip: '192.0.2.11',
     username: 'root',
-    password: '2dF9bS7UV6wvHy3',
+    password: 'examplePassword2',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -60,9 +60,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '185.93.89.206',
+    ip: '192.0.2.12',
     username: 'root',
-    password: 'G6t8NnHgI4i0x7K',
+    password: 'examplePassword3',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -78,9 +78,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '185.93.89.35',
+    ip: '192.0.2.13',
     username: 'root',
-    password: '2asI5uvS047AqHM',
+    password: 'examplePassword4',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
