@@ -3,8 +3,8 @@ node_modules/
 
 # Сборка
 # Build output directory (compiled frontend assets)
-dist/
 
+/dist/
 # Конфигурация среды
 .env
 
@@ -14,3 +14,4 @@ stats_*.json
 # Файлы с чувствительными данными
 credentials*.txt
 gener.txt
+
