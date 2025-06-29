@@ -9,7 +9,8 @@ import {
   Server,
   BarChart3,
   Terminal,
-  Wifi
+  Wifi,
+  Database
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -27,6 +28,7 @@ const menuItems = [
   { id: 'processing', label: 'Processing', icon: Activity },
   { id: 'results', label: 'Results', icon: Download },
   { id: 'monitoring', label: 'Monitoring', icon: Activity },
+  { id: 'database', label: 'Database', icon: Database },
   { id: 'terminal', label: 'Terminal', icon: Terminal },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];

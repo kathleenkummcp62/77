@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import toast from 'react-hot-toast';
 
 interface WebSocketMessage {
   type: string;
@@ -51,6 +52,12 @@ export function useWebSocket(url: string) {
 
   const connect = useCallback(() => {
     try {
+      // Проверяем, что URL валидный
+      if (!url || !url.startsWith('ws')) {
+        setError('Invalid WebSocket URL');
+        return;
+      }
+
       wsRef.current = new WebSocket(url);
       
       wsRef.current.onopen = () => {
@@ -58,6 +65,7 @@ export function useWebSocket(url: string) {
         setError(null);
         reconnectAttempts.current = 0;
         console.log('🔌 WebSocket connected');
+        toast.success('Connected to server');
       };
       
       wsRef.current.onmessage = (event) => {
@@ -66,6 +74,7 @@ export function useWebSocket(url: string) {
           handleMessage(message);
         } catch (err) {
           console.error('Failed to parse WebSocket message:', err);
+          toast.error('Invalid message received from server');
         }
       };
       
@@ -73,15 +82,21 @@ export function useWebSocket(url: string) {
         setIsConnected(false);
         console.log('🔌 WebSocket disconnected:', event.code, event.reason);
         
+        // Показываем уведомление только если это не первое подключение
+        if (reconnectAttempts.current > 0) {
+          toast.error('Connection lost. Attempting to reconnect...');
+        }
+        
         // Auto-reconnect with exponential backoff
         if (reconnectAttempts.current < maxReconnectAttempts) {
-          const delay = Math.pow(2, reconnectAttempts.current) * 1000;
+          const delay = Math.min(Math.pow(2, reconnectAttempts.current) * 1000, 30000);
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttempts.current++;
             connect();
           }, delay);
         } else {
           setError('Failed to reconnect after multiple attempts');
+          toast.error('Connection failed. Please check server status.');
         }
       };
       
@@ -93,42 +108,56 @@ export function useWebSocket(url: string) {
     } catch (err) {
       setError('Failed to create WebSocket connection');
       console.error('🔌 WebSocket creation error:', err);
+      toast.error('Failed to connect to server');
     }
   }, [url]);
 
   const handleMessage = (message: WebSocketMessage) => {
-    switch (message.type) {
-      case 'initial_stats':
-      case 'stats_update':
-        setStats(message.data as StatsData);
-        break;
-        
-      case 'server_info':
-        setServers(message.data as ServerInfo[]);
-        break;
-        
-      case 'logs_data':
-        setLogs(message.data as string[]);
-        break;
-        
-      case 'scanner_started':
-        console.log('🚀 Scanner started:', message.data);
-        break;
-        
-      case 'scanner_stopped':
-        console.log('🛑 Scanner stopped:', message.data);
-        break;
-        
-      case 'scanner_command':
-        console.log('📡 Scanner command:', message.data);
-        break;
-        
-      case 'config_update':
-        console.log('⚙️ Config updated:', message.data);
-        break;
-        
-      default:
-        console.log('📨 Unknown message type:', message.type, message.data);
+    try {
+      switch (message.type) {
+        case 'initial_stats':
+        case 'stats_update':
+          setStats(message.data as StatsData);
+          break;
+          
+        case 'server_info':
+          setServers(message.data as ServerInfo[]);
+          break;
+          
+        case 'logs_data':
+          setLogs(message.data as string[]);
+          break;
+          
+        case 'scanner_started':
+          console.log('🚀 Scanner started:', message.data);
+          toast.success(`Scanner started: ${message.data.vpn_type}`);
+          break;
+          
+        case 'scanner_stopped':
+          console.log('🛑 Scanner stopped:', message.data);
+          toast.success(`Scanner stopped: ${message.data.vpn_type}`);
+          break;
+          
+        case 'scanner_command':
+          console.log('📡 Scanner command:', message.data);
+          break;
+          
+        case 'config_update':
+          console.log('⚙️ Config updated:', message.data);
+          toast.success('Configuration updated');
+          break;
+          
+        case 'error':
+          console.error('Server error:', message.data);
+          toast.error(message.data.message || 'Server error occurred');
+          break;
+          
+        default:
+          console.log('📨 Unknown message type:', message.type, message.data);
+      }
+    } catch (err) {
+      console.error('Error handling message:', err);
+      toast.error('Error processing server message');
     }
   };
 
@@ -147,23 +176,29 @@ export function useWebSocket(url: string) {
 
   const sendMessage = useCallback((type: string, data: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      const message: WebSocketMessage = {
-        type,
-        data,
-        timestamp: Date.now()
-      };
-      wsRef.current.send(JSON.stringify(message));
+      try {
+        const message: WebSocketMessage = {
+          type,
+          data,
+          timestamp: Date.now()
+        };
+        wsRef.current.send(JSON.stringify(message));
+      } catch (err) {
+        console.error('Failed to send message:', err);
+        toast.error('Failed to send command to server');
+      }
     } else {
       console.warn('🔌 WebSocket not connected, cannot send message');
+      toast.error('Not connected to server');
     }
   }, []);
 
   const startScanner = useCallback((vpnType: string) => {
-    sendMessage('start_scanner', vpnType);
+    sendMessage('start_scanner', { vpn_type: vpnType });
   }, [sendMessage]);
 
   const stopScanner = useCallback((vpnType: string) => {
-    sendMessage('stop_scanner', vpnType);
+    sendMessage('stop_scanner', { vpn_type: vpnType });
   }, [sendMessage]);
 
   const getLogs = useCallback(() => {

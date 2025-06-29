@@ -20,7 +20,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export function Dashboard() {
   const { isConnected, stats, servers, error } = useWebSocket('ws://localhost:8080/ws');
 
-  // Mock chart data - in real implementation, this would come from WebSocket
+  // Mock chart data - в реальной реализации это будет приходить из WebSocket
   const mockData = [
     { time: '00:00', goods: stats?.goods || 120, bads: stats?.bads || 45, errors: stats?.errors || 12 },
     { time: '01:00', goods: (stats?.goods || 120) + 60, bads: (stats?.bads || 45) + 22, errors: (stats?.errors || 12) + 3 },

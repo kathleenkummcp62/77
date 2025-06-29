@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { Sidebar } from './components/layout/Sidebar';
 import { Dashboard } from './components/tabs/Dashboard';
 import { VPNTypes } from './components/tabs/VPNTypes';
@@ -8,6 +9,7 @@ import { Upload } from './components/tabs/Upload';
 import { Processing } from './components/tabs/Processing';
 import { Results } from './components/tabs/Results';
 import { Monitoring } from './components/tabs/Monitoring';
+import { Database } from './components/tabs/Database';
 import { Terminal } from './components/tabs/Terminal';
 import { Settings } from './components/tabs/Settings';
 
@@ -32,6 +34,8 @@ function App() {
         return <Results />;
       case 'monitoring':
         return <Monitoring />;
+      case 'database':
+        return <Database />;
       case 'terminal':
         return <Terminal />;
       case 'settings':
@@ -49,6 +53,30 @@ function App() {
           {renderContent()}
         </div>
       </main>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#22c55e',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   );
 }
