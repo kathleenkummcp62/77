@@ -418,4 +418,7 @@ func TestLogEventAndLogsEndpoint(t *testing.T) {
 	if out.Data[0]["message"] != "hello" {
 		t.Fatalf("unexpected message: %v", out.Data[0]["message"])
 	}
+	if out.Data[0]["timestamp"] == "" {
+		t.Fatalf("timestamp missing in log entry")
+	}
 }

@@ -38,11 +38,18 @@ interface ServerInfo {
   current_task: string;
 }
 
+interface LogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  source: string;
+}
+
 export function useWebSocket(url?: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [servers, setServers] = useState<ServerInfo[]>([]);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   
   const wsRef = useRef<WebSocket | null>(null);
@@ -161,7 +168,7 @@ export function useWebSocket(url?: string) {
           break;
           
         case 'logs_data':
-          setLogs(message.data as string[]);
+          setLogs(message.data as LogEntry[]);
           break;
           
         case 'scanner_started':

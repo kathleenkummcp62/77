@@ -1,14 +1,26 @@
 package api
 
-import "log"
+import (
+	"log"
+	"time"
+)
 
-// logEvent inserts a log entry into the database if available. On error it logs
-// to the standard logger.
+// logEvent inserts a log entry into the database or falls back to the
+// InsertLog helper when the database is unavailable. A timestamp is
+// explicitly stored with each entry.
 func (s *Server) logEvent(level, msg, src string) {
-	if s == nil || s.db == nil {
+	if s == nil {
 		return
 	}
-	if _, err := s.db.Exec(`INSERT INTO logs(level, message, source) VALUES ($1,$2,$3)`, level, msg, src); err != nil {
-		log.Printf("log event error: %v", err)
+
+	ts := time.Now().UTC()
+	if s.db != nil {
+		if _, err := s.db.Exec(`INSERT INTO logs(timestamp, level, message, source) VALUES($1,$2,$3,$4)`, ts, level, msg, src); err != nil {
+			log.Printf("log event error: %v", err)
+		}
+		return
 	}
+
+	// Fallback to file logging when no database is configured.
+	s.InsertLog(level, msg, src)
 }
