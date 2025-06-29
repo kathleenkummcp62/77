@@ -172,15 +172,22 @@ When the server starts it calls `InitSchema`, creating all tables if
 they don't already exist. The `db.Connect` helper automatically
 invokes this function so the schema is created even when an embedded
 database is launched. This means the application works with an
-empty database out of the box.
+empty database out of the box. **The embedded database therefore
+initializes these tables automatically whenever you start the
+application.**
 
 ### **tasks**
 
-Tracks the progress of each scanning job. Columns include:
+Tracks the progress of each scanning job. Each row stores both the
+configuration used for a scan and runtime metrics. Columns include:
 
 - `id` – primary key
-- `vpn_type` or `vendor_url_id` – the VPN type or linked vendor URL
-- `server` – target server address
+- `vendor` – VPN product name
+- `url` – target gateway URL
+- `login` – username for authentication
+- `password` – password for authentication
+- `proxy` – optional proxy address
+- `server` – resolved server address
 - `status` – current job state
 - `progress` – credentials processed so far
 - `processed` – total credentials count
@@ -211,6 +218,86 @@ credentials:
 - `PUT  /api/credentials/{id}` – update a credential entry
 - `DELETE /api/credentials/{id}` – remove a credential entry
 - `POST /api/credentials/bulk_delete` – delete multiple credential entries
+
+#### Task API examples
+
+Create a task
+
+```http
+POST /api/tasks
+```
+```json
+{
+  "vendor": "fortinet",
+  "url": "https://vpn.example.com",
+  "login": "admin",
+  "password": "pass",
+  "proxy": "http://10.0.0.1:8080"
+}
+```
+
+Response
+
+```json
+{
+  "success": true,
+  "data": { "id": 1 }
+}
+```
+
+List tasks
+
+```http
+GET /api/tasks
+```
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "vendor": "fortinet",
+      "url": "https://vpn.example.com",
+      "login": "admin",
+      "proxy": "http://10.0.0.1:8080",
+      "status": "queued",
+      "progress": 0,
+      "processed": 0,
+      "goods": 0,
+      "bads": 0,
+      "errors": 0,
+      "rps": 0,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+Update a task
+
+```http
+PUT /api/tasks/1
+```
+```json
+{
+  "status": "running"
+}
+```
+
+Bulk deletion
+
+```http
+POST /api/tasks/bulk_delete
+```
+```json
+{ "ids": [1, 2, 3] }
+```
+
+Response
+
+```json
+{ "success": true }
+```
 
 ## 🔧 **Advanced Features**
 
