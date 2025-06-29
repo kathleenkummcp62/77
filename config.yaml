@@ -1,0 +1,21 @@
+input_file: "credentials.txt"
+output_file: "valid.txt"
+vpn_type: "fortinet"
+threads: 2000
+timeout: 5s
+max_retries: 2
+rate_limit: 0
+verbose: false
+
+# Connection settings for maximum performance
+max_idle_conns: 100
+max_conns_per_host: 50
+idle_conn_timeout: 30s
+tls_handshake_timeout: 10s
+
+# Proxy settings (optional)
+proxy_enabled: false
+proxy_type: "socks5"
+proxy_addr: "127.0.0.1:1080"
+proxy_user: ""
+proxy_pass: ""
