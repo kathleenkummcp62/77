@@ -165,9 +165,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(rec, r)
 		msg := fmt.Sprintf("%s %s %d %v", r.Method, r.URL.Path, rec.status, time.Since(start).Truncate(time.Millisecond))
-		if err := s.db.InsertLog("info", msg, "api"); err != nil {
-			log.Printf("request log error: %v", err)
-		}
+		s.InsertLog("info", msg, "api")
 	})
 }
 
