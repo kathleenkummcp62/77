@@ -26,7 +26,8 @@
     }
   },
   "ignorePatterns": [
-    "dist/"
+    "dist/",
+    "node_modules/"
   ],
   "rules": {
     "react-refresh/only-export-components": "off",
