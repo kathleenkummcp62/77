@@ -2,7 +2,7 @@
 node_modules/
 
 # Сборка
-# Distribution directory
+# Build output directory
 dist/
 
 # Конфигурация среды
