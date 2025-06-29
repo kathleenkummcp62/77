@@ -159,6 +159,17 @@ npm run build
 
 This command compiles the React UI into the `dist/` directory.
 
+### Dashboard Settings Categories
+
+The settings page in the dashboard groups options into the following categories:
+
+- **Performance**
+- **Security**
+- **Notifications**
+- **Display**
+- **Servers** – manage SSH connection behaviour
+- **Advanced** – debug logging and experimental features
+
 ## 📊 **Performance Tuning**
 
 ### **For Maximum RPS:**
