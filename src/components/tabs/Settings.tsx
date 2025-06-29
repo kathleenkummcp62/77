@@ -535,6 +535,7 @@ export function Settings() {
           </label>
         </div>
       </div>
+      <p className="text-sm text-gray-500 ml-0.5">More server management options will be available soon.</p>
     </div>
   );
 
@@ -573,6 +574,7 @@ export function Settings() {
           </label>
         </div>
       </div>
+      <p className="text-sm text-gray-500 ml-0.5">Additional advanced options are under development.</p>
     </div>
   );
 
