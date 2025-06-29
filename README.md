@@ -242,3 +242,7 @@ These scripts rely on the [`paramiko`](https://www.paramiko.org/) library for SS
 ---
 
 **⚡ Built for maximum performance with real-world validation!**
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
