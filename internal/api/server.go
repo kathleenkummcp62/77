@@ -60,12 +60,13 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 		} else {
 			s.db = dbConn
 		}
-	}
-
-	if s.db != nil {
+	} else {
 		if err := s.initDB(); err != nil {
 			log.Printf("failed to init db: %v", err)
 		}
+	}
+
+	if s.db != nil {
 		s.detectSchema()
 	}
 
