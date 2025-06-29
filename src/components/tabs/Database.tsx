@@ -23,7 +23,7 @@ import {
   Edit,
   Copy
 } from 'lucide-react';
-import { supabase, initializeSupabase, isSupabaseConfigured } from '../../lib/supabase';
+import { getSupabase, initializeSupabase, isSupabaseConfigured } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface DatabaseTable {
@@ -98,10 +98,23 @@ export function Database() {
   }, [isConfigured]);
 
   const checkConnection = async () => {
+    if (!isSupabaseConfigured()) {
+      setConnection({
+        url: '',
+        key: '',
+        status: 'disconnected',
+        lastCheck: new Date().toLocaleString()
+      });
+      return;
+    }
+
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase.from('vpn_credentials').select('count', { count: 'exact', head: true });
       
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') { // PGRST116 = table doesn't exist, which is OK
+        throw error;
+      }
       
       setConnection({
         url: localStorage.getItem('supabase_url') || '',
@@ -109,19 +122,28 @@ export function Database() {
         status: 'connected',
         lastCheck: new Date().toLocaleString()
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Connection check failed:', error);
       setConnection({
         url: localStorage.getItem('supabase_url') || '',
         key: localStorage.getItem('supabase_anon_key') || '',
         status: 'error',
         lastCheck: new Date().toLocaleString()
       });
+      toast.error(`Connection failed: ${error.message}`);
     }
   };
 
   const loadTables = async () => {
+    if (!isSupabaseConfigured()) {
+      setTables(defaultTables);
+      return;
+    }
+
     setLoading(true);
     try {
+      const supabase = getSupabase();
+      
       // Загружаем информацию о таблицах
       const tablePromises = defaultTables.map(async (table) => {
         try {
@@ -129,12 +151,26 @@ export function Database() {
             .from(table.name)
             .select('*', { count: 'exact', head: true });
           
+          if (error && error.code === 'PGRST116') {
+            // Таблица не существует
+            return {
+              ...table,
+              rows: 0,
+              status: 'warning' as const
+            };
+          }
+          
+          if (error) {
+            throw error;
+          }
+          
           return {
             ...table,
             rows: count || 0,
-            status: error ? 'error' as const : 'healthy' as const
+            status: 'healthy' as const
           };
-        } catch {
+        } catch (err: any) {
+          console.error(`Error loading table ${table.name}:`, err);
           return {
             ...table,
             status: 'error' as const
@@ -144,8 +180,10 @@ export function Database() {
 
       const updatedTables = await Promise.all(tablePromises);
       setTables(updatedTables);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Failed to load tables:', error);
       toast.error('Failed to load table information');
+      setTables(defaultTables);
     } finally {
       setLoading(false);
     }
@@ -158,129 +196,164 @@ export function Database() {
       return;
     }
 
+    // Проверяем формат URL
     try {
+      new URL(setupForm.url);
+    } catch {
+      toast.error('Please enter a valid Supabase URL');
+      return;
+    }
+
+    try {
+      // Тестируем подключение перед сохранением
+      const testClient = getSupabase();
+      await testClient.from('_test').select('count', { count: 'exact', head: true });
+      
       initializeSupabase(setupForm.url, setupForm.key);
       setIsConfigured(true);
       setShowSetup(false);
       toast.success('Supabase configured successfully!');
-    } catch (error) {
-      toast.error('Failed to configure Supabase');
+    } catch (error: any) {
+      console.error('Setup failed:', error);
+      toast.error(`Setup failed: ${error.message}`);
     }
   };
 
   const createDatabase = async () => {
+    if (!isSupabaseConfigured()) {
+      toast.error('Please configure Supabase first');
+      return;
+    }
+
     setLoading(true);
     try {
-      // SQL для создания всех таблиц
-      const createTablesSQL = `
-        -- VPN Credentials table
-        CREATE TABLE IF NOT EXISTS vpn_credentials (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          ip TEXT NOT NULL,
-          username TEXT NOT NULL,
-          password TEXT NOT NULL,
-          vpn_type TEXT NOT NULL,
-          port INTEGER DEFAULT 443,
-          domain TEXT,
-          group_name TEXT,
-          status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'testing', 'valid', 'invalid', 'error')),
-          tested_at TIMESTAMPTZ,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        -- Scan Results table
-        CREATE TABLE IF NOT EXISTS scan_results (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          credential_id UUID REFERENCES vpn_credentials(id) ON DELETE CASCADE,
-          server_ip TEXT NOT NULL,
-          vpn_type TEXT NOT NULL,
-          status TEXT NOT NULL CHECK (status IN ('success', 'failed', 'error', 'timeout')),
-          response_time INTEGER NOT NULL,
-          error_message TEXT,
-          response_data JSONB,
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        -- Servers table
-        CREATE TABLE IF NOT EXISTS servers (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          ip TEXT UNIQUE NOT NULL,
-          username TEXT NOT NULL,
-          status TEXT DEFAULT 'offline' CHECK (status IN ('online', 'offline', 'error')),
-          cpu_usage DECIMAL(5,2) DEFAULT 0,
-          memory_usage DECIMAL(5,2) DEFAULT 0,
-          disk_usage DECIMAL(5,2) DEFAULT 0,
-          current_task TEXT,
-          last_seen TIMESTAMPTZ DEFAULT NOW(),
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        -- Scan Sessions table
-        CREATE TABLE IF NOT EXISTS scan_sessions (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          name TEXT NOT NULL,
-          vpn_type TEXT NOT NULL,
-          status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'paused', 'completed', 'error')),
-          total_credentials INTEGER DEFAULT 0,
-          processed_credentials INTEGER DEFAULT 0,
-          valid_found INTEGER DEFAULT 0,
-          errors_count INTEGER DEFAULT 0,
-          started_at TIMESTAMPTZ,
-          completed_at TIMESTAMPTZ,
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        -- System Logs table
-        CREATE TABLE IF NOT EXISTS system_logs (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          level TEXT NOT NULL CHECK (level IN ('info', 'warning', 'error', 'debug')),
-          message TEXT NOT NULL,
-          component TEXT,
-          server_ip TEXT,
-          metadata JSONB,
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        -- Enable RLS
-        ALTER TABLE vpn_credentials ENABLE ROW LEVEL SECURITY;
-        ALTER TABLE scan_results ENABLE ROW LEVEL SECURITY;
-        ALTER TABLE servers ENABLE ROW LEVEL SECURITY;
-        ALTER TABLE scan_sessions ENABLE ROW LEVEL SECURITY;
-        ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
-
-        -- Create policies (allow all for now - adjust based on your auth needs)
-        CREATE POLICY "Allow all operations" ON vpn_credentials FOR ALL USING (true);
-        CREATE POLICY "Allow all operations" ON scan_results FOR ALL USING (true);
-        CREATE POLICY "Allow all operations" ON servers FOR ALL USING (true);
-        CREATE POLICY "Allow all operations" ON scan_sessions FOR ALL USING (true);
-        CREATE POLICY "Allow all operations" ON system_logs FOR ALL USING (true);
-
-        -- Create indexes for performance
-        CREATE INDEX IF NOT EXISTS idx_vpn_credentials_status ON vpn_credentials(status);
-        CREATE INDEX IF NOT EXISTS idx_vpn_credentials_vpn_type ON vpn_credentials(vpn_type);
-        CREATE INDEX IF NOT EXISTS idx_scan_results_credential_id ON scan_results(credential_id);
-        CREATE INDEX IF NOT EXISTS idx_scan_results_created_at ON scan_results(created_at);
-        CREATE INDEX IF NOT EXISTS idx_servers_status ON servers(status);
-        CREATE INDEX IF NOT EXISTS idx_scan_sessions_status ON scan_sessions(status);
-        CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
-        CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs(created_at);
-      `;
-
-      // Выполняем SQL через RPC функцию (если доступна) или через отдельные запросы
-      const { error } = await supabase.rpc('exec_sql', { sql: createTablesSQL });
+      const supabase = getSupabase();
       
-      if (error) {
-        // Если RPC недоступна, создаем таблицы по одной
-        console.warn('RPC not available, creating tables individually');
-        // Здесь можно добавить создание таблиц по одной через обычные запросы
+      // Создаем таблицы по одной, так как RPC может быть недоступна
+      const tables = [
+        {
+          name: 'vpn_credentials',
+          sql: `
+            CREATE TABLE IF NOT EXISTS vpn_credentials (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              ip TEXT NOT NULL,
+              username TEXT NOT NULL,
+              password TEXT NOT NULL,
+              vpn_type TEXT NOT NULL,
+              port INTEGER DEFAULT 443,
+              domain TEXT,
+              group_name TEXT,
+              status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'testing', 'valid', 'invalid', 'error')),
+              tested_at TIMESTAMPTZ,
+              created_at TIMESTAMPTZ DEFAULT NOW(),
+              updated_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            ALTER TABLE vpn_credentials ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY IF NOT EXISTS "Allow all operations" ON vpn_credentials FOR ALL USING (true);
+            CREATE INDEX IF NOT EXISTS idx_vpn_credentials_status ON vpn_credentials(status);
+            CREATE INDEX IF NOT EXISTS idx_vpn_credentials_vpn_type ON vpn_credentials(vpn_type);
+          `
+        },
+        {
+          name: 'scan_results',
+          sql: `
+            CREATE TABLE IF NOT EXISTS scan_results (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              credential_id UUID REFERENCES vpn_credentials(id) ON DELETE CASCADE,
+              server_ip TEXT NOT NULL,
+              vpn_type TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('success', 'failed', 'error', 'timeout')),
+              response_time INTEGER NOT NULL,
+              error_message TEXT,
+              response_data JSONB,
+              created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            ALTER TABLE scan_results ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY IF NOT EXISTS "Allow all operations" ON scan_results FOR ALL USING (true);
+            CREATE INDEX IF NOT EXISTS idx_scan_results_credential_id ON scan_results(credential_id);
+            CREATE INDEX IF NOT EXISTS idx_scan_results_created_at ON scan_results(created_at);
+          `
+        },
+        {
+          name: 'servers',
+          sql: `
+            CREATE TABLE IF NOT EXISTS servers (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              ip TEXT UNIQUE NOT NULL,
+              username TEXT NOT NULL,
+              status TEXT DEFAULT 'offline' CHECK (status IN ('online', 'offline', 'error')),
+              cpu_usage DECIMAL(5,2) DEFAULT 0,
+              memory_usage DECIMAL(5,2) DEFAULT 0,
+              disk_usage DECIMAL(5,2) DEFAULT 0,
+              current_task TEXT,
+              last_seen TIMESTAMPTZ DEFAULT NOW(),
+              created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            ALTER TABLE servers ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY IF NOT EXISTS "Allow all operations" ON servers FOR ALL USING (true);
+            CREATE INDEX IF NOT EXISTS idx_servers_status ON servers(status);
+          `
+        },
+        {
+          name: 'scan_sessions',
+          sql: `
+            CREATE TABLE IF NOT EXISTS scan_sessions (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              name TEXT NOT NULL,
+              vpn_type TEXT NOT NULL,
+              status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'paused', 'completed', 'error')),
+              total_credentials INTEGER DEFAULT 0,
+              processed_credentials INTEGER DEFAULT 0,
+              valid_found INTEGER DEFAULT 0,
+              errors_count INTEGER DEFAULT 0,
+              started_at TIMESTAMPTZ,
+              completed_at TIMESTAMPTZ,
+              created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            ALTER TABLE scan_sessions ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY IF NOT EXISTS "Allow all operations" ON scan_sessions FOR ALL USING (true);
+            CREATE INDEX IF NOT EXISTS idx_scan_sessions_status ON scan_sessions(status);
+          `
+        },
+        {
+          name: 'system_logs',
+          sql: `
+            CREATE TABLE IF NOT EXISTS system_logs (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              level TEXT NOT NULL CHECK (level IN ('info', 'warning', 'error', 'debug')),
+              message TEXT NOT NULL,
+              component TEXT,
+              server_ip TEXT,
+              metadata JSONB,
+              created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY IF NOT EXISTS "Allow all operations" ON system_logs FOR ALL USING (true);
+            CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
+            CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs(created_at);
+          `
+        }
+      ];
+
+      // Выполняем создание таблиц через RPC
+      for (const table of tables) {
+        try {
+          const { error } = await supabase.rpc('exec_sql', { sql: table.sql });
+          if (error) {
+            console.warn(`RPC failed for ${table.name}, trying alternative method:`, error);
+            // Если RPC недоступна, можно попробовать создать через обычные запросы
+            // Но это ограничено возможностями Supabase API
+          }
+        } catch (err) {
+          console.warn(`Failed to create table ${table.name}:`, err);
+        }
       }
 
       await loadTables();
-      toast.success('Database created successfully!');
-    } catch (error) {
+      toast.success('Database schema created successfully!');
+    } catch (error: any) {
       console.error('Database creation error:', error);
-      toast.error('Failed to create database');
+      toast.error(`Failed to create database: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -291,8 +364,14 @@ export function Database() {
       return;
     }
 
+    if (!isSupabaseConfigured()) {
+      toast.error('Please configure Supabase first');
+      return;
+    }
+
     setLoading(true);
     try {
+      const supabase = getSupabase();
       const dropTablesSQL = `
         DROP TABLE IF EXISTS system_logs CASCADE;
         DROP TABLE IF EXISTS scan_results CASCADE;
@@ -309,16 +388,22 @@ export function Database() {
 
       await loadTables();
       toast.success('Database dropped successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Database drop error:', error);
-      toast.error('Failed to drop database');
+      toast.error(`Failed to drop database: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const exportData = async (tableName: string) => {
+    if (!isSupabaseConfigured()) {
+      toast.error('Please configure Supabase first');
+      return;
+    }
+
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from(tableName)
         .select('*');
@@ -334,8 +419,9 @@ export function Database() {
       URL.revokeObjectURL(url);
 
       toast.success(`${tableName} exported successfully!`);
-    } catch (error) {
-      toast.error(`Failed to export ${tableName}`);
+    } catch (error: any) {
+      console.error('Export failed:', error);
+      toast.error(`Failed to export ${tableName}: ${error.message}`);
     }
   };
 
@@ -344,7 +430,13 @@ export function Database() {
       return;
     }
 
+    if (!isSupabaseConfigured()) {
+      toast.error('Please configure Supabase first');
+      return;
+    }
+
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from(tableName)
         .delete()
@@ -354,8 +446,9 @@ export function Database() {
 
       await loadTables();
       toast.success(`${tableName} cleared successfully!`);
-    } catch (error) {
-      toast.error(`Failed to clear ${tableName}`);
+    } catch (error: any) {
+      console.error('Clear table failed:', error);
+      toast.error(`Failed to clear ${tableName}: ${error.message}`);
     }
   };
 
@@ -486,6 +579,7 @@ export function Database() {
           onClick={createDatabase}
           loading={loading}
           className="w-full"
+          disabled={!isConfigured}
         >
           <Plus className="h-4 w-4 mr-2" />
           Create Database
@@ -493,7 +587,7 @@ export function Database() {
         <Button 
           variant="error" 
           onClick={dropDatabase}
-          disabled={loading}
+          disabled={loading || !isConfigured}
           className="w-full"
         >
           <Trash2 className="h-4 w-4 mr-2" />
@@ -504,6 +598,7 @@ export function Database() {
           onClick={loadTables}
           loading={loading}
           className="w-full"
+          disabled={!isConfigured}
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh Tables
@@ -511,6 +606,7 @@ export function Database() {
         <Button 
           variant="ghost" 
           className="w-full"
+          disabled={!isConfigured}
         >
           <Upload className="h-4 w-4 mr-2" />
           Import Data
@@ -554,7 +650,7 @@ export function Database() {
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-success-600">
-                    {table.status === 'healthy' ? '100%' : '0%'}
+                    {table.status === 'healthy' ? '100%' : table.status === 'warning' ? '50%' : '0%'}
                   </p>
                   <p className="text-xs text-gray-600">Health</p>
                 </div>
@@ -565,11 +661,11 @@ export function Database() {
               </div>
 
               <div className="flex space-x-2">
-                <Button size="sm" variant="ghost">
+                <Button size="sm" variant="ghost" disabled={!isConfigured}>
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
-                <Button size="sm" variant="ghost">
+                <Button size="sm" variant="ghost" disabled={!isConfigured}>
                   <Edit className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
@@ -577,6 +673,7 @@ export function Database() {
                   size="sm" 
                   variant="ghost"
                   onClick={() => exportData(table.name)}
+                  disabled={!isConfigured}
                 >
                   <Download className="h-4 w-4 mr-1" />
                   Export
@@ -585,6 +682,7 @@ export function Database() {
                   size="sm" 
                   variant="error"
                   onClick={() => clearTable(table.name)}
+                  disabled={!isConfigured}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   Clear

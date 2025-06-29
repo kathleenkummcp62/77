@@ -1,20 +1,60 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Эти переменные будут установлены через UI
-const supabaseUrl = localStorage.getItem('supabase_url') || '';
-const supabaseKey = localStorage.getItem('supabase_anon_key') || '';
+// Проверяем наличие настроек
+const getSupabaseConfig = () => {
+  const url = localStorage.getItem('supabase_url');
+  const key = localStorage.getItem('supabase_anon_key');
+  return { url, key };
+};
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Создаем клиент только если есть настройки
+let supabaseClient: SupabaseClient | null = null;
+
+const initClient = () => {
+  const { url, key } = getSupabaseConfig();
+  if (url && key) {
+    supabaseClient = createClient(url, key);
+  }
+  return supabaseClient;
+};
+
+// Инициализируем клиент
+initClient();
+
+// Экспортируем геттер вместо прямого клиента
+export const getSupabase = (): SupabaseClient => {
+  if (!supabaseClient) {
+    const { url, key } = getSupabaseConfig();
+    if (!url || !key) {
+      throw new Error('Supabase not configured. Please set up your credentials first.');
+    }
+    supabaseClient = createClient(url, key);
+  }
+  return supabaseClient;
+};
+
+// Для обратной совместимости
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(target, prop) {
+    const client = getSupabase();
+    return client[prop as keyof SupabaseClient];
+  }
+});
 
 export const initializeSupabase = (url: string, key: string) => {
   localStorage.setItem('supabase_url', url);
   localStorage.setItem('supabase_anon_key', key);
+  
+  // Пересоздаем клиент с новыми настройками
+  supabaseClient = createClient(url, key);
+  
   // Перезагружаем страницу для применения новых настроек
   window.location.reload();
 };
 
 export const isSupabaseConfigured = () => {
-  return !!(localStorage.getItem('supabase_url') && localStorage.getItem('supabase_anon_key'));
+  const { url, key } = getSupabaseConfig();
+  return !!(url && key);
 };
 
 // Database schemas
