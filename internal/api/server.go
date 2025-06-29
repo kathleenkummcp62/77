@@ -652,6 +652,8 @@ func (s *Server) handleProxiesBulkDelete(w http.ResponseWriter, r *http.Request)
 	s.sendJSON(w, APIResponse{Success: true})
 }
 
+// handleTasks processes GET and POST requests for the /api/tasks endpoint.
+// It mirrors the behaviour of handleCredentials but targets the tasks table.
 func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
@@ -771,6 +773,7 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleTask updates or deletes a single task entry by ID.
 func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
@@ -836,6 +839,7 @@ func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleTasksBulkDelete removes multiple tasks at once using their IDs.
 func (s *Server) handleTasksBulkDelete(w http.ResponseWriter, r *http.Request) {
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
