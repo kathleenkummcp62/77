@@ -92,6 +92,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to database: %v", err)
 	}
+	// Ensure the database connection is closed on shutdown.
 	defer database.Close()
 
 	// Validate input file exists
@@ -151,6 +152,9 @@ func main() {
 
 	// Force exit after 5 seconds
 	time.Sleep(5 * time.Second)
+	// Close the database connection before terminating to avoid
+	// leaking resources since os.Exit bypasses deferred calls.
+	database.Close()
 	os.Exit(0)
 }
 
