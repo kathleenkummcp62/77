@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"vpn-bruteforce-client/internal/aggregator"
 	"vpn-bruteforce-client/internal/stats"
 )
 
@@ -206,69 +207,18 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 }
 
 func (s *Server) getServerInfo() []ServerInfo {
-	// Mock server data - in real implementation, this would come from aggregator
-	return []ServerInfo{
-		{
-			IP:        "194.0.234.203",
-			Status:    "online",
-			Uptime:    "12h 34m",
-			CPU:       45,
-			Memory:    67,
-			Disk:      23,
-			Speed:     "2.1k/s",
-			Processed: 15420,
-			Goods:     1927,
-			Bads:      12893,
-			Errors:    600,
-			Progress:  78,
-			Task:      "Processing Fortinet VPN",
-		},
-		{
-			IP:        "77.90.185.26",
-			Status:    "online",
-			Uptime:    "11h 45m",
-			CPU:       62,
-			Memory:    54,
-			Disk:      31,
-			Speed:     "2.4k/s",
-			Processed: 18950,
-			Goods:     2156,
-			Bads:      15794,
-			Errors:    1000,
-			Progress:  65,
-			Task:      "Processing GlobalProtect",
-		},
-		{
-			IP:        "185.93.89.206",
-			Status:    "online",
-			Uptime:    "13h 12m",
-			CPU:       38,
-			Memory:    71,
-			Disk:      19,
-			Speed:     "1.9k/s",
-			Processed: 12340,
-			Goods:     1876,
-			Bads:      9864,
-			Errors:    600,
-			Progress:  82,
-			Task:      "Processing SonicWall",
-		},
-		{
-			IP:        "185.93.89.35",
-			Status:    "online",
-			Uptime:    "10h 28m",
-			CPU:       71,
-			Memory:    48,
-			Disk:      41,
-			Speed:     "2.7k/s",
-			Processed: 21780,
-			Goods:     1482,
-			Bads:      19298,
-			Errors:    1000,
-			Progress:  91,
-			Task:      "Processing Cisco VPN",
-		},
+	aggr := aggregator.New(".")
+	infos, err := aggr.GetServerInfo()
+	if err != nil {
+		log.Printf("aggregator error: %v", err)
+		return nil
 	}
+
+	result := make([]ServerInfo, len(infos))
+	for i, inf := range infos {
+		result[i] = ServerInfo(inf)
+	}
+	return result
 }
 
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
