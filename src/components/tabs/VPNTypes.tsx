@@ -6,7 +6,8 @@ import { Shield, Play, Pause, Settings, Activity, AlertTriangle, CheckCircle, Ey
 import { useWebSocket } from '../../hooks/useWebSocket';
 import toast from 'react-hot-toast';
 
-// ✅ РЕАЛЬНЫЕ VPN ТИПЫ С ВАЛИДНЫМИ CREDENTIALS ДЛЯ КАЛИБРОВКИ
+// Sample VPN types for demonstration only.
+// Never store real credentials in this file.
 const vpnTypes = [
   {
     id: 'fortinet',
