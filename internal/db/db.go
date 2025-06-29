@@ -55,7 +55,12 @@ func Connect(cfg Config) (*DB, error) {
 	db, err := sql.Open("pgx", c.DSN)
 	if err == nil {
 		if err = db.Ping(); err == nil {
-			return &DB{DB: db}, nil
+			d := &DB{DB: db}
+			if err = InitSchema(d); err != nil {
+				d.Close()
+				return nil, err
+			}
+			return d, nil
 		}
 		db.Close()
 	}
@@ -89,7 +94,13 @@ func Connect(cfg Config) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{DB: db, embedded: ep}, nil
+	d := &DB{DB: db, embedded: ep}
+	if err = InitSchema(d); err != nil {
+		d.Close()
+		return nil, err
+	}
+
+	return d, nil
 }
 
 // Close closes the connection and stops embedded Postgres if running.

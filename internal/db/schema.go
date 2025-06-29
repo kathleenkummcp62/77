@@ -2,7 +2,13 @@ package db
 
 // This file contains database schema initialization logic.
 
+// InitSchema exposes the schema initialization logic for external callers.
 func InitSchema(d *DB) error {
+	return initSchema(d)
+}
+
+// initSchema creates all required tables if they do not exist.
+func initSchema(d *DB) error {
 	if d == nil {
 		return nil
 	}
