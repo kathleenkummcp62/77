@@ -18,6 +18,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import TaskManager from './TaskManager';
 
 interface ProcessingTask {
   id: string;
@@ -397,6 +398,7 @@ export function Processing() {
           })}
         </div>
       </Card>
+      <TaskManager />
     </div>
   );
 }
