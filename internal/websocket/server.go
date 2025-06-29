@@ -375,7 +375,7 @@ func (s *Server) getLogs(limit int) ([]map[string]interface{}, error) {
 		return nil, fmt.Errorf("database unavailable")
 	}
 
-	rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT $1`, limit)
+	rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY timestamp DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
