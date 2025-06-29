@@ -38,7 +38,7 @@ func newTestWSPair(t *testing.T, s *Server) (*gw.Conn, *gw.Conn, func()) {
 }
 
 func TestHandleMessageStartScanner(t *testing.T) {
-	s := NewServer(stats.New())
+	s := NewServer(stats.New(), nil)
 	serverConn, clientConn, cleanup := newTestWSPair(t, s)
 	defer cleanup()
 

@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"vpn-bruteforce-client/internal/aggregator"
+	"vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
 )
 
@@ -17,6 +20,7 @@ type Server struct {
 	clientsMux sync.RWMutex
 	upgrader   websocket.Upgrader
 	stats      *stats.Stats
+	db         *db.DB
 	broadcast  chan []byte
 	register   chan *websocket.Conn
 	unregister chan *websocket.Conn
@@ -59,7 +63,7 @@ type ServerInfo struct {
 	Task      string `json:"current_task"`
 }
 
-func NewServer(stats *stats.Stats) *Server {
+func NewServer(stats *stats.Stats, database *db.DB) *Server {
 	return &Server{
 		clients: make(map[*websocket.Conn]bool),
 		upgrader: websocket.Upgrader{
@@ -70,6 +74,7 @@ func NewServer(stats *stats.Stats) *Server {
 			WriteBufferSize: 1024,
 		},
 		stats:      stats,
+		db:         database,
 		broadcast:  make(chan []byte, 256),
 		register:   make(chan *websocket.Conn),
 		unregister: make(chan *websocket.Conn),
@@ -207,7 +212,11 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 }
 
 func (s *Server) getServerInfo() []ServerInfo {
-	aggr := aggregator.New(".")
+	dir := os.Getenv("STATS_DIR")
+	if dir == "" {
+		dir = "."
+	}
+	aggr := aggregator.New(dir)
 	infos, err := aggr.GetServerInfo()
 	if err != nil {
 		log.Printf("aggregator error: %v", err)
@@ -291,13 +300,22 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 		conn.WriteMessage(websocket.TextMessage, data)
 
 	case "get_logs":
-		// Handle log request
-		logs := []string{
-			"[INFO] Scanner started successfully",
-			"[SUCCESS] Found valid credential: 192.0.2.1;user;pass123",
-			"[ERROR] Connection timeout for 192.0.2.2",
-			"[INFO] Processing rate: 2500 req/s",
+		limit := 100
+		if m, ok := msg.Data.(map[string]interface{}); ok {
+			if v, ok := m["limit"].(float64); ok {
+				limit = int(v)
+			}
 		}
+
+		logs, err := s.getLogs(limit)
+		if err != nil {
+			resp := Message{Type: "error", Data: map[string]string{"message": err.Error()}, Timestamp: time.Now().Unix()}
+			if data, err := json.Marshal(resp); err == nil {
+				conn.WriteMessage(websocket.TextMessage, data)
+			}
+			return
+		}
+
 		response := Message{
 			Type:      "logs_data",
 			Data:      logs,
@@ -329,4 +347,59 @@ func (s *Server) BroadcastMessage(msgType string, data interface{}) {
 	default:
 		// Channel full, skip this message
 	}
+}
+
+// getLogs retrieves recent log entries either from the database or from the
+// default log file when the database is unavailable.
+func (s *Server) getLogs(limit int) ([]map[string]interface{}, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
+	if s.db != nil {
+		rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT $1`, limit)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		var logs []map[string]interface{}
+		for rows.Next() {
+			var ts time.Time
+			var level, msg, src string
+			if err := rows.Scan(&ts, &level, &msg, &src); err != nil {
+				continue
+			}
+			logs = append(logs, map[string]interface{}{
+				"timestamp": ts.Format(time.RFC3339),
+				"level":     level,
+				"message":   msg,
+				"source":    src,
+			})
+		}
+		return logs, nil
+	}
+
+	path := os.Getenv("LOG_FILE")
+	if path == "" {
+		path = "scanner.log"
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if limit < len(lines) {
+		lines = lines[len(lines)-limit:]
+	}
+	logs := make([]map[string]interface{}, len(lines))
+	for i, l := range lines {
+		logs[i] = map[string]interface{}{
+			"timestamp": "",
+			"level":     "INFO",
+			"message":   l,
+			"source":    "file",
+		}
+	}
+	return logs, nil
 }
