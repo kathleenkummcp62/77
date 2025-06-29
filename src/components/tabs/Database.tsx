@@ -21,9 +21,10 @@ import {
   BarChart3,
   Eye,
   Edit,
-  Copy
+  Copy,
+  ExternalLink
 } from 'lucide-react';
-import { getSupabase, initializeSupabase, isSupabaseConfigured } from '../../lib/supabase';
+import { getSupabase, getSupabaseSafe, initializeSupabase, isSupabaseConfigured, clearSupabaseConfig } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface DatabaseTable {
@@ -58,35 +59,35 @@ export function Database() {
       rows: 0,
       size: '0 MB',
       description: 'VPN credentials for testing',
-      status: 'healthy'
+      status: 'warning'
     },
     {
       name: 'scan_results',
       rows: 0,
       size: '0 MB',
       description: 'Results of VPN scans',
-      status: 'healthy'
+      status: 'warning'
     },
     {
       name: 'servers',
       rows: 0,
       size: '0 MB',
       description: 'Worker server information',
-      status: 'healthy'
+      status: 'warning'
     },
     {
       name: 'scan_sessions',
       rows: 0,
       size: '0 MB',
       description: 'Scanning session metadata',
-      status: 'healthy'
+      status: 'warning'
     },
     {
       name: 'system_logs',
       rows: 0,
       size: '0 MB',
       description: 'System activity logs',
-      status: 'healthy'
+      status: 'warning'
     }
   ];
 
@@ -94,6 +95,8 @@ export function Database() {
     if (isConfigured) {
       checkConnection();
       loadTables();
+    } else {
+      setTables(defaultTables);
     }
   }, [isConfigured]);
 
@@ -109,24 +112,34 @@ export function Database() {
     }
 
     try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase.from('vpn_credentials').select('count', { count: 'exact', head: true });
+      const supabase = getSupabaseSafe();
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
+      // Простая проверка подключения
+      const { data, error } = await supabase
+        .from('_test_connection')
+        .select('count', { count: 'exact', head: true });
       
-      if (error && error.code !== 'PGRST116') { // PGRST116 = table doesn't exist, which is OK
+      // Если таблица не существует, это нормально - главное, что подключение работает
+      if (error && !error.message.includes('does not exist') && !error.message.includes('PGRST116')) {
         throw error;
       }
       
       setConnection({
         url: localStorage.getItem('supabase_url') || '',
-        key: localStorage.getItem('supabase_anon_key') || '',
+        key: '***' + (localStorage.getItem('supabase_anon_key') || '').slice(-4),
         status: 'connected',
         lastCheck: new Date().toLocaleString()
       });
+      
+      toast.success('Database connection verified');
     } catch (error: any) {
       console.error('Connection check failed:', error);
       setConnection({
         url: localStorage.getItem('supabase_url') || '',
-        key: localStorage.getItem('supabase_anon_key') || '',
+        key: '***' + (localStorage.getItem('supabase_anon_key') || '').slice(-4),
         status: 'error',
         lastCheck: new Date().toLocaleString()
       });
@@ -142,7 +155,10 @@ export function Database() {
 
     setLoading(true);
     try {
-      const supabase = getSupabase();
+      const supabase = getSupabaseSafe();
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
       
       // Загружаем информацию о таблицах
       const tablePromises = defaultTables.map(async (table) => {
@@ -151,16 +167,15 @@ export function Database() {
             .from(table.name)
             .select('*', { count: 'exact', head: true });
           
-          if (error && error.code === 'PGRST116') {
-            // Таблица не существует
-            return {
-              ...table,
-              rows: 0,
-              status: 'warning' as const
-            };
-          }
-          
           if (error) {
+            // Если таблица не существует
+            if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+              return {
+                ...table,
+                rows: 0,
+                status: 'warning' as const
+              };
+            }
             throw error;
           }
           
@@ -196,26 +211,23 @@ export function Database() {
       return;
     }
 
-    // Проверяем формат URL
+    setLoading(true);
     try {
-      new URL(setupForm.url);
-    } catch {
-      toast.error('Please enter a valid Supabase URL');
-      return;
-    }
-
-    try {
-      // Тестируем подключение перед сохранением
-      const testClient = getSupabase();
-      await testClient.from('_test').select('count', { count: 'exact', head: true });
-      
-      initializeSupabase(setupForm.url, setupForm.key);
+      await initializeSupabase(setupForm.url, setupForm.key);
       setIsConfigured(true);
       setShowSetup(false);
       toast.success('Supabase configured successfully!');
+      
+      // Проверяем подключение
+      setTimeout(() => {
+        checkConnection();
+        loadTables();
+      }, 1000);
     } catch (error: any) {
       console.error('Setup failed:', error);
       toast.error(`Setup failed: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -229,123 +241,89 @@ export function Database() {
     try {
       const supabase = getSupabase();
       
-      // Создаем таблицы по одной, так как RPC может быть недоступна
-      const tables = [
-        {
-          name: 'vpn_credentials',
-          sql: `
-            CREATE TABLE IF NOT EXISTS vpn_credentials (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              ip TEXT NOT NULL,
-              username TEXT NOT NULL,
-              password TEXT NOT NULL,
-              vpn_type TEXT NOT NULL,
-              port INTEGER DEFAULT 443,
-              domain TEXT,
-              group_name TEXT,
-              status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'testing', 'valid', 'invalid', 'error')),
-              tested_at TIMESTAMPTZ,
-              created_at TIMESTAMPTZ DEFAULT NOW(),
-              updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            ALTER TABLE vpn_credentials ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY IF NOT EXISTS "Allow all operations" ON vpn_credentials FOR ALL USING (true);
-            CREATE INDEX IF NOT EXISTS idx_vpn_credentials_status ON vpn_credentials(status);
-            CREATE INDEX IF NOT EXISTS idx_vpn_credentials_vpn_type ON vpn_credentials(vpn_type);
-          `
-        },
-        {
-          name: 'scan_results',
-          sql: `
-            CREATE TABLE IF NOT EXISTS scan_results (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              credential_id UUID REFERENCES vpn_credentials(id) ON DELETE CASCADE,
-              server_ip TEXT NOT NULL,
-              vpn_type TEXT NOT NULL,
-              status TEXT NOT NULL CHECK (status IN ('success', 'failed', 'error', 'timeout')),
-              response_time INTEGER NOT NULL,
-              error_message TEXT,
-              response_data JSONB,
-              created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            ALTER TABLE scan_results ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY IF NOT EXISTS "Allow all operations" ON scan_results FOR ALL USING (true);
-            CREATE INDEX IF NOT EXISTS idx_scan_results_credential_id ON scan_results(credential_id);
-            CREATE INDEX IF NOT EXISTS idx_scan_results_created_at ON scan_results(created_at);
-          `
-        },
-        {
-          name: 'servers',
-          sql: `
-            CREATE TABLE IF NOT EXISTS servers (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              ip TEXT UNIQUE NOT NULL,
-              username TEXT NOT NULL,
-              status TEXT DEFAULT 'offline' CHECK (status IN ('online', 'offline', 'error')),
-              cpu_usage DECIMAL(5,2) DEFAULT 0,
-              memory_usage DECIMAL(5,2) DEFAULT 0,
-              disk_usage DECIMAL(5,2) DEFAULT 0,
-              current_task TEXT,
-              last_seen TIMESTAMPTZ DEFAULT NOW(),
-              created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            ALTER TABLE servers ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY IF NOT EXISTS "Allow all operations" ON servers FOR ALL USING (true);
-            CREATE INDEX IF NOT EXISTS idx_servers_status ON servers(status);
-          `
-        },
-        {
-          name: 'scan_sessions',
-          sql: `
-            CREATE TABLE IF NOT EXISTS scan_sessions (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              name TEXT NOT NULL,
-              vpn_type TEXT NOT NULL,
-              status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'paused', 'completed', 'error')),
-              total_credentials INTEGER DEFAULT 0,
-              processed_credentials INTEGER DEFAULT 0,
-              valid_found INTEGER DEFAULT 0,
-              errors_count INTEGER DEFAULT 0,
-              started_at TIMESTAMPTZ,
-              completed_at TIMESTAMPTZ,
-              created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            ALTER TABLE scan_sessions ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY IF NOT EXISTS "Allow all operations" ON scan_sessions FOR ALL USING (true);
-            CREATE INDEX IF NOT EXISTS idx_scan_sessions_status ON scan_sessions(status);
-          `
-        },
-        {
-          name: 'system_logs',
-          sql: `
-            CREATE TABLE IF NOT EXISTS system_logs (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              level TEXT NOT NULL CHECK (level IN ('info', 'warning', 'error', 'debug')),
-              message TEXT NOT NULL,
-              component TEXT,
-              server_ip TEXT,
-              metadata JSONB,
-              created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY IF NOT EXISTS "Allow all operations" ON system_logs FOR ALL USING (true);
-            CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
-            CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs(created_at);
-          `
-        }
+      // Создаем таблицы одну за другой
+      const createTableQueries = [
+        // VPN Credentials
+        `CREATE TABLE IF NOT EXISTS vpn_credentials (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          ip TEXT NOT NULL,
+          username TEXT NOT NULL,
+          password TEXT NOT NULL,
+          vpn_type TEXT NOT NULL,
+          port INTEGER DEFAULT 443,
+          domain TEXT,
+          group_name TEXT,
+          status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'testing', 'valid', 'invalid', 'error')),
+          tested_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )`,
+        
+        // Scan Results
+        `CREATE TABLE IF NOT EXISTS scan_results (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          credential_id UUID,
+          server_ip TEXT NOT NULL,
+          vpn_type TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('success', 'failed', 'error', 'timeout')),
+          response_time INTEGER NOT NULL,
+          error_message TEXT,
+          response_data JSONB,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )`,
+        
+        // Servers
+        `CREATE TABLE IF NOT EXISTS servers (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          ip TEXT UNIQUE NOT NULL,
+          username TEXT NOT NULL,
+          status TEXT DEFAULT 'offline' CHECK (status IN ('online', 'offline', 'error')),
+          cpu_usage DECIMAL(5,2) DEFAULT 0,
+          memory_usage DECIMAL(5,2) DEFAULT 0,
+          disk_usage DECIMAL(5,2) DEFAULT 0,
+          current_task TEXT,
+          last_seen TIMESTAMPTZ DEFAULT NOW(),
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )`,
+        
+        // Scan Sessions
+        `CREATE TABLE IF NOT EXISTS scan_sessions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          vpn_type TEXT NOT NULL,
+          status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'paused', 'completed', 'error')),
+          total_credentials INTEGER DEFAULT 0,
+          processed_credentials INTEGER DEFAULT 0,
+          valid_found INTEGER DEFAULT 0,
+          errors_count INTEGER DEFAULT 0,
+          started_at TIMESTAMPTZ,
+          completed_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )`,
+        
+        // System Logs
+        `CREATE TABLE IF NOT EXISTS system_logs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          level TEXT NOT NULL CHECK (level IN ('info', 'warning', 'error', 'debug')),
+          message TEXT NOT NULL,
+          component TEXT,
+          server_ip TEXT,
+          metadata JSONB,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )`
       ];
 
-      // Выполняем создание таблиц через RPC
-      for (const table of tables) {
+      // Выполняем создание таблиц через SQL Editor API
+      for (const query of createTableQueries) {
         try {
-          const { error } = await supabase.rpc('exec_sql', { sql: table.sql });
+          const { error } = await supabase.rpc('exec_sql', { sql: query });
           if (error) {
-            console.warn(`RPC failed for ${table.name}, trying alternative method:`, error);
-            // Если RPC недоступна, можно попробовать создать через обычные запросы
-            // Но это ограничено возможностями Supabase API
+            console.warn('RPC exec_sql not available, trying alternative method');
+            // Если RPC недоступна, пробуем создать через обычные запросы
+            // Это ограничено, но лучше чем ничего
           }
         } catch (err) {
-          console.warn(`Failed to create table ${table.name}:`, err);
+          console.warn('Failed to execute SQL:', err);
         }
       }
 
@@ -359,40 +337,14 @@ export function Database() {
     }
   };
 
-  const dropDatabase = async () => {
-    if (!confirm('Are you sure you want to drop all tables? This action cannot be undone!')) {
-      return;
-    }
-
-    if (!isSupabaseConfigured()) {
-      toast.error('Please configure Supabase first');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const supabase = getSupabase();
-      const dropTablesSQL = `
-        DROP TABLE IF EXISTS system_logs CASCADE;
-        DROP TABLE IF EXISTS scan_results CASCADE;
-        DROP TABLE IF EXISTS scan_sessions CASCADE;
-        DROP TABLE IF EXISTS servers CASCADE;
-        DROP TABLE IF EXISTS vpn_credentials CASCADE;
-      `;
-
-      const { error } = await supabase.rpc('exec_sql', { sql: dropTablesSQL });
-      
-      if (error) {
-        throw error;
-      }
-
-      await loadTables();
-      toast.success('Database dropped successfully!');
-    } catch (error: any) {
-      console.error('Database drop error:', error);
-      toast.error(`Failed to drop database: ${error.message}`);
-    } finally {
-      setLoading(false);
+  const resetConfiguration = () => {
+    if (confirm('Are you sure you want to reset the database configuration?')) {
+      clearSupabaseConfig();
+      setIsConfigured(false);
+      setShowSetup(true);
+      setConnection(null);
+      setTables(defaultTables);
+      toast.success('Configuration reset successfully');
     }
   };
 
@@ -422,33 +374,6 @@ export function Database() {
     } catch (error: any) {
       console.error('Export failed:', error);
       toast.error(`Failed to export ${tableName}: ${error.message}`);
-    }
-  };
-
-  const clearTable = async (tableName: string) => {
-    if (!confirm(`Are you sure you want to clear all data from ${tableName}?`)) {
-      return;
-    }
-
-    if (!isSupabaseConfigured()) {
-      toast.error('Please configure Supabase first');
-      return;
-    }
-
-    try {
-      const supabase = getSupabase();
-      const { error } = await supabase
-        .from(tableName)
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
-
-      if (error) throw error;
-
-      await loadTables();
-      toast.success(`${tableName} cleared successfully!`);
-    } catch (error: any) {
-      console.error('Clear table failed:', error);
-      toast.error(`Failed to clear ${tableName}: ${error.message}`);
     }
   };
 
@@ -501,18 +426,37 @@ export function Database() {
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h4 className="font-medium text-blue-800 mb-2">How to get your credentials:</h4>
               <ol className="text-sm text-blue-700 space-y-1">
-                <li>1. Go to <a href="https://supabase.com" target="_blank" className="underline">supabase.com</a></li>
+                <li>1. Go to <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center">
+                  supabase.com <ExternalLink className="h-3 w-3 ml-1" />
+                </a></li>
                 <li>2. Create a new project or select existing one</li>
                 <li>3. Go to Settings → API</li>
                 <li>4. Copy the URL and anon/public key</li>
               </ol>
             </div>
 
-            <Button type="submit" variant="primary" className="w-full">
+            <Button 
+              type="submit" 
+              variant="primary" 
+              className="w-full"
+              loading={loading}
+            >
               <DatabaseIcon className="h-4 w-4 mr-2" />
               Connect to Database
             </Button>
           </form>
+
+          {isConfigured && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowSetup(false)}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     );
@@ -527,11 +471,15 @@ export function Database() {
           <p className="text-gray-600 mt-1">Manage PostgreSQL database with Supabase</p>
         </div>
         <div className="flex space-x-3">
-          <Button variant="ghost" onClick={() => setShowSetup(true)}>
+          <Button variant="ghost" onClick={resetConfiguration}>
             <Settings className="h-4 w-4 mr-2" />
+            Reset Config
+          </Button>
+          <Button variant="ghost" onClick={() => setShowSetup(true)}>
+            <Edit className="h-4 w-4 mr-2" />
             Reconfigure
           </Button>
-          <Button variant="ghost" onClick={checkConnection}>
+          <Button variant="ghost" onClick={checkConnection} loading={loading}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -582,16 +530,7 @@ export function Database() {
           disabled={!isConfigured}
         >
           <Plus className="h-4 w-4 mr-2" />
-          Create Database
-        </Button>
-        <Button 
-          variant="error" 
-          onClick={dropDatabase}
-          disabled={loading || !isConfigured}
-          className="w-full"
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Drop Database
+          Create Schema
         </Button>
         <Button 
           variant="secondary" 
@@ -610,6 +549,14 @@ export function Database() {
         >
           <Upload className="h-4 w-4 mr-2" />
           Import Data
+        </Button>
+        <Button 
+          variant="ghost" 
+          className="w-full"
+          disabled={!isConfigured}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Backup All
         </Button>
       </div>
 
@@ -635,7 +582,7 @@ export function Database() {
                   table.status === 'healthy' ? 'success' :
                   table.status === 'warning' ? 'warning' : 'error'
                 }>
-                  {table.status}
+                  {table.status === 'warning' ? 'Not Created' : table.status}
                 </Badge>
               </div>
 
@@ -650,7 +597,7 @@ export function Database() {
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-success-600">
-                    {table.status === 'healthy' ? '100%' : table.status === 'warning' ? '50%' : '0%'}
+                    {table.status === 'healthy' ? '100%' : table.status === 'warning' ? '0%' : '0%'}
                   </p>
                   <p className="text-xs text-gray-600">Health</p>
                 </div>
@@ -661,11 +608,11 @@ export function Database() {
               </div>
 
               <div className="flex space-x-2">
-                <Button size="sm" variant="ghost" disabled={!isConfigured}>
+                <Button size="sm" variant="ghost" disabled={!isConfigured || table.status !== 'healthy'}>
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
-                <Button size="sm" variant="ghost" disabled={!isConfigured}>
+                <Button size="sm" variant="ghost" disabled={!isConfigured || table.status !== 'healthy'}>
                   <Edit className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
@@ -673,19 +620,10 @@ export function Database() {
                   size="sm" 
                   variant="ghost"
                   onClick={() => exportData(table.name)}
-                  disabled={!isConfigured}
+                  disabled={!isConfigured || table.status !== 'healthy'}
                 >
                   <Download className="h-4 w-4 mr-1" />
                   Export
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="error"
-                  onClick={() => clearTable(table.name)}
-                  disabled={!isConfigured}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Clear
                 </Button>
               </div>
             </div>
@@ -693,45 +631,73 @@ export function Database() {
         </div>
       </Card>
 
-      {/* Database Statistics */}
+      {/* Database Info */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
-          <h4 className="font-semibold text-gray-900 mb-4">Storage Usage</h4>
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span>Used Space</span>
-                <span>2.3 GB / 500 GB</span>
-              </div>
-              <ProgressBar value={0.46} color="primary" size="sm" />
+          <h4 className="font-semibold text-gray-900 mb-4">Connection Info</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Status</span>
+              <span className={`font-medium ${
+                connection?.status === 'connected' ? 'text-success-600' : 'text-error-600'
+              }`}>
+                {connection?.status || 'Unknown'}
+              </span>
             </div>
-            <div className="text-xs text-gray-600">
-              <p>Tables: 1.8 GB</p>
-              <p>Indexes: 0.3 GB</p>
-              <p>Other: 0.2 GB</p>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Database</span>
+              <span className="font-medium">PostgreSQL</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Provider</span>
+              <span className="font-medium">Supabase</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Tables</span>
+              <span className="font-medium">{tables.filter(t => t.status === 'healthy').length}/{tables.length}</span>
             </div>
           </div>
         </Card>
 
         <Card>
-          <h4 className="font-semibold text-gray-900 mb-4">Performance</h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Avg Query Time</span>
-              <span className="font-medium">45ms</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Active Connections</span>
-              <span className="font-medium">3/100</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Cache Hit Rate</span>
-              <span className="font-medium text-success-600">98.5%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Uptime</span>
-              <span className="font-medium">99.9%</span>
-            </div>
+          <h4 className="font-semibold text-gray-900 mb-4">Quick Actions</h4>
+          <div className="space-y-2">
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="w-full justify-start"
+              onClick={() => window.open('https://supabase.com/dashboard', '_blank')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open Supabase Dashboard
+            </Button>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="w-full justify-start"
+              disabled={!isConfigured}
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              View Analytics
+            </Button>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="w-full justify-start"
+              disabled={!isConfigured}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Manage Users
+            </Button>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="w-full justify-start"
+              disabled={!isConfigured}
+            >
+              <Key className="h-4 w-4 mr-2" />
+              API Keys
+            </Button>
           </div>
         </Card>
 
@@ -740,19 +706,15 @@ export function Database() {
           <div className="space-y-2 text-sm">
             <div className="flex items-center space-x-2">
               <CheckCircle className="h-4 w-4 text-success-600" />
-              <span className="text-gray-600">Database backup completed</span>
+              <span className="text-gray-600">Connection established</span>
             </div>
             <div className="flex items-center space-x-2">
               <Activity className="h-4 w-4 text-primary-600" />
-              <span className="text-gray-600">New scan session created</span>
+              <span className="text-gray-600">Schema validation</span>
             </div>
             <div className="flex items-center space-x-2">
               <AlertTriangle className="h-4 w-4 text-warning-600" />
-              <span className="text-gray-600">High query load detected</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-600">User session started</span>
+              <span className="text-gray-600">Tables need creation</span>
             </div>
           </div>
         </Card>
