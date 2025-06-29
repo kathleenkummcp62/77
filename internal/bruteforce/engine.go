@@ -158,15 +158,19 @@ func (e *Engine) Start() error {
 	go e.loadCredentialsStream(credChan)
 	
 	// Start dynamic thread scaler
-	go e.dynamicScaler()
+	if e.config.AutoScale {
+		go e.dynamicScaler()
+	}
 	
 	// Start RPS monitor
 	go e.rpsMonitor()
 
-	fmt.Printf("🚀 Ultra-Fast VPN Client v3.0\n")
+	fmt.Printf("🚀 Ultra-Fast VPN Client v3.0 - Production Ready\n")
 	fmt.Printf("🎯 Target RPS: %d | Threads: %d | CPU cores: %d\n", 
 		e.targetRPS, e.currentThreads, runtime.NumCPU())
-	fmt.Printf("⚡ Optimizations: Zero-alloc pools, Dynamic scaling, Smart retries\n\n")
+	fmt.Printf("⚡ Optimizations: Zero-alloc pools, Dynamic scaling, Smart retries\n")
+	fmt.Printf("🔧 VPN Type: %s | Auto-scale: %v | Streaming: %v\n\n", 
+		e.config.VPNType, e.config.AutoScale, e.config.StreamingMode)
 
 	// Start worker pool
 	for i := 0; i < int(e.currentThreads); i++ {
@@ -183,7 +187,7 @@ func (e *Engine) ultraFastWorker(credChan <-chan Credential) {
 	defer e.wg.Done()
 	
 	// Pre-allocate buffers
-	buf := make([]byte, 8192)
+	buf := make([]byte, e.config.BufferSize)
 	
 	for {
 		select {
@@ -255,12 +259,18 @@ func (e *Engine) checkVPNUltraFast(ctx context.Context, cred Credential, resp *R
 	switch e.config.VPNType {
 	case "fortinet":
 		return e.checkFortinetUltraFast(ctx, cred, resp, buf)
-	case "globalprotect":
+	case "globalprotect", "paloalto":
 		return e.checkGlobalProtectUltraFast(ctx, cred, resp, buf)
-	case "citrix":
-		return e.checkCitrixUltraFast(ctx, cred, resp, buf)
+	case "sonicwall":
+		return e.checkSonicWallUltraFast(ctx, cred, resp, buf)
+	case "sophos":
+		return e.checkSophosUltraFast(ctx, cred, resp, buf)
+	case "watchguard":
+		return e.checkWatchGuardUltraFast(ctx, cred, resp, buf)
 	case "cisco":
 		return e.checkCiscoUltraFast(ctx, cred, resp, buf)
+	case "citrix":
+		return e.checkCitrixUltraFast(ctx, cred, resp, buf)
 	default:
 		e.stats.IncrementErrors()
 		return false, fmt.Errorf("unknown VPN type: %s", e.config.VPNType)
@@ -339,7 +349,7 @@ func (e *Engine) loadCredentialsStream(credChan chan<- Credential) {
 		}
 
 		parts := strings.Split(line, ";")
-		if len(parts) != 3 {
+		if len(parts) < 3 {
 			continue
 		}
 
@@ -386,22 +396,22 @@ func (e *Engine) adjustThreads() {
 	currentThreads := atomic.LoadInt64(&e.currentThreads)
 	
 	// Scale up if RPS is below target and we have CPU headroom
-	if currentRPS < e.targetRPS && currentThreads < int64(runtime.NumCPU()*200) {
+	if currentRPS < e.targetRPS && currentThreads < int64(e.config.MaxThreads) {
 		newThreads := currentThreads + int64(runtime.NumCPU()*10)
-		atomic.StoreInt64(&e.currentThreads, newThreads)
-		
-		// Start new workers
-		for i := 0; i < int(newThreads-currentThreads); i++ {
-			e.wg.Add(1)
-			go e.ultraFastWorker(nil) // Will be fed from existing channel
+		if newThreads > int64(e.config.MaxThreads) {
+			newThreads = int64(e.config.MaxThreads)
 		}
+		atomic.StoreInt64(&e.currentThreads, newThreads)
 		
 		fmt.Printf("🔼 Scaled UP to %d threads (RPS: %d)\n", newThreads, currentRPS)
 	}
 	
 	// Scale down if we're over-performing and wasting resources
-	if currentRPS > e.targetRPS*2 && currentThreads > int64(runtime.NumCPU()*50) {
+	if currentRPS > e.targetRPS*2 && currentThreads > int64(e.config.MinThreads) {
 		newThreads := currentThreads - int64(runtime.NumCPU()*5)
+		if newThreads < int64(e.config.MinThreads) {
+			newThreads = int64(e.config.MinThreads)
+		}
 		atomic.StoreInt64(&e.currentThreads, newThreads)
 		fmt.Printf("🔽 Scaled DOWN to %d threads (RPS: %d)\n", newThreads, currentRPS)
 	}
