@@ -175,8 +175,12 @@ The settings page in the dashboard groups options into the following categories:
 - **Security**
 - **Notifications**
 - **Display**
-- **Servers** – manage SSH connection behaviour
-- **Advanced** – debug logging and experimental features
+- **Servers** – configure SSH port, credentials and connection behaviour
+- **Advanced** – debugging toggles, log level and custom config paths
+
+The **Servers** section now exposes inputs for SSH port, default user and private
+key location, while the **Advanced** section lets you toggle verbose logging,
+select a log level and provide a custom configuration file path.
 
 ## 📊 **Performance Tuning**
 

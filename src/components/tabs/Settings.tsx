@@ -64,9 +64,15 @@ export function Settings() {
     maxConnections: 10,
     keepAlive: true,
     compression: true,
+    sshPort: 22,
+    sshUser: 'root',
+    sshKeyPath: '',
+    autoReconnect: true,
 
     // Advanced Settings
     debugLogging: false,
+    logLevel: 'info',
+    customConfigPath: '',
     experimentalFeatures: false
   });
 
@@ -489,6 +495,20 @@ export function Settings() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
+            SSH Port
+          </label>
+          <input
+            type="number"
+            value={config.sshPort}
+            onChange={(e) => handleConfigChange('sshPort', parseInt(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            min="1"
+            max="65535"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Max Connections
           </label>
           <input
@@ -497,7 +517,33 @@ export function Settings() {
             onChange={(e) => handleConfigChange('maxConnections', parseInt(e.target.value))}
             className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             min="1"
-            max="100"
+          max="100"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Default User
+          </label>
+          <input
+            type="text"
+            value={config.sshUser}
+            onChange={(e) => handleConfigChange('sshUser', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="root"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Private Key Path
+          </label>
+          <input
+            type="text"
+            value={config.sshKeyPath}
+            onChange={(e) => handleConfigChange('sshKeyPath', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="/path/to/id_rsa"
           />
         </div>
       </div>
@@ -513,6 +559,22 @@ export function Settings() {
               type="checkbox"
               checked={config.keepAlive}
               onChange={(e) => handleConfigChange('keepAlive', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Auto Reconnect</h4>
+            <p className="text-sm text-gray-600">Reconnect dropped SSH sessions automatically</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.autoReconnect}
+              onChange={(e) => handleConfigChange('autoReconnect', e.target.checked)}
               className="sr-only peer"
             />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
@@ -572,6 +634,34 @@ export function Settings() {
             />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Log Level
+          </label>
+          <select
+            value={config.logLevel}
+            onChange={(e) => handleConfigChange('logLevel', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            <option value="info">Info</option>
+            <option value="debug">Debug</option>
+            <option value="trace">Trace</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Custom Config Path
+          </label>
+          <input
+            type="text"
+            value={config.customConfigPath}
+            onChange={(e) => handleConfigChange('customConfigPath', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="/etc/vpn-extra.conf"
+          />
         </div>
       </div>
       <p className="text-sm text-gray-500 ml-0.5">Additional advanced options are under development.</p>
