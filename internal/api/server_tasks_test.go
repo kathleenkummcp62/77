@@ -46,8 +46,11 @@ func TestTasksHandlers(t *testing.T) {
 	srv, cleanup := setupTasksServer(t)
 	defer cleanup()
 
-	if !tableExists(t, srv.db.DB, "tasks") || !tableExists(t, srv.db.DB, "credentials") {
-		t.Fatalf("expected tasks and credentials tables to exist")
+	required := []string{"vendor_urls", "credentials", "proxies", "tasks", "logs"}
+	for _, name := range required {
+		if !tableExists(t, srv.db.DB, name) {
+			t.Fatalf("expected table %s to exist", name)
+		}
 	}
 
 	ts := httptest.NewServer(srv.router)
