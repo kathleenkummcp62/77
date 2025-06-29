@@ -165,6 +165,37 @@ https://example.com:443:test:test:remote_access
 https://example.net:443:admin:pass:ANYCONNECT
 ```
 
+## 📚 **Database Tables**
+
+The API server relies on PostgreSQL for storing runtime information.
+When the server starts it calls `InitSchema`, creating all tables if
+they don't already exist. This means the application works with an
+empty database out of the box.
+
+### **tasks**
+
+Tracks the progress of each scanning job. Columns include:
+
+- `id` – primary key
+- `vpn_type` or `vendor_url_id` – the VPN type or linked vendor URL
+- `server` – target server address
+- `status` – current job state
+- `progress` – credentials processed so far
+- `processed` – total credentials count
+- `goods`, `bads`, `errors` – result statistics
+- `rps` – requests per second
+- `created_at` – creation timestamp
+
+### **credentials**
+
+Holds the credential sets used for scanning. Each entry has the fields:
+
+- `vendor` – VPN vendor name
+- `url` – gateway URL
+- `login` – username
+- `password` – password
+- `proxy` – optional proxy to use
+
 ## 🔧 **Advanced Features**
 
 ### **Smart Error Handling:**
