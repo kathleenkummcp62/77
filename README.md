@@ -2,6 +2,8 @@
 
 **Production-ready, ultra-optimized VPN bruteforce client with support for all major VPN vendors**
 
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
 ## 🎯 **Supported VPN Types**
 
 ### ✅ **Fully Implemented & Tested:**
