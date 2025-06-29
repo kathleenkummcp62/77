@@ -114,3 +114,116 @@ func TestTaskCRUD(t *testing.T) {
 		t.Fatalf("delete status %d", resp2.StatusCode)
 	}
 }
+
+func TestCredentialsEndpoint(t *testing.T) {
+	srv, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/credentials")
+	if err != nil {
+		t.Fatalf("get credentials: %v", err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Success bool                     `json:"success"`
+		Data    []map[string]interface{} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !out.Success || len(out.Data) != 0 {
+		t.Fatalf("expected empty credentials")
+	}
+
+	body := bytes.NewBufferString(`{"ip":"1.2.3.4","username":"u","password":"p"}`)
+	resp, err = http.Post(ts.URL+"/api/credentials", "application/json", body)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	var postResp struct {
+		Success bool
+		Data    map[string]interface{}
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&postResp); err != nil {
+		t.Fatalf("decode post: %v", err)
+	}
+	if !postResp.Success {
+		t.Fatalf("post failed")
+	}
+	id := int(postResp.Data["id"].(float64))
+
+	resp, err = http.Get(ts.URL + "/api/credentials")
+	if err != nil {
+		t.Fatalf("get after add: %v", err)
+	}
+	defer resp.Body.Close()
+	out = struct {
+		Success bool                     `json:"success"`
+		Data    []map[string]interface{} `json:"data"`
+	}{}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode2: %v", err)
+	}
+	if !out.Success || len(out.Data) != 1 {
+		t.Fatalf("expected one credential")
+	}
+	if int(out.Data[0]["id"].(float64)) != id {
+		t.Fatalf("unexpected id")
+	}
+}
+
+func TestTasksEndpoint(t *testing.T) {
+	srv, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	body := bytes.NewBufferString(`{"vpn_type":"openvpn","server":"srv"}`)
+	resp, err := http.Post(ts.URL+"/api/tasks", "application/json", body)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	var postResp struct {
+		Success bool
+		Data    map[string]interface{}
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&postResp); err != nil {
+		t.Fatalf("decode post: %v", err)
+	}
+	if !postResp.Success {
+		t.Fatalf("post failed")
+	}
+	id := int(postResp.Data["id"].(float64))
+
+	resp, err = http.Get(ts.URL + "/api/tasks")
+	if err != nil {
+		t.Fatalf("get tasks: %v", err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Success bool                     `json:"success"`
+		Data    []map[string]interface{} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !out.Success || len(out.Data) == 0 {
+		t.Fatalf("expected tasks")
+	}
+	found := false
+	for _, it := range out.Data {
+		if int(it["id"].(float64)) == id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("created task not found")
+	}
+}
