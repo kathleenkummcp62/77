@@ -66,9 +66,13 @@ streaming_mode: true
 
 ## 🔐 **Secure Credential Management**
 
-Store your server and VPN credentials outside of the repository.
-Place them in files like `credentials.txt` or `.env` and add these paths to `.gitignore`.
-Set paths to these files via environment variables or `config.yaml` so sensitive data is never committed.
+Store your server and VPN credentials **outside** of the repository.
+Use files such as `credentials.txt` or `credentials_test.txt` for the real values
+and add these names to `.gitignore` so they are never committed.
+Sample files (`credentials.txt.example` and `credentials_test.txt.example`) are
+provided for reference.
+Configure paths to the actual files via environment variables or `config.yaml`
+so sensitive data stays on your machine.
 
 For example, set the path to your credential file using the `INPUT_FILE` environment variable:
 
@@ -83,38 +87,38 @@ The application reads this path at runtime so the actual credentials remain on y
 
 ### **Fortinet:**
 ```
-https://200.113.15.26:4443;guest;guest
-https://195.150.192.5:443;admin;password
+https://example.com:4443;guest;guest
+https://example.net:443;admin;password
 ```
 
 ### **GlobalProtect:**
 ```
-https://216.229.124.44:443;test;test
-https://72.26.131.86:443;user;pass
+https://example.com:443;test;test
+https://example.net:443;user;pass
 ```
 
 ### **SonicWall:**
 ```
-https://69.21.239.19:4433;test;test;LocalDomain
-https://68.189.7.50:4433;admin;pass;company.local
+https://example.com:4433;test;test;LocalDomain
+https://example.net:4433;admin;pass;company.local
 ```
 
 ### **Sophos:**
 ```
-https://213.139.132.204:6443;test;test;intern.company.de
-https://124.254.117.194:8443;admin;pass;domain.local
+https://example.com:6443;test;test;intern.company.de
+https://example.net:8443;admin;pass;domain.local
 ```
 
 ### **WatchGuard:**
 ```
-https://96.92.230.186:443:Firebox-DB:company.com:user:password
-https://75.146.37.105:444:AuthPoint:Firebox-DB:domain:admin:pass
+https://example.com:443:Firebox-DB:company.com:user:password
+https://example.net:444:AuthPoint:Firebox-DB:domain:admin:pass
 ```
 
 ### **Cisco ASA:**
 ```
-https://74.209.225.52:443:test:test:remote_access
-https://67.202.240.148:443:admin:pass:ANYCONNECT
+https://example.com:443:test:test:remote_access
+https://example.net:443:admin:pass:ANYCONNECT
 ```
 
 ## 🔧 **Advanced Features**
