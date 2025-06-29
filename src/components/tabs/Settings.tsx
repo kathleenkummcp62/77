@@ -668,16 +668,24 @@ export function Settings() {
     </div>
   );
 
+  const renderContentMap: Record<string, () => JSX.Element> = {
+    performance: renderPerformanceSettings,
+    security: renderSecuritySettings,
+    notifications: renderNotificationSettings,
+    display: renderDisplaySettings,
+    servers: renderServerSettings,
+    advanced: renderAdvancedSettings,
+  };
+
   const renderContent = () => {
-    switch (activeSection) {
-      case 'performance': return renderPerformanceSettings();
-      case 'security': return renderSecuritySettings();
-      case 'notifications': return renderNotificationSettings();
-      case 'display': return renderDisplaySettings();
-      case 'servers': return renderServerSettings();
-      case 'advanced': return renderAdvancedSettings();
-      default: return <div className="text-center text-gray-500 py-8">Settings section coming soon...</div>;
-    }
+    const renderFn = renderContentMap[activeSection];
+    return renderFn
+      ? renderFn()
+      : (
+          <div className="text-center text-gray-500 py-8">
+            Settings section coming soon...
+          </div>
+        );
   };
 
   return (
