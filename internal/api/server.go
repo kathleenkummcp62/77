@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/lib/pq"
+	"gopkg.in/yaml.v3"
 
 	"github.com/gorilla/mux"
 	"vpn-bruteforce-client/internal/aggregator"
@@ -137,7 +141,12 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
-	aggr := aggregator.New(".")
+	dir := os.Getenv("STATS_DIR")
+	if q := r.URL.Query().Get("dir"); q != "" {
+		dir = q
+	}
+
+	aggr := aggregator.New(dir)
 	infos, err := aggr.GetServerInfo()
 	if err != nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
@@ -229,63 +238,87 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Mock logs - in real implementation, read from log files
-	logs := []map[string]interface{}{
-		{
-			"timestamp": "2024-01-15T10:30:00Z",
-			"level":     "INFO",
-			"message":   "Ultra-fast engine started successfully",
-			"source":    "engine",
-		},
-		{
-			"timestamp": "2024-01-15T10:30:15Z",
-			"level":     "SUCCESS",
-			"message":   "Valid credential found: example.com;guest;guest",
-			"source":    "fortinet",
-		},
-		{
-			"timestamp": "2024-01-15T10:30:30Z",
-			"level":     "ERROR",
-			"message":   "Connection timeout for 192.0.2.100",
-			"source":    "network",
-		},
-		{
-			"timestamp": "2024-01-15T10:30:45Z",
-			"level":     "INFO",
-			"message":   fmt.Sprintf("Current RPS: %d", s.stats.GetRPS()),
-			"source":    "stats",
-		},
+	if s.db != nil {
+		rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT $1`, limit)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var logs []map[string]interface{}
+		for rows.Next() {
+			var ts time.Time
+			var level, msg, src string
+			if err := rows.Scan(&ts, &level, &msg, &src); err != nil {
+				continue
+			}
+			logs = append(logs, map[string]interface{}{
+				"timestamp": ts.Format(time.RFC3339),
+				"level":     level,
+				"message":   msg,
+				"source":    src,
+			})
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: logs})
+		return
 	}
 
-	if limit < len(logs) {
-		logs = logs[:limit]
+	// Fallback: read from default log file if database unavailable
+	path := os.Getenv("LOG_FILE")
+	if path == "" {
+		path = "scanner.log"
+	}
+	data, err := os.ReadFile(path)
+	if err == nil {
+		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+		if limit < len(lines) {
+			lines = lines[len(lines)-limit:]
+		}
+		logs := make([]map[string]interface{}, len(lines))
+		for i, l := range lines {
+			logs[i] = map[string]interface{}{
+				"timestamp": "",
+				"level":     "INFO",
+				"message":   l,
+				"source":    "file",
+			}
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: logs})
+		return
 	}
 
-	s.sendJSON(w, APIResponse{Success: true, Data: logs})
+	s.sendJSON(w, APIResponse{Success: true, Data: []interface{}{}})
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		config := map[string]interface{}{
-			"threads":     3000,
-			"rate_limit":  8000,
-			"timeout":     "3s",
-			"vpn_type":    "fortinet",
-			"auto_scale":  true,
-			"min_threads": 1000,
-			"max_threads": 5000,
+	if r.Method == http.MethodGet {
+		cfg, err := config.Load("config.yaml")
+		if err != nil {
+			log.Printf("config load error: %v", err)
+			cfg = config.Default()
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: config})
-	} else if r.Method == "POST" {
-		var config map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		s.sendJSON(w, APIResponse{Success: true, Data: cfg})
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		var cfg config.Config
+		if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: "Invalid JSON"})
 			return
 		}
+		data, err := yaml.Marshal(cfg)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		if err := os.WriteFile("config.yaml", data, 0644); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
 
-		// Broadcast config update via WebSocket
-		s.wsServer.BroadcastMessage("config_update", config)
-
+		s.wsServer.BroadcastMessage("config_update", cfg)
 		log.Printf("⚙️ Configuration updated via API")
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 			"status": "updated",
@@ -319,6 +352,13 @@ func (s *Server) initDB() error {
                         address TEXT NOT NULL,
                         username TEXT,
                         password TEXT
+                )`,
+		`CREATE TABLE IF NOT EXISTS logs (
+                        id SERIAL PRIMARY KEY,
+                        timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        level TEXT,
+                        message TEXT,
+                        source TEXT
                 )`,
 	}
 	for _, q := range queries {
