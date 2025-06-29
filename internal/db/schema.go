@@ -31,16 +31,11 @@ func initSchema(d *DB) error {
                 )`,
 		`CREATE TABLE IF NOT EXISTS tasks (
                         id SERIAL PRIMARY KEY,
-                        vpn_type TEXT NOT NULL,
-                        server TEXT,
-                        status TEXT,
-                        progress INT DEFAULT 0,
-                        processed INT DEFAULT 0,
-                        goods INT DEFAULT 0,
-                        bads INT DEFAULT 0,
-                        errors INT DEFAULT 0,
-                        rps INT DEFAULT 0,
-                        created_at TIMESTAMPTZ DEFAULT NOW()
+                        vendor TEXT,
+                        url TEXT,
+                        login TEXT,
+                        password TEXT,
+                        proxy TEXT
                 )`,
 		`CREATE TABLE IF NOT EXISTS logs (
                         id SERIAL PRIMARY KEY,

@@ -70,7 +70,7 @@ func TestTasksHandlers(t *testing.T) {
 	}
 
 	// create task
-	body := bytes.NewBufferString(`{"vpn_type":"openvpn","server":"srv"}`)
+	body := bytes.NewBufferString(`{"vendor":"fortinet","url":"https://example.com","login":"user","password":"pass","proxy":""}`)
 	resp, err = http.Post(ts.URL+"/api/tasks", "application/json", body)
 	if err != nil {
 		t.Fatalf("post task: %v", err)
@@ -80,17 +80,17 @@ func TestTasksHandlers(t *testing.T) {
 		t.Fatalf("post status %d", resp.StatusCode)
 	}
 	var postResp struct {
-		Success bool           `json:"success"`
-		Data    map[string]int `json:"data"`
+		Success bool                   `json:"success"`
+		Data    map[string]interface{} `json:"data"`
 	}
 	json.NewDecoder(resp.Body).Decode(&postResp)
 	if !postResp.Success || postResp.Data["id"] == 0 {
 		t.Fatalf("bad post response: %+v", postResp)
 	}
-	id := postResp.Data["id"]
+	id := int(postResp.Data["id"].(float64))
 
 	// update
-	upd := map[string]interface{}{"vpn_type": "pptp", "server": "srv2"}
+	upd := map[string]interface{}{"vendor": "cisco", "url": "https://example.org", "login": "u2", "password": "p2", "proxy": ""}
 	ub, _ := json.Marshal(upd)
 	req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/"+strconv.Itoa(id), bytes.NewReader(ub))
 	req.Header.Set("Content-Type", "application/json")

@@ -73,7 +73,7 @@ func TestTaskCRUD(t *testing.T) {
 	}
 
 	// create task
-	body := bytes.NewBufferString(`{"vpn_type":"openvpn","server":"srv"}`)
+	body := bytes.NewBufferString(`{"vendor":"fortinet","url":"https://example.com","login":"user","password":"pass","proxy":""}`)
 	resp, err = http.Post(ts.URL+"/api/tasks", "application/json", body)
 	if err != nil {
 		t.Fatalf("post: %v", err)
@@ -90,7 +90,7 @@ func TestTaskCRUD(t *testing.T) {
 	id := int(postResp.Data["id"].(float64))
 
 	// update
-	upd := map[string]interface{}{"vpn_type": "pptp", "server": "srv2"}
+	upd := map[string]interface{}{"vendor": "cisco", "url": "https://example.org", "login": "u2", "password": "p2", "proxy": ""}
 	ub, _ := json.Marshal(upd)
 	req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/"+strconv.Itoa(id), bytes.NewReader(ub))
 	req.Header.Set("Content-Type", "application/json")
@@ -183,7 +183,7 @@ func TestTasksEndpoint(t *testing.T) {
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 
-	body := bytes.NewBufferString(`{"vpn_type":"openvpn","server":"srv"}`)
+	body := bytes.NewBufferString(`{"vendor":"fortinet","url":"https://example.com","login":"user","password":"pass","proxy":""}`)
 	resp, err := http.Post(ts.URL+"/api/tasks", "application/json", body)
 	if err != nil {
 		t.Fatalf("post: %v", err)
