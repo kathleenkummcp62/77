@@ -68,7 +68,7 @@ To spin up the API server together with the React dashboard in watch mode, use t
 
 The script automatically builds the dashboard if the `dist/` directory is missing and the Go server will start an embedded PostgreSQL instance via `db.Connect` when no external database is available.
 
-Create a `credentials.txt` file **in the project root** with your own IP addresses, usernames, and passwords before running. The `credentials.txt.example` file shows the required format.
+Create a `credentials.txt` file **in the project root** with your own IP addresses, usernames and passwords, as well as the vendor name, vendor URL and optional proxy. The `credentials.txt.example` file shows the required format.
 The tracked `credentials.txt` in this repository only contains placeholder values. Replace those placeholders with your real credentials (or point `config.yaml` to another file) when testing.
 
 ### Using your own credentials locally
@@ -129,6 +129,14 @@ Files like `credentials.txt` or `credentials_test.txt` should contain only the c
 
 ## 📝 **Credential Formats**
 
+Credentials are stored line by line using semicolons as separators:
+
+```
+ip;username;password;vendor;url;proxy
+```
+
+`proxy` is optional and may be left empty if not required.
+
 ### **Fortinet:**
 ```
 https://example.com:4443;guest;guest
@@ -172,34 +180,37 @@ When the server starts it calls `InitSchema`, creating all tables if
 they don't already exist. The `db.Connect` helper automatically
 invokes this function so the schema is created even when an embedded
 database is launched. This means the application works with an
-empty database out of the box.
+empty database out of the box. If the embedded Postgres instance is started
+automatically, `InitSchema` runs as part of `db.Connect` and creates the tables
+on first launch.
 
 ### **tasks**
 
-Tracks the progress of each scanning job. Columns include:
+Tracks the progress of each scanning job. Key fields:
 
-- `id` – primary key
-- `vpn_type` or `vendor_url_id` – the VPN type or linked vendor URL
-- `vendor` – VPN vendor name
-- `url` – URL associated with the task's vendor
-- `proxy` – optional proxy used for the task
+- `id` – unique task identifier
+- `vpn_type` – VPN vendor or protocol for the task
+- `vendor_url_id` – optional link to a row in `vendor_urls`
 - `server` – target server address
 - `status` – current job state
 - `progress` – credentials processed so far
 - `processed` – total credentials count
 - `goods`, `bads`, `errors` – result statistics
 - `rps` – requests per second
+- `proxy` – proxy used for the task (optional)
+- `url` – URL associated with the vendor
 - `created_at` – creation timestamp
 
 ### **credentials**
 
-Holds the credential sets used for scanning. Each entry has the fields:
+Stores credential sets for scanning. Each record contains:
 
+- `id` – primary key
 - `ip` – VPN gateway IP or hostname
 - `username` – login name
 - `password` – password
 - `vendor` – VPN vendor name
-- `url` – vendor URL the credentials belong to
+- `url` – vendor URL these credentials belong to
 - `proxy` – optional proxy to test with
 
 ### **REST API Endpoints**
@@ -243,6 +254,36 @@ server responds with:
 ```
 
 Listing tasks returns the same structure with `data` as an array of tasks.
+
+#### Examples
+
+List tasks:
+
+```bash
+curl http://localhost:8080/api/tasks
+```
+
+Create a task:
+
+```bash
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"vpn_type":"fortinet","server":"1.2.3.4"}'
+```
+
+Update task `1`:
+
+```bash
+curl -X PUT http://localhost:8080/api/tasks/1 \
+  -H "Content-Type: application/json" \
+  -d '{"status":"running"}'
+```
+
+Delete task `1`:
+
+```bash
+curl -X DELETE http://localhost:8080/api/tasks/1
+```
 
 These tables—including `tasks`, `credentials`, `vendor_urls` and `proxies`—are
 automatically initialized when the server launches with the embedded database.
