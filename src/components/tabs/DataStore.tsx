@@ -5,9 +5,9 @@ import { VendorURL, CredentialPair, ProxySetting, Task } from "../../types";
 import toast from "react-hot-toast";
 import { Link } from "lucide-react";
 
-interface Selectable<T> extends T {
+type Selectable<T extends Record<string, unknown>> = T & {
   selected?: boolean;
-}
+};
 
 async function fetchJSON(path: string, options?: RequestInit) {
   const res = await fetch(path, {
@@ -119,7 +119,7 @@ export function DataStore() {
 
   const updateItem = async <T extends { id: number }>(
     path: string,
-    item: T,
+    item: Selectable<T>,
     list: Selectable<T>[],
     setList: (l: Selectable<T>[]) => void,
   ) => {

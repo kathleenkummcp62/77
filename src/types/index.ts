@@ -40,25 +40,25 @@ export interface SystemConfig {
   proxyConfig: string;
 }
 
-export interface VendorURL {
+export interface VendorURL extends Record<string, unknown> {
   id: number;
   url: string;
 }
 
-export interface CredentialPair {
+export interface CredentialPair extends Record<string, unknown> {
   id: number;
   login: string;
   password: string;
 }
 
-export interface ProxySetting {
+export interface ProxySetting extends Record<string, unknown> {
   id: number;
   address: string;
   username?: string;
   password?: string;
 }
 
-export interface Task {
+export interface Task extends Record<string, unknown> {
   id: number;
   vpn_type?: string;
   vendor_url_id?: number;
