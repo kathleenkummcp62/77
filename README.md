@@ -297,22 +297,6 @@ curl -X DELETE http://localhost:8080/api/tasks/1
 { "success": true, "data": { "id": 1, "vendor": "fortinet", "url": "https://vpn.example.com", "login": "user", "password": "pass", "proxy": "" } }
 ```
 
-#### Example Responses
-
-```json
-{
-  "success": true,
-  "data": []
-}
-
-{
-  "success": true,
-  "data": {"id": 1, "vendor": "fortinet", "url": "https://vpn.example.com", "login": "user", "password": "pass", "proxy": ""}
-}
-
-{ "success": true }
-```
-
 ### **/api/credentials Request & Response Format**
 
 The credentials endpoints use the same JSON structure as tasks. A typical
