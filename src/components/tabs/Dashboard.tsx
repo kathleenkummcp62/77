@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { 
   Activity, 
   Server, 
@@ -10,20 +11,25 @@ import {
   AlertTriangle,
   Clock,
   Zap,
-  Shield
+  Shield,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
-const mockData = [
-  { time: '00:00', goods: 120, bads: 45, errors: 12 },
-  { time: '01:00', goods: 180, bads: 67, errors: 8 },
-  { time: '02:00', goods: 240, bads: 89, errors: 15 },
-  { time: '03:00', goods: 320, bads: 112, errors: 22 },
-  { time: '04:00', goods: 450, bads: 134, errors: 18 },
-  { time: '05:00', goods: 580, bads: 156, errors: 25 },
-];
-
 export function Dashboard() {
+  const { isConnected, stats, servers, error } = useWebSocket('ws://localhost:8080/ws');
+
+  // Mock chart data - in real implementation, this would come from WebSocket
+  const mockData = [
+    { time: '00:00', goods: stats?.goods || 120, bads: stats?.bads || 45, errors: stats?.errors || 12 },
+    { time: '01:00', goods: (stats?.goods || 120) + 60, bads: (stats?.bads || 45) + 22, errors: (stats?.errors || 12) + 3 },
+    { time: '02:00', goods: (stats?.goods || 120) + 120, bads: (stats?.bads || 45) + 44, errors: (stats?.errors || 12) + 7 },
+    { time: '03:00', goods: (stats?.goods || 120) + 200, bads: (stats?.bads || 45) + 67, errors: (stats?.errors || 12) + 10 },
+    { time: '04:00', goods: (stats?.goods || 120) + 330, bads: (stats?.bads || 45) + 89, errors: (stats?.errors || 12) + 6 },
+    { time: '05:00', goods: (stats?.goods || 120) + 460, bads: (stats?.bads || 45) + 111, errors: (stats?.errors || 12) + 13 },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -33,10 +39,32 @@ export function Dashboard() {
           <p className="text-gray-600 mt-1">Real-time system overview and statistics</p>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse"></div>
-          <span className="text-sm text-gray-600">Live Updates</span>
+          {isConnected ? (
+            <>
+              <Wifi className="w-4 h-4 text-success-500" />
+              <span className="text-sm text-success-600">Connected</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="w-4 h-4 text-error-500" />
+              <span className="text-sm text-error-600">Disconnected</span>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Connection Error */}
+      {error && (
+        <Card className="border-error-200 bg-error-50">
+          <div className="flex items-center space-x-3">
+            <AlertTriangle className="h-5 w-5 text-error-600" />
+            <div>
+              <h4 className="font-medium text-error-800">Connection Error</h4>
+              <p className="text-sm text-error-600">{error}</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -44,8 +72,10 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Valid Credentials</p>
-              <p className="text-3xl font-bold text-success-600">1,247</p>
-              <p className="text-sm text-success-600 mt-1">+12% from yesterday</p>
+              <p className="text-3xl font-bold text-success-600">{stats?.goods?.toLocaleString() || '0'}</p>
+              <p className="text-sm text-success-600 mt-1">
+                {stats?.success_rate ? `${stats.success_rate.toFixed(1)}% success rate` : 'No data'}
+              </p>
             </div>
             <div className="p-3 bg-success-100 rounded-full">
               <CheckCircle className="h-8 w-8 text-success-600" />
@@ -57,8 +87,10 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Failed Attempts</p>
-              <p className="text-3xl font-bold text-error-600">3,892</p>
-              <p className="text-sm text-error-600 mt-1">+5% from yesterday</p>
+              <p className="text-3xl font-bold text-error-600">{stats?.bads?.toLocaleString() || '0'}</p>
+              <p className="text-sm text-error-600 mt-1">
+                {stats?.processed ? `${((stats.bads / stats.processed) * 100).toFixed(1)}% of total` : 'No data'}
+              </p>
             </div>
             <div className="p-3 bg-error-100 rounded-full">
               <XCircle className="h-8 w-8 text-error-600" />
@@ -70,7 +102,9 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Active Servers</p>
-              <p className="text-3xl font-bold text-primary-600">4/4</p>
+              <p className="text-3xl font-bold text-primary-600">
+                {servers?.filter(s => s.status === 'online').length || 0}/{servers?.length || 0}
+              </p>
               <p className="text-sm text-success-600 mt-1">All online</p>
             </div>
             <div className="p-3 bg-primary-100 rounded-full">
@@ -83,8 +117,12 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Processing Speed</p>
-              <p className="text-3xl font-bold text-warning-600">2.4k/s</p>
-              <p className="text-sm text-warning-600 mt-1">Average rate</p>
+              <p className="text-3xl font-bold text-warning-600">
+                {stats?.rps ? `${stats.rps.toLocaleString()}/s` : '0/s'}
+              </p>
+              <p className="text-sm text-warning-600 mt-1">
+                Peak: {stats?.peak_rps ? `${stats.peak_rps.toLocaleString()}/s` : '0/s'}
+              </p>
             </div>
             <div className="p-3 bg-warning-100 rounded-full">
               <Zap className="h-8 w-8 text-warning-600" />
@@ -98,7 +136,9 @@ export function Dashboard() {
         <Card>
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-900">Success Rate Trend</h3>
-            <Badge variant="success">Live</Badge>
+            <Badge variant={isConnected ? "success" : "gray"}>
+              {isConnected ? "Live" : "Offline"}
+            </Badge>
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={mockData}>
@@ -134,75 +174,73 @@ export function Dashboard() {
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Server Status</h3>
           <div className="flex space-x-2">
-            <Badge variant="success">4 Online</Badge>
-            <Badge variant="gray">0 Offline</Badge>
+            <Badge variant="success">{servers?.filter(s => s.status === 'online').length || 0} Online</Badge>
+            <Badge variant="gray">{servers?.filter(s => s.status !== 'online').length || 0} Offline</Badge>
           </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {['192.168.8.251', '192.168.8.252', '192.168.8.253', '192.168.8.254'].map((ip, index) => (
-            <div key={ip} className="p-4 border border-gray-200 rounded-lg">
+          {servers?.map((server, index) => (
+            <div key={server.ip} className="p-4 border border-gray-200 rounded-lg">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-medium text-gray-900">{ip}</span>
-                <Badge variant="success">Online</Badge>
+                <span className="font-medium text-gray-900">{server.ip}</span>
+                <Badge variant={server.status === 'online' ? 'success' : 'error'}>
+                  {server.status}
+                </Badge>
               </div>
               
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Progress</span>
-                  <span className="font-medium">{65 + index * 5}%</span>
+                  <span className="font-medium">{server.progress}%</span>
                 </div>
-                <ProgressBar value={65 + index * 5} color="primary" size="sm" />
+                <ProgressBar value={server.progress} color="primary" size="sm" />
                 
                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mt-3">
-                  <div>Speed: {(2.1 + index * 0.3).toFixed(1)}k/s</div>
-                  <div>Uptime: {12 + index}h</div>
+                  <div>Speed: {server.speed}</div>
+                  <div>Uptime: {server.uptime}</div>
+                  <div>Goods: {server.goods}</div>
+                  <div>Errors: {server.errors}</div>
+                </div>
+                
+                <div className="text-xs text-gray-500 mt-2 truncate">
+                  {server.current_task}
                 </div>
               </div>
             </div>
-          ))}
+          )) || (
+            // Fallback when no server data
+            <div className="col-span-4 text-center text-gray-500 py-8">
+              No server data available. Check WebSocket connection.
+            </div>
+          )}
         </div>
       </Card>
 
-      {/* Recent Activity */}
-      <Card>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-          <Badge variant="primary">Real-time</Badge>
-        </div>
-        
-        <div className="space-y-4">
-          {[
-            { type: 'success', message: 'Found 15 valid Fortinet credentials', time: '2 minutes ago', icon: CheckCircle },
-            { type: 'info', message: 'Server 192.168.8.252 completed processing part_2.txt', time: '5 minutes ago', icon: Server },
-            { type: 'warning', message: 'High error rate detected on Global Protect scanner', time: '8 minutes ago', icon: AlertTriangle },
-            { type: 'success', message: 'Uploaded new credential list to all servers', time: '12 minutes ago', icon: CheckCircle },
-            { type: 'info', message: 'System modules updated successfully', time: '15 minutes ago', icon: Activity },
-          ].map((activity, index) => {
-            const Icon = activity.icon;
-            const colors = {
-              success: 'text-success-600 bg-success-100',
-              info: 'text-primary-600 bg-primary-100',
-              warning: 'text-warning-600 bg-warning-100'
-            };
-            
-            return (
-              <div key={index} className="flex items-start space-x-3">
-                <div className={`p-2 rounded-full ${colors[activity.type as keyof typeof colors]}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                  <p className="text-xs text-gray-500 flex items-center mt-1">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {activity.time}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
+      {/* Performance Metrics */}
+      {stats && (
+        <Card>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Metrics</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-primary-600">{stats.threads}</p>
+              <p className="text-sm text-gray-600">Active Threads</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-success-600">{stats.avg_rps}</p>
+              <p className="text-sm text-gray-600">Avg RPS</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-warning-600">{Math.floor(stats.uptime / 60)}m</p>
+              <p className="text-sm text-gray-600">Uptime</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-600">{stats.processed.toLocaleString()}</p>
+              <p className="text-sm text-gray-600">Total Processed</p>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

@@ -159,6 +159,7 @@ func (s *Stats) saveToFile() {
 	os.WriteFile(fmt.Sprintf("stats_%d.json", os.Getpid()), jsonData, 0644)
 }
 
+// Getter methods for WebSocket API
 func (s *Stats) GetProcessed() int64 {
 	return atomic.LoadInt64(&s.Processed)
 }
@@ -167,8 +168,40 @@ func (s *Stats) GetGoods() int64 {
 	return atomic.LoadInt64(&s.Goods)
 }
 
+func (s *Stats) GetBads() int64 {
+	return atomic.LoadInt64(&s.Bads)
+}
+
+func (s *Stats) GetErrors() int64 {
+	return atomic.LoadInt64(&s.Errors)
+}
+
+func (s *Stats) GetOffline() int64 {
+	return atomic.LoadInt64(&s.Offline)
+}
+
+func (s *Stats) GetIPBlock() int64 {
+	return atomic.LoadInt64(&s.IPBlock)
+}
+
 func (s *Stats) GetRPS() int64 {
 	return atomic.LoadInt64(&s.RPS)
+}
+
+func (s *Stats) GetAvgRPS() int64 {
+	return atomic.LoadInt64(&s.AvgRPS)
+}
+
+func (s *Stats) GetPeakRPS() int64 {
+	return atomic.LoadInt64(&s.PeakRPS)
+}
+
+func (s *Stats) GetThreads() int64 {
+	return atomic.LoadInt64(&s.Threads)
+}
+
+func (s *Stats) GetUptime() int64 {
+	return int64(time.Since(s.startTime).Seconds())
 }
 
 func (s *Stats) GetSuccessRate() float64 {

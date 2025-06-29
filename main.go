@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"vpn-bruteforce-client/internal/api"
 	"vpn-bruteforce-client/internal/bruteforce"
 	"vpn-bruteforce-client/internal/config"
 	"vpn-bruteforce-client/internal/stats"
@@ -17,17 +18,25 @@ import (
 
 func main() {
 	var (
-		configFile = flag.String("config", "config.yaml", "Configuration file path")
-		vpnType    = flag.String("type", "", "VPN type (fortinet, globalprotect, citrix, cisco)")
-		inputFile  = flag.String("input", "", "Input file with credentials")
-		outputFile = flag.String("output", "", "Output file for valid credentials")
-		threads    = flag.Int("threads", 0, "Number of threads (0 = auto-detect)")
-		rateLimit  = flag.Int("rate", 0, "Rate limit (requests per second)")
-		timeout    = flag.Int("timeout", 0, "Connection timeout in seconds")
-		verbose    = flag.Bool("verbose", false, "Verbose logging")
-		benchmark  = flag.Bool("benchmark", false, "Run performance benchmark")
+		configFile   = flag.String("config", "config.yaml", "Configuration file path")
+		vpnType      = flag.String("type", "", "VPN type (fortinet, globalprotect, citrix, cisco)")
+		inputFile    = flag.String("input", "", "Input file with credentials")
+		outputFile   = flag.String("output", "", "Output file for valid credentials")
+		threads      = flag.Int("threads", 0, "Number of threads (0 = auto-detect)")
+		rateLimit    = flag.Int("rate", 0, "Rate limit (requests per second)")
+		timeout      = flag.Int("timeout", 0, "Connection timeout in seconds")
+		verbose      = flag.Bool("verbose", false, "Verbose logging")
+		benchmark    = flag.Bool("benchmark", false, "Run performance benchmark")
+		dashboardOnly = flag.Bool("dashboard", false, "Run dashboard server only")
+		dashboardPort = flag.Int("dashboard-port", 8080, "Dashboard server port")
 	)
 	flag.Parse()
+
+	// Dashboard-only mode
+	if *dashboardOnly {
+		runDashboard(*dashboardPort)
+		return
+	}
 
 	// Performance benchmark mode
 	if *benchmark {
@@ -80,12 +89,21 @@ func main() {
 	fmt.Printf("🎯 Target: %s VPN | RPS Limit: %d | Threads: %d-%d\n", 
 		cfg.VPNType, cfg.RateLimit, cfg.MinThreads, cfg.MaxThreads)
 	fmt.Printf("📁 Input: %s | Output: %s\n", cfg.InputFile, cfg.OutputFile)
-	fmt.Printf("⏱️  Timeout: %v | Retries: %d | Auto-scale: %v\n\n", 
+	fmt.Printf("⏱️  Timeout: %v | Retries: %d | Auto-scale: %v\n", 
 		cfg.Timeout, cfg.MaxRetries, cfg.AutoScale)
+	fmt.Printf("🌐 Dashboard: http://localhost:%d\n\n", *dashboardPort)
 
 	// Initialize ultra-fast statistics
 	statsManager := stats.New()
 	go statsManager.Start()
+
+	// Start dashboard server in background
+	go func() {
+		server := api.NewServer(statsManager, *dashboardPort)
+		if err := server.Start(); err != nil {
+			log.Printf("⚠️  Dashboard server error: %v", err)
+		}
+	}()
 
 	// Initialize ultra-fast bruteforce engine
 	engine, err := bruteforce.New(cfg, statsManager)
@@ -119,6 +137,31 @@ func main() {
 	duration := time.Since(start)
 	fmt.Printf("\n✅ Ultra-fast bruteforce completed in %v!\n", duration)
 	fmt.Printf("📊 Final statistics saved to stats files\n")
+}
+
+func runDashboard(port int) {
+	log.Printf("🚀 VPN Bruteforce Dashboard v3.0")
+	log.Printf("🌐 Starting dashboard server on port %d", port)
+
+	// Initialize stats (mock for dashboard-only mode)
+	statsManager := stats.New()
+	go statsManager.Start()
+
+	// Initialize API server with WebSocket support
+	server := api.NewServer(statsManager, port)
+
+	// Handle graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		log.Println("🛑 Shutdown signal received...")
+		os.Exit(0)
+	}()
+
+	// Start the server
+	log.Fatal(server.Start())
 }
 
 func runBenchmark() {
