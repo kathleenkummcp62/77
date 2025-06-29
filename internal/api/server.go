@@ -398,6 +398,10 @@ func (s *Server) detectSchema() {
 }
 
 func (s *Server) handleVendorURLs(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		rows, err := s.db.Query(`SELECT id, url FROM vendor_urls`)
@@ -432,6 +436,10 @@ func (s *Server) handleVendorURLs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleVendorURL(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	id, _ := strconv.Atoi(idStr)
 	switch r.Method {
@@ -458,6 +466,10 @@ func (s *Server) handleVendorURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleVendorURLsBulkDelete(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	var req struct {
 		IDs []int `json:"ids"`
 	}
@@ -478,6 +490,10 @@ func (s *Server) handleVendorURLsBulkDelete(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		rows, err := s.db.Query(`SELECT id, ip, username, password FROM credentials`)
@@ -510,6 +526,10 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	id, _ := strconv.Atoi(idStr)
 	switch r.Method {
@@ -534,6 +554,10 @@ func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCredentialsBulkDelete(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	var req struct {
 		IDs []int `json:"ids"`
 	}
@@ -553,6 +577,10 @@ func (s *Server) handleCredentialsBulkDelete(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		rows, err := s.db.Query(`SELECT id, address, username, password FROM proxies`)
@@ -585,6 +613,10 @@ func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	id, _ := strconv.Atoi(idStr)
 	switch r.Method {
@@ -609,6 +641,10 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleProxiesBulkDelete(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	var req struct {
 		IDs []int `json:"ids"`
 	}
@@ -628,6 +664,10 @@ func (s *Server) handleProxiesBulkDelete(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		var rows *sql.Rows
@@ -743,6 +783,10 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	id, _ := strconv.Atoi(idStr)
 	switch r.Method {
@@ -804,6 +848,10 @@ func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTasksBulkDelete(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
 	var req struct {
 		IDs []int `json:"ids"`
 	}
