@@ -118,8 +118,21 @@ func main() {
 		}
 	}()
 
+	// Load tasks from the database for the bruteforce engine
+	builder := &bruteforce.TaskBuilder{ProxyList: cfg.ProxyList}
+	rows, err := database.Query(`SELECT id, vendor, url, login, password, proxy FROM tasks`)
+	if err == nil {
+		for rows.Next() {
+			var t bruteforce.Task
+			if err := rows.Scan(&t.ID, &t.Vendor, &t.URL, &t.Login, &t.Password, &t.Proxy); err == nil {
+				builder.Tasks = append(builder.Tasks, t)
+			}
+		}
+		rows.Close()
+	}
+
 	// Initialize ultra-fast bruteforce engine
-	engine, err := bruteforce.New(cfg, statsManager, nil)
+	engine, err := bruteforce.New(cfg, statsManager, builder)
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize ultra-fast engine: %v", err)
 	}
