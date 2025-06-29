@@ -1,5 +1,14 @@
+# Dependencies
 node_modules/
-.env
-stats_*.json
+
+# Сборка
 dist/
+
+# Конфигурация среды
+.env
+
+# Файлы статистики
+stats_*.json
+
+# Файлы с чувствительными данными
 credentials*.txt
