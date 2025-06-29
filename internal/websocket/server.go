@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -44,19 +43,19 @@ type StatsData struct {
 }
 
 type ServerInfo struct {
-	IP        string  `json:"ip"`
-	Status    string  `json:"status"`
-	Uptime    string  `json:"uptime"`
-	CPU       int     `json:"cpu"`
-	Memory    int     `json:"memory"`
-	Disk      int     `json:"disk"`
-	Speed     string  `json:"speed"`
-	Processed int     `json:"processed"`
-	Goods     int     `json:"goods"`
-	Bads      int     `json:"bads"`
-	Errors    int     `json:"errors"`
-	Progress  int     `json:"progress"`
-	Task      string  `json:"current_task"`
+	IP        string `json:"ip"`
+	Status    string `json:"status"`
+	Uptime    string `json:"uptime"`
+	CPU       int    `json:"cpu"`
+	Memory    int    `json:"memory"`
+	Disk      int    `json:"disk"`
+	Speed     string `json:"speed"`
+	Processed int    `json:"processed"`
+	Goods     int    `json:"goods"`
+	Bads      int    `json:"bads"`
+	Errors    int    `json:"errors"`
+	Progress  int    `json:"progress"`
+	Task      string `json:"current_task"`
 }
 
 func NewServer(stats *stats.Stats) *Server {
@@ -89,7 +88,7 @@ func (s *Server) handleConnections() {
 			s.clients[client] = true
 			s.clientsMux.Unlock()
 			log.Printf("WebSocket client connected. Total: %d", len(s.clients))
-			
+
 			// Send initial data to new client
 			s.sendInitialData(client)
 
@@ -103,16 +102,14 @@ func (s *Server) handleConnections() {
 			log.Printf("WebSocket client disconnected. Total: %d", len(s.clients))
 
 		case message := <-s.broadcast:
-			s.clientsMux.RLock()
+			s.clientsMux.Lock()
 			for client := range s.clients {
-				select {
-				case client.WriteMessage(websocket.TextMessage, message):
-				default:
+				if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
 					delete(s.clients, client)
 					client.Close()
 				}
 			}
-			s.clientsMux.RUnlock()
+			s.clientsMux.Unlock()
 		}
 	}
 }
@@ -183,8 +180,12 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 		Timestamp: time.Now().Unix(),
 	}
 
-	data, _ := json.Marshal(message)
-	client.WriteMessage(websocket.TextMessage, data)
+	data, err := json.Marshal(message)
+	if err != nil {
+		log.Printf("Error marshaling initial stats: %v", err)
+	} else if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
+		log.Printf("Error sending initial stats: %v", err)
+	}
 
 	// Send server info
 	servers := s.getServerInfo()
@@ -194,8 +195,14 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 		Timestamp: time.Now().Unix(),
 	}
 
-	serverData, _ := json.Marshal(serverMessage)
-	client.WriteMessage(websocket.TextMessage, serverData)
+	serverData, err := json.Marshal(serverMessage)
+	if err != nil {
+		log.Printf("Error marshaling server info: %v", err)
+		return
+	}
+	if err := client.WriteMessage(websocket.TextMessage, serverData); err != nil {
+		log.Printf("Error sending server info: %v", err)
+	}
 }
 
 func (s *Server) getServerInfo() []ServerInfo {
@@ -299,9 +306,17 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 	switch msg.Type {
 	case "start_scanner":
 		// Handle start scanner command
+		vpnType := ""
+		if m, ok := msg.Data.(map[string]interface{}); ok {
+			if v, ok := m["vpn_type"].(string); ok {
+				vpnType = v
+			}
+		} else if v, ok := msg.Data.(string); ok {
+			vpnType = v
+		}
 		response := Message{
 			Type:      "scanner_started",
-			Data:      map[string]string{"status": "success", "scanner": msg.Data.(string)},
+			Data:      map[string]string{"status": "success", "scanner": vpnType},
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
@@ -309,9 +324,17 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 
 	case "stop_scanner":
 		// Handle stop scanner command
+		vpnType := ""
+		if m, ok := msg.Data.(map[string]interface{}); ok {
+			if v, ok := m["vpn_type"].(string); ok {
+				vpnType = v
+			}
+		} else if v, ok := msg.Data.(string); ok {
+			vpnType = v
+		}
 		response := Message{
 			Type:      "scanner_stopped",
-			Data:      map[string]string{"status": "success", "scanner": msg.Data.(string)},
+			Data:      map[string]string{"status": "success", "scanner": vpnType},
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
