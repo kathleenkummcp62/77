@@ -26,10 +26,18 @@ type Server struct {
 	unregister chan *websocket.Conn
 }
 
+func raw(v interface{}) json.RawMessage {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return json.RawMessage(b)
+}
+
 type Message struct {
-	Type      string      `json:"type"`
-	Data      interface{} `json:"data"`
-	Timestamp int64       `json:"timestamp"`
+	Type      string          `json:"type"`
+	Data      json.RawMessage `json:"data"`
+	Timestamp int64           `json:"timestamp"`
 }
 
 type StatsData struct {
@@ -144,7 +152,7 @@ func (s *Server) broadcastStats() {
 
 			message := Message{
 				Type:      "stats_update",
-				Data:      statsData,
+				Data:      raw(statsData),
 				Timestamp: time.Now().Unix(),
 			}
 
@@ -182,7 +190,7 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 
 	message := Message{
 		Type:      "initial_stats",
-		Data:      statsData,
+		Data:      raw(statsData),
 		Timestamp: time.Now().Unix(),
 	}
 
@@ -197,7 +205,7 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 	servers := s.getServerInfo()
 	serverMessage := Message{
 		Type:      "server_info",
-		Data:      servers,
+		Data:      raw(servers),
 		Timestamp: time.Now().Unix(),
 	}
 
@@ -265,17 +273,17 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 	switch msg.Type {
 	case "start_scanner":
 		// Handle start scanner command
-		vpnType := ""
-		if m, ok := msg.Data.(map[string]interface{}); ok {
-			if v, ok := m["vpn_type"].(string); ok {
-				vpnType = v
-			}
-		} else if v, ok := msg.Data.(string); ok {
-			vpnType = v
+		var payload struct {
+			VPNType string `json:"vpn_type"`
 		}
+		if err := json.Unmarshal(msg.Data, &payload); err != nil {
+			// try simple string payload
+			_ = json.Unmarshal(msg.Data, &payload.VPNType)
+		}
+
 		response := Message{
 			Type:      "scanner_started",
-			Data:      map[string]string{"status": "success", "scanner": vpnType},
+			Data:      raw(map[string]string{"status": "success", "vpn_type": payload.VPNType}),
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
@@ -283,33 +291,35 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 
 	case "stop_scanner":
 		// Handle stop scanner command
-		vpnType := ""
-		if m, ok := msg.Data.(map[string]interface{}); ok {
-			if v, ok := m["vpn_type"].(string); ok {
-				vpnType = v
-			}
-		} else if v, ok := msg.Data.(string); ok {
-			vpnType = v
+		var payload struct {
+			VPNType string `json:"vpn_type"`
+		}
+		if err := json.Unmarshal(msg.Data, &payload); err != nil {
+			_ = json.Unmarshal(msg.Data, &payload.VPNType)
 		}
 		response := Message{
 			Type:      "scanner_stopped",
-			Data:      map[string]string{"status": "success", "scanner": vpnType},
+			Data:      raw(map[string]string{"status": "success", "vpn_type": payload.VPNType}),
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
 		conn.WriteMessage(websocket.TextMessage, data)
 
 	case "get_logs":
-		limit := 100
-		if m, ok := msg.Data.(map[string]interface{}); ok {
-			if v, ok := m["limit"].(float64); ok {
-				limit = int(v)
-			}
+		var payload struct {
+			Limit int `json:"limit"`
+		}
+		if err := json.Unmarshal(msg.Data, &payload); err != nil {
+			// ignore error
+		}
+		limit := payload.Limit
+		if limit <= 0 {
+			limit = 100
 		}
 
 		logs, err := s.getLogs(limit)
 		if err != nil {
-			resp := Message{Type: "error", Data: map[string]string{"message": err.Error()}, Timestamp: time.Now().Unix()}
+			resp := Message{Type: "error", Data: raw(map[string]string{"message": err.Error()}), Timestamp: time.Now().Unix()}
 			if data, err := json.Marshal(resp); err == nil {
 				conn.WriteMessage(websocket.TextMessage, data)
 			}
@@ -318,7 +328,7 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 
 		response := Message{
 			Type:      "logs_data",
-			Data:      logs,
+			Data:      raw(logs),
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
@@ -332,7 +342,7 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 func (s *Server) BroadcastMessage(msgType string, data interface{}) {
 	message := Message{
 		Type:      msgType,
-		Data:      data,
+		Data:      raw(data),
 		Timestamp: time.Now().Unix(),
 	}
 
