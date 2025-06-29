@@ -340,7 +340,7 @@ tmpfs           3.9G     0  3.9G   0% /dev/shm`;
                 </span>
                 {message.type === 'command' && (
                   <div className="text-yellow-400">
-                    <span className="text-green-400">root@{activeSession}:~$ </span>
+                    <span className="text-green-400">{activeSession}:~$ </span>
                     {message.content}
                   </div>
                 )}
@@ -366,7 +366,7 @@ tmpfs           3.9G     0  3.9G   0% /dev/shm`;
         {/* Command Input */}
         <div className="flex items-center space-x-2">
           <span className="text-green-400 flex-shrink-0">
-            root@{activeSession}:~$
+            {activeSession}:~$
           </span>
           <input
             ref={inputRef}
