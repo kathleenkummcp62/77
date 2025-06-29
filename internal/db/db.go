@@ -18,6 +18,7 @@ type Config struct {
 	User     string
 	Password string
 	Name     string
+	Port     int
 }
 
 // to maintain backward compatibility, ConfigFromApp extracts database
@@ -28,6 +29,7 @@ func ConfigFromApp(c config.Config) Config {
 		User:     c.DBUser,
 		Password: c.DBPassword,
 		Name:     c.DBName,
+		Port:     c.DBPort,
 	}
 }
 
@@ -72,16 +74,20 @@ func Connect(cfg Config) (*DB, error) {
 	}
 
 	// Start embedded Postgres
+	port := c.Port
+	if port == 0 {
+		port = 5432
+	}
 	ep := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
 		Username(c.User).
 		Password(c.Password).
-		Database(c.Name))
+		Database(c.Name).
+		Port(uint32(port)))
 	if err = ep.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start embedded postgres: %w", err)
 	}
 
 	// Connect to embedded instance
-	const port = 5432
 	dsn := fmt.Sprintf("postgres://%s:%s@localhost:%d/%s?sslmode=disable",
 		c.User, c.Password, port, c.Name)
 	db, err = sql.Open("pgx", dsn)

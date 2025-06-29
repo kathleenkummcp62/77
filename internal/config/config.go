@@ -52,6 +52,7 @@ type Config struct {
 	DBUser      string `yaml:"db_user"`
 	DBPassword  string `yaml:"db_password"`
 	DBName      string `yaml:"db_name"`
+	DBPort      int    `yaml:"db_port"`
 }
 
 // Load reads YAML config from file and applies defaults.
@@ -113,6 +114,7 @@ func Default() *Config {
 		DBUser:      "postgres",
 		DBPassword:  "postgres",
 		DBName:      "vpn_data",
+		DBPort:      5432,
 	}
 
 	cfg.applyDefaults()
@@ -167,10 +169,12 @@ func (c *Config) applyDefaults() {
 	if c.DBPassword == "" {
 		c.DBPassword = "postgres"
 	}
+	if c.DBPort == 0 {
+		c.DBPort = 5432
+	}
 
 	if c.DatabaseDSN == "" {
-		const port = 5432
 		c.DatabaseDSN = fmt.Sprintf("postgres://%s:%s@localhost:%d/%s?sslmode=disable",
-			c.DBUser, c.DBPassword, port, c.DBName)
+			c.DBUser, c.DBPassword, c.DBPort, c.DBName)
 	}
 }

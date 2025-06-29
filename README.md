@@ -192,7 +192,8 @@ database is launched. The embedded database therefore starts with the
 `tasks`, `credentials`, `vendor_urls` and `proxies` tables ready to
 use. If no external database is reachable `db.Connect` falls back to an
 embedded Postgres instance so the application works with an empty
-database out of the box.
+database out of the box. The connection port can be configured via
+`db.Config.Port`; when set to zero it defaults to `5432`.
 
 ### **tasks**
 
