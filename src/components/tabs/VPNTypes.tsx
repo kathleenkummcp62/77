@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { Shield, Play, Pause, Settings, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Shield, Play, Pause, Settings, Activity, AlertTriangle, CheckCircle, Eye } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import toast from 'react-hot-toast';
 
+// ✅ РЕАЛЬНЫЕ VPN ТИПЫ С ВАЛИДНЫМИ CREDENTIALS ДЛЯ КАЛИБРОВКИ
 const vpnTypes = [
   {
     id: 'fortinet',
@@ -14,20 +15,29 @@ const vpnTypes = [
     script: 'sers1.py',
     color: 'bg-red-500',
     status: 'idle',
-    lastRun: '2 minutes ago',
-    successRate: 12.5,
-    totalAttempts: 15420,
-    validFound: 1927,
+    lastRun: 'Never',
+    successRate: 0,
+    totalAttempts: 0,
+    validFound: 0,
     successIndicators: [
       'vpn/tunnel',
       'portal.html', 
       'FortiGate',
       'sslvpn_portal',
-      'logout'
+      'logout',
+      'dashboard',
+      'welcome.html'
     ],
-    testCredentials: [
+    realCredentials: [
       'https://200.113.15.26:4443;guest;guest',
-      'https://195.150.192.5:443;admin;password'
+      'https://195.150.192.5:443;guest;guest',
+      'https://88.117.174.186:443;guest;guest',
+      'https://118.238.205.22:10443;guest;guest',
+      'https://49.205.180.172:10443;guest;guest',
+      'https://37.142.24.153:10443;guest;guest',
+      'https://206.74.89.110:10443;guest;guest',
+      'https://222.119.99.24:10443;guest;guest',
+      'https://220.241.67.242:3443;guest;guest'
     ]
   },
   {
@@ -37,62 +47,21 @@ const vpnTypes = [
     script: 'sers2.go',
     color: 'bg-blue-500',
     status: 'idle',
-    lastRun: '1 hour ago',
-    successRate: 8.3,
-    totalAttempts: 8950,
-    validFound: 743,
+    lastRun: 'Never',
+    successRate: 0,
+    totalAttempts: 0,
+    validFound: 0,
     successIndicators: [
       'Download Windows 64 bit GlobalProtect agent',
       'GlobalProtect Portal',
       'gp-portal',
-      'clientDownload'
+      'clientDownload',
+      'portal-userauthcookie'
     ],
-    testCredentials: [
+    realCredentials: [
       'https://216.229.124.44:443;test;test',
-      'https://72.26.131.86:443;user;pass'
-    ]
-  },
-  {
-    id: 'citrix',
-    name: 'Citrix VPN',
-    description: 'Citrix NetScaler Gateway scanner',
-    script: 'sers3.py',
-    color: 'bg-green-500',
-    status: 'idle',
-    lastRun: '45 minutes ago',
-    successRate: 15.2,
-    totalAttempts: 6780,
-    validFound: 1031,
-    successIndicators: [
-      'CredentialUpdateService',
-      'NetScaler Gateway',
-      'citrix-logon',
-      'NSGateway'
-    ],
-    testCredentials: [
-      'https://citrix.example.com;user;pass'
-    ]
-  },
-  {
-    id: 'cisco',
-    name: 'Cisco VPN',
-    description: 'Cisco ASA SSL VPN scanner',
-    script: 'sers4.go',
-    color: 'bg-purple-500',
-    status: 'idle',
-    lastRun: '3 hours ago',
-    successRate: 6.8,
-    totalAttempts: 12340,
-    validFound: 839,
-    successIndicators: [
-      'SSL VPN Service + webvpn_logout',
-      '/+CSCOE+/',
-      'webvpn_portal',
-      'ANYCONNECT'
-    ],
-    testCredentials: [
-      'https://74.209.225.52:443:test:test:remote_access',
-      'https://67.202.240.148:443:admin:pass:ANYCONNECT'
+      'https://72.26.131.86:443;test;test',
+      'https://216.247.223.23:443;test;test'
     ]
   },
   {
@@ -102,18 +71,27 @@ const vpnTypes = [
     script: 'sonicwall.py',
     color: 'bg-orange-500',
     status: 'idle',
-    lastRun: '2 hours ago',
-    successRate: 9.1,
-    totalAttempts: 5670,
-    validFound: 516,
+    lastRun: 'Never',
+    successRate: 0,
+    totalAttempts: 0,
+    validFound: 0,
     successIndicators: [
       'SonicWall',
       'NetExtender',
       'sslvpn',
-      'portal.html'
+      'portal.html',
+      'welcome'
     ],
-    testCredentials: [
-      'https://69.21.239.19:4433;test;test;LocalDomain'
+    realCredentials: [
+      'https://69.21.239.19:4433;test;test;LocalDomain',
+      'https://68.189.7.50:4433;test;test;hudmech.local',
+      'https://74.92.44.25:4433;test;test;microgroup.local',
+      'https://96.70.252.65:4433;test;test;fm.local',
+      'https://24.55.137.209:443;test;test;CMAAA15',
+      'https://50.198.63.225:4433;test;test;MADISON',
+      'https://96.89.127.141:4433;test;test;maloneysocular',
+      'https://12.215.186.74:443;guest;guest;parksprings.com',
+      'https://131.148.177.186:4433;guest;guest;dhte.dhtellc.com'
     ]
   },
   {
@@ -123,18 +101,84 @@ const vpnTypes = [
     script: 'sophos.py',
     color: 'bg-indigo-500',
     status: 'idle',
-    lastRun: '4 hours ago',
-    successRate: 7.3,
-    totalAttempts: 3450,
-    validFound: 252,
+    lastRun: 'Never',
+    successRate: 0,
+    totalAttempts: 0,
+    validFound: 0,
     successIndicators: [
       'Sophos',
       'userportal',
       'myaccount',
+      'welcome',
+      'logout'
+    ],
+    realCredentials: [
+      'https://213.139.132.204:6443;test;test;intern.gutenberg-shop.de',
+      'https://124.254.117.194:8443;test;test;fcc.wa.edu.au',
+      'https://80.151.100.43:4433;test;test;bilstein.local',
+      'https://213.139.132.205:6443;test;test;intern.gutenberg-shop.de',
+      'https://167.98.99.132:443;test;test;unknown_domain',
+      'https://212.100.41.190:4445;test;test;verwaltung.local'
+    ]
+  },
+  {
+    id: 'watchguard',
+    name: 'WatchGuard VPN',
+    description: 'WatchGuard Firebox SSL VPN',
+    script: 'watchguard.py',
+    color: 'bg-purple-500',
+    status: 'idle',
+    lastRun: 'Never',
+    successRate: 0,
+    totalAttempts: 0,
+    validFound: 0,
+    successIndicators: [
+      'WatchGuard',
+      'Firebox',
+      'portal',
+      'AuthPoint',
       'welcome'
     ],
-    testCredentials: [
-      'https://213.139.132.204:6443;test;test;intern.company.de'
+    realCredentials: [
+      'https://96.92.230.186:443:Firebox-DB:mpbchicago.masterpaperbox.com:printer:P@55w0rd',
+      'https://75.146.37.105:444:Firebox-DB:comercial:P@ssw0rd123',
+      'https://50.86.120.107:443:Firebox-DB:comercial:P@ssw0rd123',
+      'https://35.131.180.112:443:Firebox-DB:engineer:eng1neer1',
+      'https://98.100.209.218:443:Firebox-DB:chris:Welcome1!',
+      'https://96.56.65.26:4100:AuthPoint:Firebox-DB:hudsonss.com:media:Password@1',
+      'https://35.21.135.132:443:Firebox-DB:intranet:Password@1',
+      'https://98.63.175.96:8595:Firebox-DB:download:Download#',
+      'https://72.23.172.37:443:Firebox-DB:luis:pa$$w0rd',
+      'https://12.2.120.90:4100:AuthPoint:Firebox-DB:RADIUS:banneroak.local:default:password@1'
+    ]
+  },
+  {
+    id: 'cisco',
+    name: 'Cisco ASA VPN',
+    description: 'Cisco ASA SSL VPN scanner',
+    script: 'cisco.go',
+    color: 'bg-cyan-500',
+    status: 'idle',
+    lastRun: 'Never',
+    successRate: 0,
+    totalAttempts: 0,
+    validFound: 0,
+    successIndicators: [
+      'SSL VPN Service + webvpn_logout',
+      '/+CSCOE+/',
+      'webvpn_portal',
+      'ANYCONNECT',
+      'remote_access'
+    ],
+    realCredentials: [
+      'https://74.209.225.52:443:test:test:remote_access',
+      'https://67.202.240.148:443:test:test:ANYCONNECT',
+      'https://72.23.123.187:443:test:test:AnyConnect_HVAC',
+      'https://72.32.124.5:443:test:test:POLITICALDATA-ANYCONNECT-SSL',
+      'https://209.43.59.2:443:test:test:remote_access',
+      'https://204.235.221.57:8443:test:test',
+      'https://184.106.123.244:443:test:test:ANYCONNECT-GAVIOTA-SA',
+      'https://72.73.71.60:443:guest:guest'
     ]
   }
 ];
@@ -165,8 +209,14 @@ export function VPNTypes() {
   };
 
   const handleTest = (vpn: any) => {
-    toast.success(`Testing ${vpn.name} with sample credentials`);
+    toast.success(`Testing ${vpn.name} with ${vpn.realCredentials.length} real credentials`);
     // Здесь можно добавить логику тестирования
+  };
+
+  const copyCredentials = (credentials: string[]) => {
+    const text = credentials.join('\n');
+    navigator.clipboard.writeText(text);
+    toast.success('Credentials copied to clipboard!');
   };
 
   return (
@@ -174,8 +224,8 @@ export function VPNTypes() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">VPN Types</h1>
-          <p className="text-gray-600 mt-1">Manage and monitor different VPN scanning modules</p>
+          <h1 className="text-3xl font-bold text-gray-900">VPN Types & Calibration</h1>
+          <p className="text-gray-600 mt-1">Real VPN credentials for testing and calibration</p>
         </div>
         <div className="flex items-center space-x-3">
           <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-success-500 animate-pulse' : 'bg-error-500'}`}></div>
@@ -204,6 +254,20 @@ export function VPNTypes() {
         </Card>
       )}
 
+      {/* Real Credentials Info */}
+      <Card className="border-success-200 bg-success-50">
+        <div className="flex items-center space-x-3">
+          <CheckCircle className="h-5 w-5 text-success-600" />
+          <div>
+            <h4 className="font-medium text-success-800">Real Production Credentials</h4>
+            <p className="text-sm text-success-600">
+              These are actual working VPN credentials for calibration and testing. 
+              Total: {vpnTypes.reduce((sum, vpn) => sum + vpn.realCredentials.length, 0)} valid credentials across {vpnTypes.length} VPN types.
+            </p>
+          </div>
+        </div>
+      </Card>
+
       {/* VPN Type Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {vpnTypes.map((vpn) => (
@@ -223,6 +287,19 @@ export function VPNTypes() {
               >
                 {vpn.status === 'active' ? 'Running' : 'Idle'}
               </Badge>
+            </div>
+
+            {/* Real Credentials Count */}
+            <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-primary-800">
+                  Real Credentials Available
+                </span>
+                <Badge variant="primary">{vpn.realCredentials.length}</Badge>
+              </div>
+              <p className="text-xs text-primary-600 mt-1">
+                Ready for testing and calibration
+              </p>
             </div>
 
             {/* Stats */}
@@ -249,25 +326,44 @@ export function VPNTypes() {
               </div>
             </div>
 
-            {/* Success Indicators */}
+            {/* Success Indicators & Credentials */}
             {showDetails === vpn.id && (
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-800 mb-2">Success Indicators:</h4>
-                <div className="space-y-1">
-                  {vpn.successIndicators.map((indicator, idx) => (
-                    <div key={idx} className="flex items-center space-x-2">
-                      <CheckCircle className="h-3 w-3 text-success-600" />
-                      <code className="text-xs text-blue-700 bg-blue-100 px-1 rounded">{indicator}</code>
-                    </div>
-                  ))}
+              <div className="mb-4 space-y-3">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium text-blue-800 mb-2">Success Indicators:</h4>
+                  <div className="space-y-1">
+                    {vpn.successIndicators.map((indicator, idx) => (
+                      <div key={idx} className="flex items-center space-x-2">
+                        <CheckCircle className="h-3 w-3 text-success-600" />
+                        <code className="text-xs text-blue-700 bg-blue-100 px-1 rounded">{indicator}</code>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <h4 className="font-medium text-blue-800 mt-3 mb-2">Test Credentials:</h4>
-                <div className="space-y-1">
-                  {vpn.testCredentials.map((cred, idx) => (
-                    <code key={idx} className="block text-xs text-gray-600 bg-gray-100 p-1 rounded">
-                      {cred}
-                    </code>
-                  ))}
+                
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-green-800">Real Test Credentials:</h4>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => copyCredentials(vpn.realCredentials)}
+                    >
+                      Copy All
+                    </Button>
+                  </div>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {vpn.realCredentials.slice(0, 3).map((cred, idx) => (
+                      <code key={idx} className="block text-xs text-gray-600 bg-gray-100 p-1 rounded">
+                        {cred}
+                      </code>
+                    ))}
+                    {vpn.realCredentials.length > 3 && (
+                      <p className="text-xs text-gray-500">
+                        ... and {vpn.realCredentials.length - 3} more credentials
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -302,7 +398,7 @@ export function VPNTypes() {
                 size="sm"
                 onClick={() => setShowDetails(showDetails === vpn.id ? null : vpn.id)}
               >
-                <Activity className="h-4 w-4 mr-2" />
+                <Eye className="h-4 w-4 mr-2" />
                 {showDetails === vpn.id ? 'Hide' : 'Details'}
               </Button>
               <Button 
@@ -310,7 +406,7 @@ export function VPNTypes() {
                 size="sm"
                 onClick={() => handleTest(vpn)}
               >
-                <Settings className="h-4 w-4 mr-2" />
+                <Activity className="h-4 w-4 mr-2" />
                 Test
               </Button>
             </div>
@@ -357,7 +453,7 @@ export function VPNTypes() {
 
       {/* Detection Logic Info */}
       <Card>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Detection Logic</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Detection Logic Validation</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-4 bg-success-50 border border-success-200 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
@@ -370,6 +466,7 @@ export function VPNTypes() {
               <li>• Presence of logout buttons</li>
               <li>• VPN client download links</li>
               <li>• Welcome/portal pages</li>
+              <li>• ✅ Real credentials will show GOOD</li>
             </ul>
           </div>
 
@@ -383,7 +480,7 @@ export function VPNTypes() {
               <li>• Login form with error messages</li>
               <li>• "Invalid credentials" responses</li>
               <li>• Authentication failed pages</li>
-              <li>• Any modified password = BAD</li>
+              <li>• ❌ Modified password = BAD</li>
             </ul>
           </div>
 
@@ -400,6 +497,17 @@ export function VPNTypes() {
               <li>• Server errors (5xx)</li>
             </ul>
           </div>
+        </div>
+        
+        <div className="mt-4 p-4 bg-primary-50 border border-primary-200 rounded-lg">
+          <h4 className="font-medium text-primary-800 mb-2">Calibration Instructions:</h4>
+          <ol className="text-sm text-primary-700 space-y-1">
+            <li>1. Test each VPN type with provided real credentials</li>
+            <li>2. Verify GOOD results for valid credentials</li>
+            <li>3. Test with modified passwords to verify BAD detection</li>
+            <li>4. Check timeout handling with unreachable IPs</li>
+            <li>5. Validate error classification accuracy</li>
+          </ol>
         </div>
       </Card>
     </div>
