@@ -93,10 +93,6 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 	}
 
 	if s.db != nil {
-		if err := s.initDB(); err != nil {
-			log.Printf("failed to init db: %v", err)
-			s.logEvent("error", fmt.Sprintf("init db: %v", err), "api")
-		}
 		s.detectSchema()
 	}
 
@@ -403,14 +399,6 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
-}
-
-// initDB ensures the database schema exists using the shared initializer.
-func (s *Server) initDB() error {
-	if s == nil || s.db == nil {
-		return nil
-	}
-	return db.InitSchema(s.db)
 }
 
 // --- Data storage handlers ---
