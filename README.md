@@ -35,7 +35,7 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ### Node.js Version
 
-Ensure Node.js 20 is active when running dashboard scripts or linting. If you use [nvm](https://github.com/nvm-sh/nvm), run:
+The repository includes an `.nvmrc` file pinning Node.js **20**. Ensure this version is active when running dashboard scripts or linting. If you use [nvm](https://github.com/nvm-sh/nvm), run:
 
 ```bash
 nvm install 20
