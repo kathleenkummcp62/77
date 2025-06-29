@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
-import { VendorURL, CredentialPair, ProxySetting } from "../../types";
+import { VendorURL, CredentialPair, ProxySetting, Task } from "../../types";
 import toast from "react-hot-toast";
 import { Link } from "lucide-react";
 
@@ -24,6 +24,7 @@ export function DataStore() {
     [],
   );
   const [proxies, setProxies] = useState<Selectable<ProxySetting>[]>([]);
+  const [tasks, setTasks] = useState<Selectable<Task>[]>([]);
 
   const [newVendor, setNewVendor] = useState("");
   const [newCred, setNewCred] = useState({ login: "", password: "" });
@@ -32,17 +33,20 @@ export function DataStore() {
     username: "",
     password: "",
   });
+  const [newTask, setNewTask] = useState({ vpn_type: "", server: "" });
 
   const loadAll = async () => {
     try {
-      const [v, c, p] = await Promise.all([
+      const [v, c, p, t] = await Promise.all([
         fetchJSON("/api/vendor_urls"),
         fetchJSON("/api/credentials"),
         fetchJSON("/api/proxies"),
+        fetchJSON("/api/tasks"),
       ]);
       setVendors(v.data || []);
       setCredentials(c.data || []);
       setProxies(p.data || []);
+      setTasks(t.data || []);
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to load data");
@@ -93,6 +97,21 @@ export function DataStore() {
       setProxies([...proxies, res.data]);
       setNewProxy({ address: "", username: "", password: "" });
       toast.success("Proxy added");
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const addTask = async () => {
+    if (!newTask.vpn_type) return;
+    try {
+      const res = await fetchJSON("/api/tasks", {
+        method: "POST",
+        body: JSON.stringify(newTask),
+      });
+      setTasks([...tasks, res.data]);
+      setNewTask({ vpn_type: "", server: "" });
+      toast.success("Task added");
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -357,6 +376,54 @@ export function DataStore() {
           <Button onClick={addProxy}>Add</Button>
         </div>,
         "/api/proxies",
+      )}
+
+      {renderSection(
+        "Tasks",
+        tasks,
+        setTasks,
+        (item, onChange) => (
+          <div className="flex space-x-2">
+            <input
+              className="border p-1 flex-1"
+              value={item.vpn_type || ""}
+              onChange={(e) => onChange({ vpn_type: e.target.value } as any)}
+              placeholder="vpn"
+            />
+            <input
+              className="border p-1 flex-1"
+              value={item.server || ""}
+              onChange={(e) => onChange({ server: e.target.value } as any)}
+              placeholder="server"
+            />
+            <input
+              className="border p-1 flex-1"
+              value={item.status || ""}
+              onChange={(e) => onChange({ status: e.target.value } as any)}
+              placeholder="status"
+            />
+          </div>
+        ),
+        <div className="flex space-x-2">
+          <input
+            className="border p-2 flex-1"
+            placeholder="vpn"
+            value={newTask.vpn_type}
+            onChange={(e) =>
+              setNewTask((prev) => ({ ...prev, vpn_type: e.target.value }))
+            }
+          />
+          <input
+            className="border p-2 flex-1"
+            placeholder="server"
+            value={newTask.server}
+            onChange={(e) =>
+              setNewTask((prev) => ({ ...prev, server: e.target.value }))
+            }
+          />
+          <Button onClick={addTask}>Add</Button>
+        </div>,
+        "/api/tasks",
       )}
     </div>
   );
