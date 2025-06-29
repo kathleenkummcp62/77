@@ -68,13 +68,13 @@ To spin up the API server together with the React dashboard in watch mode, use t
 
 The script automatically builds the dashboard if the `dist/` directory is missing and the Go server will start an embedded PostgreSQL instance via `db.Connect` when no external database is available.
 
-Create a `credentials.txt` file **in the project root** with your own IP addresses, usernames, and passwords before running. The `credentials.txt.example` file shows the required format.
+Create a `credentials.txt` file **in the project root** with your own IP addresses, usernames, and passwords before running. The file also accepts optional `vendor`, `url` and `proxy` fields after the password (up to six semicolon-separated values). The `credentials.txt.example` file shows the required format.
 The tracked `credentials.txt` in this repository only contains placeholder values. Replace those placeholders with your real credentials (or point `config.yaml` to another file) when testing.
 
 ### Using your own credentials locally
 
 1. Copy `credentials.txt.example` to `credentials.txt`.
-2. Edit `credentials.txt` and provide your server IPs, usernames and passwords.
+2. Edit `credentials.txt` and provide your server IPs, usernames and passwords. Optionally include the VPN `vendor`, the vendor `url` and a `proxy` after each password.
 3. Run the client with `-input=credentials.txt` or set the `INPUT_FILE` environment variable to the file path.
 4. Keep this file untracked so your real credentials never leave your machine.
 
@@ -195,6 +195,7 @@ Tracks the progress of each scanning job. Columns include:
 
 Holds the credential sets used for scanning. Each entry has the fields:
 
+- `id` – primary key
 - `ip` – VPN gateway IP or hostname
 - `username` – login name
 - `password` – password
@@ -243,6 +244,26 @@ server responds with:
 ```
 
 Listing tasks returns the same structure with `data` as an array of tasks.
+
+#### Example Requests
+
+```bash
+# List tasks
+curl http://localhost:8080/api/tasks
+
+# Create a new task
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"vpn_type":"fortinet","server":"1.2.3.4"}'
+
+# Update a task
+curl -X PUT http://localhost:8080/api/tasks/1 \
+  -H "Content-Type: application/json" \
+  -d '{"status":"running"}'
+
+# Delete a task
+curl -X DELETE http://localhost:8080/api/tasks/1
+```
 
 These tables—including `tasks`, `credentials`, `vendor_urls` and `proxies`—are
 automatically initialized when the server launches with the embedded database.
