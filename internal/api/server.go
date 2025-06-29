@@ -36,7 +36,7 @@ type APIResponse struct {
 }
 
 func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
-	wsServer := websocket.NewServer(stats)
+	wsServer := websocket.NewServer(stats, database)
 
 	s := &Server{
 		stats:    stats,
@@ -141,6 +141,35 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
+	if s.db != nil {
+		rows, err := s.db.Query(`SELECT ip, status, cpu_usage, memory_usage, disk_usage, current_task FROM servers`)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var servers []map[string]interface{}
+		for rows.Next() {
+			var ip, status, task string
+			var cpu, mem, disk float64
+			if err := rows.Scan(&ip, &status, &cpu, &mem, &disk, &task); err != nil {
+				continue
+			}
+			servers = append(servers, map[string]interface{}{
+				"ip":     ip,
+				"status": status,
+				"uptime": "-",
+				"cpu":    int(cpu + 0.5),
+				"memory": int(mem + 0.5),
+				"disk":   int(disk + 0.5),
+				"task":   task,
+			})
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: servers})
+		return
+	}
+
 	dir := os.Getenv("STATS_DIR")
 	if q := r.URL.Query().Get("dir"); q != "" {
 		dir = q
