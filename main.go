@@ -119,7 +119,7 @@ func main() {
 	}()
 
 	// Initialize ultra-fast bruteforce engine
-	engine, err := bruteforce.New(cfg, statsManager)
+	engine, err := bruteforce.New(cfg, statsManager, nil)
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize ultra-fast engine: %v", err)
 	}

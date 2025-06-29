@@ -50,6 +50,8 @@ type Engine struct {
 	targetRPS      int64
 	actualRPS      int64
 	lastScaleTime  time.Time
+
+	taskBuilder *TaskBuilder
 }
 
 type Credential struct {
@@ -65,7 +67,7 @@ type Response struct {
 	Duration   time.Duration
 }
 
-func New(cfg *config.Config, statsManager *stats.Stats) (*Engine, error) {
+func New(cfg *config.Config, statsManager *stats.Stats, builder *TaskBuilder) (*Engine, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Create ultra-aggressive HTTP client
@@ -123,6 +125,7 @@ func New(cfg *config.Config, statsManager *stats.Stats) (*Engine, error) {
 		currentThreads: int64(cfg.Threads),
 		targetRPS:      int64(cfg.RateLimit),
 		lastScaleTime:  time.Now(),
+		taskBuilder:    builder,
 	}
 
 	// Initialize object pools for zero-allocation
@@ -151,9 +154,14 @@ func (e *Engine) setupProxyClients() {
 		return
 	}
 
-	e.proxyClients = make([]*http.Client, 0, len(e.config.ProxyList))
+	proxyList := e.config.ProxyList
+	if e.taskBuilder != nil && len(e.taskBuilder.ProxyList) > 0 {
+		proxyList = e.taskBuilder.ProxyList
+	}
 
-	for _, raw := range e.config.ProxyList {
+	e.proxyClients = make([]*http.Client, 0, len(proxyList))
+
+	for _, raw := range proxyList {
 		addr := strings.TrimSpace(raw)
 		if addr == "" {
 			continue
