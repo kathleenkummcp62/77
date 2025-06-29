@@ -1,4 +1,5 @@
 //go:build ignore
+
 package main
 
 import (
@@ -10,10 +11,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"strconv"
 
 	"golang.org/x/net/proxy"
 )
