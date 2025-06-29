@@ -82,13 +82,17 @@ func main() {
 	}
 	cfg.Verbose = *verbose
 
-	// Initialize database connection
-	database, err := db.Connect(config.Config{
-		DatabaseDSN: cfg.DatabaseDSN,
-		DBUser:      cfg.DBUser,
-		DBPassword:  cfg.DBPassword,
-		DBName:      cfg.DBName,
-	})
+	// Initialize database connection using the configuration values read
+	// from disk (or defaults). A db.Config is constructed from the loaded
+	// config.Config to decouple the database package from the application
+	// configuration structure.
+	dbCfg := db.Config{
+		DSN:      cfg.DatabaseDSN,
+		User:     cfg.DBUser,
+		Password: cfg.DBPassword,
+		Name:     cfg.DBName,
+	}
+	database, err := db.Connect(dbCfg)
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to database: %v", err)
 	}

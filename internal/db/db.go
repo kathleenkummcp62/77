@@ -30,6 +30,12 @@ func ConfigFromApp(c config.Config) Config {
 	}
 }
 
+// ConnectFromApp converts the application configuration to a database
+// configuration and then calls Connect.
+func ConnectFromApp(c config.Config) (*DB, error) {
+	return Connect(ConfigFromApp(c))
+}
+
 // DB wraps the SQL database with optional embedded instance.
 type DB struct {
 	*sql.DB
@@ -39,9 +45,11 @@ type DB struct {
 // Connect tries to connect to the provided DSN. If it fails,
 // it starts an embedded Postgres instance with the provided
 // credentials and database name.
-func Connect(cfg config.Config) (*DB, error) {
-	// Extract database settings from the main application configuration.
-	c := ConfigFromApp(cfg)
+func Connect(cfg Config) (*DB, error) {
+	// Attempt to connect to a running Postgres instance using the provided
+	// configuration. If the connection fails an embedded instance will be
+	// started automatically.
+	c := cfg
 
 	db, err := sql.Open("pgx", c.DSN)
 	if err == nil {
