@@ -152,11 +152,11 @@ root      12346  0.3  1.8  34567  7234 pts/1    S+   10:31   0:01 python3 sers3.
     } else if (lowerCmd.includes('cat') && lowerCmd.includes('stats')) {
       return `{"goods":1247,"bads":8934,"errors":156,"offline":89,"ipblock":23,"processed":10449,"rps":2847.3,"timestamp":${Date.now()}}`;
     } else if (lowerCmd.includes('tail') && lowerCmd.includes('valid')) {
-      // Sample sanitized credentials for demo output only
-      return `vpn1.example.com:443;user;pass
-vpn2.example.com:443;admin;password
-vpn3.example.com:443;test;test123
-vpn4.example.com:443;demo;demo`;
+      // Sample placeholders for demo output only
+      return `vpn1.example.com:443;user1;pass1
+vpn2.example.com:443;user2;pass2
+vpn3.example.com:443;user3;pass3
+vpn4.example.com:443;user4;pass4`;
     } else if (lowerCmd.includes('uname')) {
       return `Linux vpn-worker 5.4.0-74-generic #83-Ubuntu SMP Sat May 8 02:35:39 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
               total        used        free      shared  buff/cache   available
