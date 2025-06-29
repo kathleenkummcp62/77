@@ -35,7 +35,8 @@ func initSchema(d *DB) error {
                         url TEXT,
                         login TEXT,
                         password TEXT,
-                        proxy TEXT
+                        proxy TEXT,
+                        vendor_url_id INT REFERENCES vendor_urls(id)
                 )`,
 		`CREATE TABLE IF NOT EXISTS logs (
                         id SERIAL PRIMARY KEY,
@@ -47,6 +48,21 @@ func initSchema(d *DB) error {
 	}
 	for _, q := range queries {
 		if _, err := d.Exec(q); err != nil {
+			return err
+		}
+	}
+
+	// ensure the vendor_url_id column exists in tasks table
+	var exists bool
+	err := d.QueryRow(`SELECT EXISTS (
+               SELECT 1 FROM information_schema.columns
+               WHERE table_name='tasks' AND column_name='vendor_url_id'
+       )`).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		if _, err := d.Exec(`ALTER TABLE tasks ADD COLUMN vendor_url_id INT REFERENCES vendor_urls(id)`); err != nil {
 			return err
 		}
 	}
