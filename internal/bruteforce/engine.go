@@ -52,6 +52,8 @@ type Engine struct {
 	lastScaleTime  time.Time
 
 	taskBuilder *TaskBuilder
+
+	logger func(level, message, source string)
 }
 
 type Credential struct {
@@ -126,6 +128,7 @@ func New(cfg *config.Config, statsManager *stats.Stats, builder *TaskBuilder) (*
 		targetRPS:      int64(cfg.RateLimit),
 		lastScaleTime:  time.Now(),
 		taskBuilder:    builder,
+		logger:         nil,
 	}
 
 	// Initialize object pools for zero-allocation
@@ -146,6 +149,11 @@ func New(cfg *config.Config, statsManager *stats.Stats, builder *TaskBuilder) (*
 	}
 
 	return engine, nil
+}
+
+// SetLogger registers a logger callback for error reporting.
+func (e *Engine) SetLogger(fn func(level, message, source string)) {
+	e.logger = fn
 }
 
 func (e *Engine) setupProxyClients() {
@@ -381,6 +389,9 @@ func (e *Engine) checkVPNUltraFast(ctx context.Context, cred Credential, resp *R
 
 func (e *Engine) handleAdvancedError(ip string, err error, duration time.Duration) {
 	errStr := err.Error()
+	if e.logger != nil {
+		e.logger("error", fmt.Sprintf("%s: %s", ip, errStr), "engine")
+	}
 
 	// ✅ УЛУЧШЕННАЯ КЛАССИФИКАЦИЯ ОШИБОК
 	switch {

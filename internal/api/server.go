@@ -41,6 +41,35 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+// InsertLog stores a log entry in the database when available or appends
+// it to the fallback log file. Errors are logged but ignored.
+func (s *Server) InsertLog(level, message, source string) {
+	if s == nil {
+		return
+	}
+	if s.db != nil {
+		if _, err := s.db.Exec(`INSERT INTO logs(level, message, source) VALUES($1,$2,$3)`, level, message, source); err != nil {
+			log.Printf("insert log error: %v", err)
+		}
+		return
+	}
+
+	path := os.Getenv("LOG_FILE")
+	if path == "" {
+		path = "scanner.log"
+	}
+	line := fmt.Sprintf("%s [%s] (%s) %s\n", time.Now().Format(time.RFC3339), strings.ToUpper(level), source, message)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("log file error: %v", err)
+		return
+	}
+	defer f.Close()
+	if _, err := f.WriteString(line); err != nil {
+		log.Printf("log write error: %v", err)
+	}
+}
+
 func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 	wsServer := websocket.NewServer(stats, database)
 
@@ -232,6 +261,7 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Printf("🚀 Starting %s scanner via API", vpnType)
+	s.InsertLog("info", fmt.Sprintf("start %s scanner", vpnType), "api")
 	s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 		"status":   "started",
 		"vpn_type": vpnType,
@@ -259,6 +289,7 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Printf("🛑 Stopping %s scanner via API", vpnType)
+	s.InsertLog("info", fmt.Sprintf("stop %s scanner", vpnType), "api")
 	s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 		"status":   "stopped",
 		"vpn_type": vpnType,
@@ -356,6 +387,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 
 		s.wsServer.BroadcastMessage("config_update", cfg)
 		log.Printf("⚙️ Configuration updated via API")
+		s.InsertLog("info", "configuration updated", "api")
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 			"status": "updated",
 		}})

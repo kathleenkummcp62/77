@@ -111,8 +111,8 @@ func main() {
 	go statsManager.Start()
 
 	// Start dashboard server in background
+	server := api.NewServer(statsManager, *dashboardPort, database)
 	go func() {
-		server := api.NewServer(statsManager, *dashboardPort, database)
 		if err := server.Start(); err != nil {
 			log.Printf("⚠️  Dashboard server error: %v", err)
 		}
@@ -123,6 +123,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize ultra-fast engine: %v", err)
 	}
+	engine.SetLogger(server.InsertLog)
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
