@@ -57,3 +57,19 @@ export interface ProxySetting {
   username?: string;
   password?: string;
 }
+
+export interface Task {
+  id: number;
+  vpn_type?: string;
+  vendor_url_id?: number;
+  url?: string;
+  server?: string;
+  status?: string;
+  progress?: number;
+  processed?: number;
+  goods?: number;
+  bads?: number;
+  errors?: number;
+  rps?: number;
+  created_at?: string;
+}

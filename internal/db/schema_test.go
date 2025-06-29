@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"os"
 	"testing"
 
 	"github.com/fergusstrange/embedded-postgres"
@@ -10,6 +11,9 @@ import (
 
 // TestInitSchema ensures that InitSchema creates the expected tables.
 func TestInitSchema(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("cannot run embedded postgres as root")
+	}
 	// Configure and start a temporary Postgres instance
 	postgres := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
 		Port(5433).Database("testdb").Username("postgres").Password("postgres"))
