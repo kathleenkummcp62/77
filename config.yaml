@@ -1,21 +1,38 @@
 input_file: "credentials.txt"
 output_file: "valid.txt"
 vpn_type: "fortinet"
-threads: 2000
-timeout: 5s
-max_retries: 2
-rate_limit: 0
+threads: 3000
+timeout: 3s
+max_retries: 3
+rate_limit: 8000
 verbose: false
 
-# Connection settings for maximum performance
-max_idle_conns: 100
-max_conns_per_host: 50
-idle_conn_timeout: 30s
-tls_handshake_timeout: 10s
+# Ultra-performance settings
+max_idle_conns: 500
+max_conns_per_host: 200
+idle_conn_timeout: 15s
+tls_handshake_timeout: 3s
+
+# Smart scaling
+auto_scale: true
+min_threads: 1000
+max_threads: 5000
+scale_threshold: 0.8
+
+# Advanced error handling
+retry_delay: 100ms
+backoff_factor: 1.5
+max_backoff: 5s
+
+# Memory optimization
+buffer_size: 8192
+pool_size: 1000
+streaming_mode: true
 
 # Proxy settings (optional)
 proxy_enabled: false
 proxy_type: "socks5"
-proxy_addr: "127.0.0.1:1080"
-proxy_user: ""
-proxy_pass: ""
+proxy_rotation: true
+proxy_list:
+  - "127.0.0.1:1080"
+  - "127.0.0.1:1081"
