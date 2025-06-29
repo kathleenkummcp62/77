@@ -84,6 +84,9 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/proxies", s.handleProxies).Methods("GET", "POST")
 	api.HandleFunc("/proxies/{id}", s.handleProxy).Methods("PUT", "DELETE")
 	api.HandleFunc("/proxies/bulk_delete", s.handleProxiesBulkDelete).Methods("POST")
+	api.HandleFunc("/tasks", s.handleTasks).Methods("GET", "POST")
+	api.HandleFunc("/tasks/{id}", s.handleTask).Methods("PUT", "DELETE")
+	api.HandleFunc("/tasks/bulk_delete", s.handleTasksBulkDelete).Methods("POST")
 
 	// WebSocket endpoint
 	s.router.HandleFunc("/ws", s.wsServer.HandleWebSocket)
@@ -344,7 +347,8 @@ func (s *Server) initDB() error {
                 )`,
 		`CREATE TABLE IF NOT EXISTS credentials (
                         id SERIAL PRIMARY KEY,
-                        login TEXT NOT NULL,
+                        ip TEXT NOT NULL,
+                        username TEXT NOT NULL,
                         password TEXT NOT NULL
                 )`,
 		`CREATE TABLE IF NOT EXISTS proxies (
@@ -352,6 +356,19 @@ func (s *Server) initDB() error {
                         address TEXT NOT NULL,
                         username TEXT,
                         password TEXT
+                )`,
+		`CREATE TABLE IF NOT EXISTS tasks (
+                        id SERIAL PRIMARY KEY,
+                        vpn_type TEXT NOT NULL,
+                        server TEXT,
+                        status TEXT,
+                        progress INT DEFAULT 0,
+                        processed INT DEFAULT 0,
+                        goods INT DEFAULT 0,
+                        bads INT DEFAULT 0,
+                        errors INT DEFAULT 0,
+                        rps INT DEFAULT 0,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
                 )`,
 		`CREATE TABLE IF NOT EXISTS logs (
                         id SERIAL PRIMARY KEY,
@@ -452,7 +469,7 @@ func (s *Server) handleVendorURLsBulkDelete(w http.ResponseWriter, r *http.Reque
 func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		rows, err := s.db.Query(`SELECT id, login, password FROM credentials`)
+		rows, err := s.db.Query(`SELECT id, ip, username, password FROM credentials`)
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
@@ -461,23 +478,23 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 		var list []map[string]interface{}
 		for rows.Next() {
 			var id int
-			var l, p string
-			rows.Scan(&id, &l, &p)
-			list = append(list, map[string]interface{}{"id": id, "login": l, "password": p})
+			var ip, u, p string
+			rows.Scan(&id, &ip, &u, &p)
+			list = append(list, map[string]interface{}{"id": id, "ip": ip, "username": u, "password": p})
 		}
 		s.sendJSON(w, APIResponse{Success: true, Data: list})
 	case http.MethodPost:
-		var item struct{ Login, Password string }
+		var item struct{ IP, Username, Password string }
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
 		var id int
-		if err := s.db.QueryRow(`INSERT INTO credentials(login, password) VALUES($1,$2) RETURNING id`, item.Login, item.Password).Scan(&id); err != nil {
+		if err := s.db.QueryRow(`INSERT INTO credentials(ip, username, password) VALUES($1,$2,$3) RETURNING id`, item.IP, item.Username, item.Password).Scan(&id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "login": item.Login, "password": item.Password}})
+		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "ip": item.IP, "username": item.Username, "password": item.Password}})
 	}
 }
 
@@ -486,12 +503,12 @@ func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(idStr)
 	switch r.Method {
 	case http.MethodPut:
-		var item struct{ Login, Password string }
+		var item struct{ IP, Username, Password string }
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
-		if _, err := s.db.Exec(`UPDATE credentials SET login=$1,password=$2 WHERE id=$3`, item.Login, item.Password, id); err != nil {
+		if _, err := s.db.Exec(`UPDATE credentials SET ip=$1,username=$2,password=$3 WHERE id=$4`, item.IP, item.Username, item.Password, id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
@@ -593,6 +610,120 @@ func (s *Server) handleProxiesBulkDelete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if _, err := s.db.Exec(`DELETE FROM proxies WHERE id = ANY($1)`, pq.Array(req.IDs)); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+	s.sendJSON(w, APIResponse{Success: true})
+}
+
+func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		rows, err := s.db.Query(`SELECT id, vpn_type, server, status, progress, processed, goods, bads, errors, rps, created_at FROM tasks`)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		defer rows.Close()
+		var list []map[string]interface{}
+		for rows.Next() {
+			var id, progress, processed, goods, bads, errors, rps int
+			var vpnType, server, status string
+			var created time.Time
+			if err := rows.Scan(&id, &vpnType, &server, &status, &progress, &processed, &goods, &bads, &errors, &rps, &created); err != nil {
+				continue
+			}
+			list = append(list, map[string]interface{}{
+				"id":         id,
+				"vpn_type":   vpnType,
+				"server":     server,
+				"status":     status,
+				"progress":   progress,
+				"processed":  processed,
+				"goods":      goods,
+				"bads":       bads,
+				"errors":     errors,
+				"rps":        rps,
+				"created_at": created.Format(time.RFC3339),
+			})
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: list})
+	case http.MethodPost:
+		var item struct {
+			VPNType   string `json:"vpn_type"`
+			Server    string `json:"server"`
+			Status    string `json:"status"`
+			Progress  int    `json:"progress"`
+			Processed int    `json:"processed"`
+			Goods     int    `json:"goods"`
+			Bads      int    `json:"bads"`
+			Errors    int    `json:"errors"`
+			RPS       int    `json:"rps"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		var id int
+		err := s.db.QueryRow(`INSERT INTO tasks(vpn_type, server, status, progress, processed, goods, bads, errors, rps) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+			item.VPNType, item.Server, item.Status, item.Progress, item.Processed, item.Goods, item.Bads, item.Errors, item.RPS).Scan(&id)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id}})
+	}
+}
+
+func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, _ := strconv.Atoi(idStr)
+	switch r.Method {
+	case http.MethodPut:
+		var item struct {
+			VPNType   string `json:"vpn_type"`
+			Server    string `json:"server"`
+			Status    string `json:"status"`
+			Progress  int    `json:"progress"`
+			Processed int    `json:"processed"`
+			Goods     int    `json:"goods"`
+			Bads      int    `json:"bads"`
+			Errors    int    `json:"errors"`
+			RPS       int    `json:"rps"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		_, err := s.db.Exec(`UPDATE tasks SET vpn_type=$1, server=$2, status=$3, progress=$4, processed=$5, goods=$6, bads=$7, errors=$8, rps=$9 WHERE id=$10`,
+			item.VPNType, item.Server, item.Status, item.Progress, item.Processed, item.Goods, item.Bads, item.Errors, item.RPS, id)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	case http.MethodDelete:
+		if _, err := s.db.Exec(`DELETE FROM tasks WHERE id=$1`, id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	}
+}
+
+func (s *Server) handleTasksBulkDelete(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+		return
+	}
+	if len(req.IDs) == 0 {
+		s.sendJSON(w, APIResponse{Success: true})
+		return
+	}
+	if _, err := s.db.Exec(`DELETE FROM tasks WHERE id = ANY($1)`, pq.Array(req.IDs)); err != nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 		return
 	}
