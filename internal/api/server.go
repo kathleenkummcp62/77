@@ -673,8 +673,45 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
 	}
+
 	switch r.Method {
 	case http.MethodGet:
+		if s.useVendorTasks {
+			rows, err := s.db.Query(`
+                                SELECT t.id, t.vpn_type, t.vendor_url_id, COALESCE(v.url, ''), t.server, COALESCE(t.status, '')
+                                FROM tasks t
+                                LEFT JOIN vendor_urls v ON v.id = t.vendor_url_id`)
+			if err != nil {
+				s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+				return
+			}
+			defer rows.Close()
+			var list []map[string]interface{}
+			for rows.Next() {
+				var (
+					id       int
+					vpnType  sql.NullString
+					vendorID sql.NullInt64
+					url      sql.NullString
+					server   sql.NullString
+					status   sql.NullString
+				)
+				if err := rows.Scan(&id, &vpnType, &vendorID, &url, &server, &status); err != nil {
+					continue
+				}
+				list = append(list, map[string]interface{}{
+					"id":            id,
+					"vpn_type":      vpnType.String,
+					"vendor_url_id": vendorID.Int64,
+					"url":           url.String,
+					"server":        server.String,
+					"status":        status.String,
+				})
+			}
+			s.sendJSON(w, APIResponse{Success: true, Data: list})
+			return
+		}
+
 		rows, err := s.db.Query(`SELECT id, vendor, url, login, password, proxy FROM tasks`)
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
@@ -698,7 +735,37 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		s.sendJSON(w, APIResponse{Success: true, Data: list})
+
 	case http.MethodPost:
+		if s.useVendorTasks {
+			var item struct {
+				VPNType     string `json:"vpn_type"`
+				VendorURLID int    `json:"vendor_url_id"`
+				Server      string `json:"server"`
+				Status      string `json:"status"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+				s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+				return
+			}
+			var id int
+			err := s.db.QueryRow(`INSERT INTO tasks(vpn_type, vendor_url_id, server, status) VALUES($1,$2,$3,$4) RETURNING id`,
+				item.VPNType, item.VendorURLID, item.Server, item.Status).Scan(&id)
+			if err != nil {
+				s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+				return
+			}
+			itemMap := map[string]interface{}{
+				"id":            id,
+				"vpn_type":      item.VPNType,
+				"vendor_url_id": item.VendorURLID,
+				"server":        item.Server,
+				"status":        item.Status,
+			}
+			s.sendJSON(w, APIResponse{Success: true, Data: itemMap})
+			return
+		}
+
 		var item struct {
 			Vendor   string `json:"vendor"`
 			URL      string `json:"url"`
@@ -730,6 +797,27 @@ func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(idStr)
 	switch r.Method {
 	case http.MethodPut:
+		if s.useVendorTasks {
+			var item struct {
+				VPNType     string `json:"vpn_type"`
+				VendorURLID int    `json:"vendor_url_id"`
+				Server      string `json:"server"`
+				Status      string `json:"status"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+				s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+				return
+			}
+			_, err := s.db.Exec(`UPDATE tasks SET vpn_type=$1, vendor_url_id=$2, server=$3, status=$4 WHERE id=$5`,
+				item.VPNType, item.VendorURLID, item.Server, item.Status, id)
+			if err != nil {
+				s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+				return
+			}
+			s.sendJSON(w, APIResponse{Success: true})
+			return
+		}
+
 		var item struct {
 			Vendor   string `json:"vendor"`
 			URL      string `json:"url"`
@@ -741,7 +829,8 @@ func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
-		_, err := s.db.Exec(`UPDATE tasks SET vendor=$1, url=$2, login=$3, password=$4, proxy=$5 WHERE id=$6`, item.Vendor, item.URL, item.Login, item.Password, item.Proxy, id)
+		_, err := s.db.Exec(`UPDATE tasks SET vendor=$1, url=$2, login=$3, password=$4, proxy=$5 WHERE id=$6`,
+			item.Vendor, item.URL, item.Login, item.Password, item.Proxy, id)
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
