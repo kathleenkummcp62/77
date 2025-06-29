@@ -36,6 +36,9 @@
 # Build optimized binary
 make build
 
+# Build dashboard assets
+npm run build
+
 # Run with auto-detection
 ./vpn-ultra-fast -type=fortinet -input=credentials.txt -threads=3000 -rate=8000
 
