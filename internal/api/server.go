@@ -4,11 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -18,6 +16,7 @@ import (
 	"vpn-bruteforce-client/internal/aggregator"
 	"vpn-bruteforce-client/internal/config"
 	"vpn-bruteforce-client/internal/db"
+	"vpn-bruteforce-client/internal/logger"
 	"vpn-bruteforce-client/internal/stats"
 	"vpn-bruteforce-client/internal/websocket"
 )
@@ -56,7 +55,7 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 		cfg := config.Default()
 		dbConn, err := db.ConnectFromApp(*cfg)
 		if err != nil {
-			log.Printf("database connection error: %v", err)
+			logger.Log(nil, "ERROR", "api", "database connection error: %v", err)
 		} else {
 			s.db = dbConn
 		}
@@ -120,10 +119,10 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 func (s *Server) Start() error {
 	s.wsServer.Start()
 
-	log.Printf("🌐 API Server starting on port %d", s.port)
-	log.Printf("📊 Dashboard: http://localhost:%d", s.port)
-	log.Printf("🔌 WebSocket: ws://localhost:%d/ws", s.port)
-	log.Printf("🔗 API: http://localhost:%d/api/", s.port)
+	logger.Log(s.db, "INFO", "api", "🌐 API Server starting on port %d", s.port)
+	logger.Log(s.db, "INFO", "api", "📊 Dashboard: http://localhost:%d", s.port)
+	logger.Log(s.db, "INFO", "api", "🔌 WebSocket: ws://localhost:%d/ws", s.port)
+	logger.Log(s.db, "INFO", "api", "🔗 API: http://localhost:%d/api/", s.port)
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), s.router)
 }
@@ -231,7 +230,7 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 		"status":   "starting",
 	})
 
-	log.Printf("🚀 Starting %s scanner via API", vpnType)
+	logger.Log(s.db, "INFO", "api", "🚀 Starting %s scanner via API", vpnType)
 	s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 		"status":   "started",
 		"vpn_type": vpnType,
@@ -258,7 +257,7 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 		"status":   "stopping",
 	})
 
-	log.Printf("🛑 Stopping %s scanner via API", vpnType)
+	logger.Log(s.db, "INFO", "api", "🛑 Stopping %s scanner via API", vpnType)
 	s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 		"status":   "stopped",
 		"vpn_type": vpnType,
@@ -274,64 +273,40 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if s.db != nil {
-		rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT $1`, limit)
-		if err != nil {
-			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
-			return
-		}
-		defer rows.Close()
-
-		var logs []map[string]interface{}
-		for rows.Next() {
-			var ts time.Time
-			var level, msg, src string
-			if err := rows.Scan(&ts, &level, &msg, &src); err != nil {
-				continue
-			}
-			logs = append(logs, map[string]interface{}{
-				"timestamp": ts.Format(time.RFC3339),
-				"level":     level,
-				"message":   msg,
-				"source":    src,
-			})
-		}
-		s.sendJSON(w, APIResponse{Success: true, Data: logs})
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: true, Data: []interface{}{}})
 		return
 	}
 
-	// Fallback: read from default log file if database unavailable
-	path := os.Getenv("LOG_FILE")
-	if path == "" {
-		path = "scanner.log"
-	}
-	data, err := os.ReadFile(path)
-	if err == nil {
-		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-		if limit < len(lines) {
-			lines = lines[len(lines)-limit:]
-		}
-		logs := make([]map[string]interface{}, len(lines))
-		for i, l := range lines {
-			logs[i] = map[string]interface{}{
-				"timestamp": "",
-				"level":     "INFO",
-				"message":   l,
-				"source":    "file",
-			}
-		}
-		s.sendJSON(w, APIResponse{Success: true, Data: logs})
+	rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT $1`, limit)
+	if err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 		return
 	}
+	defer rows.Close()
 
-	s.sendJSON(w, APIResponse{Success: true, Data: []interface{}{}})
+	var logs []map[string]interface{}
+	for rows.Next() {
+		var ts time.Time
+		var level, msg, src string
+		if err := rows.Scan(&ts, &level, &msg, &src); err != nil {
+			continue
+		}
+		logs = append(logs, map[string]interface{}{
+			"timestamp": ts.Format(time.RFC3339),
+			"level":     level,
+			"message":   msg,
+			"source":    src,
+		})
+	}
+	s.sendJSON(w, APIResponse{Success: true, Data: logs})
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		cfg, err := config.Load("config.yaml")
 		if err != nil {
-			log.Printf("config load error: %v", err)
+			logger.Log(s.db, "ERROR", "api", "config load error: %v", err)
 			cfg = config.Default()
 		}
 		s.sendJSON(w, APIResponse{Success: true, Data: cfg})
@@ -355,7 +330,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.wsServer.BroadcastMessage("config_update", cfg)
-		log.Printf("⚙️ Configuration updated via API")
+		logger.Log(s.db, "INFO", "api", "⚙️ Configuration updated via API")
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 			"status": "updated",
 		}})

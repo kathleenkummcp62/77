@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 
 	"github.com/fergusstrange/embedded-postgres"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"vpn-bruteforce-client/internal/config"
+	"vpn-bruteforce-client/internal/logger"
 )
 
 // Config holds database connection settings.
@@ -66,9 +66,9 @@ func Connect(cfg Config) (*DB, error) {
 	}
 
 	if err != nil {
-		log.Printf("db connection failed, starting embedded: %v", err)
+		logger.Log(nil, "ERROR", "db", "db connection failed, starting embedded: %v", err)
 	} else {
-		log.Printf("db ping failed, starting embedded")
+		logger.Log(nil, "ERROR", "db", "db ping failed, starting embedded")
 	}
 
 	// Start embedded Postgres

@@ -14,6 +14,7 @@ import (
 	"vpn-bruteforce-client/internal/bruteforce"
 	"vpn-bruteforce-client/internal/config"
 	"vpn-bruteforce-client/internal/db"
+	"vpn-bruteforce-client/internal/logger"
 	"vpn-bruteforce-client/internal/stats"
 )
 
@@ -57,7 +58,7 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load(*configFile)
 	if err != nil {
-		log.Printf("⚠️  Config load failed, using optimized defaults: %v", err)
+		logger.Log(nil, "ERROR", "main", "⚠️  Config load failed, using optimized defaults: %v", err)
 		cfg = config.Default()
 	}
 
@@ -89,6 +90,7 @@ func main() {
 	dbCfg := db.ConfigFromApp(*cfg)
 	database, err := db.Connect(dbCfg)
 	if err != nil {
+		logger.Log(nil, "ERROR", "main", "❌ Failed to connect to database: %v", err)
 		log.Fatalf("❌ Failed to connect to database: %v", err)
 	}
 	// Ensure the database connection is closed on shutdown.
@@ -96,6 +98,7 @@ func main() {
 
 	// Validate input file exists
 	if _, err := os.Stat(cfg.InputFile); os.IsNotExist(err) {
+		logger.Log(nil, "ERROR", "main", "❌ Input file not found: %s", cfg.InputFile)
 		log.Fatalf("❌ Input file not found: %s", cfg.InputFile)
 	}
 
@@ -114,13 +117,14 @@ func main() {
 	go func() {
 		server := api.NewServer(statsManager, *dashboardPort, database)
 		if err := server.Start(); err != nil {
-			log.Printf("⚠️  Dashboard server error: %v", err)
+			logger.Log(nil, "ERROR", "main", "⚠️  Dashboard server error: %v", err)
 		}
 	}()
 
 	// Initialize ultra-fast bruteforce engine
 	engine, err := bruteforce.New(cfg, statsManager, nil)
 	if err != nil {
+		logger.Log(nil, "ERROR", "main", "❌ Failed to initialize ultra-fast engine: %v", err)
 		log.Fatalf("❌ Failed to initialize ultra-fast engine: %v", err)
 	}
 
@@ -135,6 +139,7 @@ func main() {
 
 	go func() {
 		if err := engine.Start(); err != nil {
+			logger.Log(nil, "ERROR", "main", "❌ Engine failed: %v", err)
 			log.Fatalf("❌ Engine failed: %v", err)
 		}
 
@@ -158,8 +163,8 @@ func main() {
 }
 
 func runDashboard(port int) {
-	log.Printf("🚀 VPN Bruteforce Dashboard v3.0")
-	log.Printf("🌐 Starting dashboard server on port %d", port)
+	logger.Log(nil, "INFO", "main", "🚀 VPN Bruteforce Dashboard v3.0")
+	logger.Log(nil, "INFO", "main", "🌐 Starting dashboard server on port %d", port)
 
 	// Initialize stats (mock for dashboard-only mode)
 	statsManager := stats.New()
@@ -171,6 +176,7 @@ func runDashboard(port int) {
 	dbCfg := db.ConfigFromApp(*config.Default())
 	database, err := db.Connect(dbCfg)
 	if err != nil {
+		logger.Log(nil, "ERROR", "main", "failed to connect to database: %v", err)
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	// Initialize API server with WebSocket support

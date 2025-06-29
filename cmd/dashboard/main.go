@@ -10,6 +10,7 @@ import (
 	"vpn-bruteforce-client/internal/api"
 	"vpn-bruteforce-client/internal/config"
 	"vpn-bruteforce-client/internal/db"
+	"vpn-bruteforce-client/internal/logger"
 	"vpn-bruteforce-client/internal/stats"
 )
 
@@ -20,8 +21,8 @@ func main() {
 	)
 	flag.Parse()
 
-	log.Printf("🚀 VPN Bruteforce Dashboard v3.0")
-	log.Printf("🌐 Starting dashboard server on port %d", *port)
+	logger.Log(nil, "INFO", "dashboard", "🚀 VPN Bruteforce Dashboard v3.0")
+	logger.Log(nil, "INFO", "dashboard", "🌐 Starting dashboard server on port %d", *port)
 
 	// Initialize stats (mock for dashboard-only mode)
 	statsManager := stats.New()
@@ -30,7 +31,7 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load(*configFile)
 	if err != nil {
-		log.Printf("config load error: %v", err)
+		logger.Log(nil, "ERROR", "dashboard", "config load error: %v", err)
 		cfg = config.Default()
 	}
 
@@ -38,6 +39,7 @@ func main() {
 	dbCfg := db.ConfigFromApp(*cfg)
 	database, err := db.Connect(dbCfg)
 	if err != nil {
+		logger.Log(nil, "ERROR", "dashboard", "failed to connect to database: %v", err)
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer database.Close()
@@ -51,7 +53,7 @@ func main() {
 
 	go func() {
 		<-sigChan
-		log.Println("🛑 Shutdown signal received...")
+		logger.Log(nil, "INFO", "dashboard", "🛑 Shutdown signal received...")
 		database.Close()
 		os.Exit(0)
 	}()

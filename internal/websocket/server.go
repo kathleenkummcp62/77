@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"vpn-bruteforce-client/internal/aggregator"
 	"vpn-bruteforce-client/internal/db"
+	"vpn-bruteforce-client/internal/logger"
 	"vpn-bruteforce-client/internal/stats"
 )
 
@@ -93,7 +93,7 @@ func (s *Server) handleConnections() {
 			s.clientsMux.Lock()
 			s.clients[client] = true
 			s.clientsMux.Unlock()
-			log.Printf("WebSocket client connected. Total: %d", len(s.clients))
+			logger.Log(s.db, "INFO", "websocket", "WebSocket client connected. Total: %d", len(s.clients))
 
 			// Send initial data to new client
 			s.sendInitialData(client)
@@ -105,7 +105,7 @@ func (s *Server) handleConnections() {
 				client.Close()
 			}
 			s.clientsMux.Unlock()
-			log.Printf("WebSocket client disconnected. Total: %d", len(s.clients))
+			logger.Log(s.db, "INFO", "websocket", "WebSocket client disconnected. Total: %d", len(s.clients))
 
 		case message := <-s.broadcast:
 			s.clientsMux.Lock()
@@ -150,7 +150,7 @@ func (s *Server) broadcastStats() {
 
 			data, err := json.Marshal(message)
 			if err != nil {
-				log.Printf("Error marshaling stats: %v", err)
+				logger.Log(s.db, "ERROR", "websocket", "Error marshaling stats: %v", err)
 				continue
 			}
 
@@ -188,9 +188,9 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 
 	data, err := json.Marshal(message)
 	if err != nil {
-		log.Printf("Error marshaling initial stats: %v", err)
+		logger.Log(s.db, "ERROR", "websocket", "Error marshaling initial stats: %v", err)
 	} else if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
-		log.Printf("Error sending initial stats: %v", err)
+		logger.Log(s.db, "ERROR", "websocket", "Error sending initial stats: %v", err)
 	}
 
 	// Send server info
@@ -203,11 +203,11 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 
 	serverData, err := json.Marshal(serverMessage)
 	if err != nil {
-		log.Printf("Error marshaling server info: %v", err)
+		logger.Log(s.db, "ERROR", "websocket", "Error marshaling server info: %v", err)
 		return
 	}
 	if err := client.WriteMessage(websocket.TextMessage, serverData); err != nil {
-		log.Printf("Error sending server info: %v", err)
+		logger.Log(s.db, "ERROR", "websocket", "Error sending server info: %v", err)
 	}
 }
 
@@ -219,7 +219,7 @@ func (s *Server) getServerInfo() []ServerInfo {
 	aggr := aggregator.New(dir)
 	infos, err := aggr.GetServerInfo()
 	if err != nil {
-		log.Printf("aggregator error: %v", err)
+		logger.Log(s.db, "ERROR", "websocket", "aggregator error: %v", err)
 		return nil
 	}
 
@@ -233,7 +233,7 @@ func (s *Server) getServerInfo() []ServerInfo {
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		logger.Log(s.db, "ERROR", "websocket", "WebSocket upgrade error: %v", err)
 		return
 	}
 
@@ -250,7 +250,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			err := conn.ReadJSON(&msg)
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					log.Printf("WebSocket error: %v", err)
+					logger.Log(s.db, "ERROR", "websocket", "WebSocket error: %v", err)
 				}
 				break
 			}
@@ -325,7 +325,7 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 		conn.WriteMessage(websocket.TextMessage, data)
 
 	default:
-		log.Printf("Unknown message type: %s", msg.Type)
+		logger.Log(s.db, "INFO", "websocket", "Unknown message type: %s", msg.Type)
 	}
 }
 
@@ -338,7 +338,7 @@ func (s *Server) BroadcastMessage(msgType string, data interface{}) {
 
 	jsonData, err := json.Marshal(message)
 	if err != nil {
-		log.Printf("Error marshaling broadcast message: %v", err)
+		logger.Log(s.db, "ERROR", "websocket", "Error marshaling broadcast message: %v", err)
 		return
 	}
 
