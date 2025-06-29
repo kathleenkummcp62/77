@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -52,6 +53,12 @@ func TestTaskCRUD(t *testing.T) {
 	srv, cleanup := setupTestServer(t)
 	defer cleanup()
 
+	// create a vendor URL to reference from tasks
+	var vendorID int
+	if err := srv.db.QueryRow(`INSERT INTO vendor_urls(url) VALUES($1) RETURNING id`, "https://vendor.example").Scan(&vendorID); err != nil {
+		t.Fatalf("insert vendor url: %v", err)
+	}
+
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 
@@ -73,7 +80,7 @@ func TestTaskCRUD(t *testing.T) {
 	}
 
 	// create task
-	body := bytes.NewBufferString(`{"vendor":"fortinet","url":"https://example.com","login":"user","password":"pass","proxy":""}`)
+	body := bytes.NewBufferString(fmt.Sprintf(`{"vpn_type":"openvpn","vendor_url_id":%d,"server":"srv","status":""}`, vendorID))
 	resp, err = http.Post(ts.URL+"/api/tasks", "application/json", body)
 	if err != nil {
 		t.Fatalf("post: %v", err)
@@ -90,7 +97,7 @@ func TestTaskCRUD(t *testing.T) {
 	id := int(postResp.Data["id"].(float64))
 
 	// update
-	upd := map[string]interface{}{"vendor": "cisco", "url": "https://example.org", "login": "u2", "password": "p2", "proxy": ""}
+	upd := map[string]interface{}{"vpn_type": "wireguard", "vendor_url_id": vendorID, "server": "srv2", "status": "running"}
 	ub, _ := json.Marshal(upd)
 	req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/"+strconv.Itoa(id), bytes.NewReader(ub))
 	req.Header.Set("Content-Type", "application/json")
@@ -180,10 +187,16 @@ func TestTasksEndpoint(t *testing.T) {
 	srv, cleanup := setupTestServer(t)
 	defer cleanup()
 
+	// prepare vendor URL
+	var vendorID int
+	if err := srv.db.QueryRow(`INSERT INTO vendor_urls(url) VALUES($1) RETURNING id`, "https://vendor.example").Scan(&vendorID); err != nil {
+		t.Fatalf("insert vendor url: %v", err)
+	}
+
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 
-	body := bytes.NewBufferString(`{"vendor":"fortinet","url":"https://example.com","login":"user","password":"pass","proxy":""}`)
+	body := bytes.NewBufferString(fmt.Sprintf(`{"vpn_type":"openvpn","vendor_url_id":%d,"server":"srv","status":""}`, vendorID))
 	resp, err := http.Post(ts.URL+"/api/tasks", "application/json", body)
 	if err != nil {
 		t.Fatalf("post: %v", err)
