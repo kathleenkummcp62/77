@@ -55,6 +55,17 @@ make benchmark
 ./vpn-ultra-fast -type=fortinet -threads=5000 -rate=10000 -verbose
 ```
 
+### Development workflow
+
+To spin up the API server together with the React dashboard in watch mode, use the `scripts/dev.sh` helper:
+
+```bash
+./scripts/dev.sh            # starts API server and Vite dev server
+./scripts/dev.sh --serve    # serve the compiled frontend in dist/
+```
+
+The script automatically builds the dashboard if the `dist/` directory is missing and the Go server will start an embedded PostgreSQL instance via `db.Connect` when no external database is available.
+
 Create a `credentials.txt` file with your own IP addresses, usernames, and passwords before running. The `credentials.txt.example` file shows the required format.
 
 ### Configuration:
