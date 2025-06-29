@@ -69,6 +69,7 @@ To spin up the API server together with the React dashboard in watch mode, use t
 The script automatically builds the dashboard if the `dist/` directory is missing and the Go server will start an embedded PostgreSQL instance via `db.Connect` when no external database is available.
 
 Create a `credentials.txt` file **in the project root** with your own IP addresses, usernames, and passwords before running. The file also accepts optional `vendor`, `url` and `proxy` fields after the password (up to six semicolon-separated values). The `credentials.txt.example` file shows the required format.
+Each line can include up to six fields separated by semicolons in this order: `ip;username;password;vendor;url;proxy`.
 The tracked `credentials.txt` in this repository only contains placeholder values. Replace those placeholders with your real credentials (or point `config.yaml` to another file) when testing.
 
 Example entries using all six fields:
@@ -231,16 +232,21 @@ Stores reusable login information. Each row contains:
 The dashboard exposes endpoints under `/api` for managing tasks and
 credentials:
 
-- `GET  /api/tasks` – list tasks
-- `POST /api/tasks` – create a task
-- `PUT  /api/tasks/{id}` – update a task
-- `DELETE /api/tasks/{id}` – remove a task
-- `POST /api/tasks/bulk_delete` – delete many tasks
-- `GET  /api/credentials` – list credentials
-- `POST /api/credentials` – create a credential entry
-- `PUT  /api/credentials/{id}` – update a credential entry
-- `DELETE /api/credentials/{id}` – remove a credential entry
-- `POST /api/credentials/bulk_delete` – delete multiple credential entries
+### **/api/tasks**
+
+- **GET** `/api/tasks` – list tasks
+- **POST** `/api/tasks` – create a task
+- **PUT** `/api/tasks/{id}` – update a task
+- **DELETE** `/api/tasks/{id}` – remove a task
+- **POST** `/api/tasks/bulk_delete` – delete multiple tasks
+
+### **/api/credentials**
+
+- **GET** `/api/credentials` – list credentials
+- **POST** `/api/credentials` – create a credential entry
+- **PUT** `/api/credentials/{id}` – update a credential entry
+- **DELETE** `/api/credentials/{id}` – remove a credential entry
+- **POST** `/api/credentials/bulk_delete` – delete multiple credential entries
 
 ### **/api/tasks Request & Response Format**
 
@@ -281,6 +287,14 @@ curl -X PUT http://localhost:8080/api/tasks/1 \
 
 # Delete a task
 curl -X DELETE http://localhost:8080/api/tasks/1
+#### Example Responses
+
+```json
+{ "success": true, "data": [ { "id": 1, "vendor": "fortinet", "url": "https://vpn.example.com", "login": "user", "password": "pass", "proxy": "" } ] }
+```
+
+```json
+{ "success": true, "data": { "id": 1, "vendor": "fortinet", "url": "https://vpn.example.com", "login": "user", "password": "pass", "proxy": "" } }
 ```
 
 #### Example Responses
