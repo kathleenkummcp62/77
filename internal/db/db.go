@@ -55,6 +55,10 @@ func Connect(cfg Config) (*DB, error) {
 	db, err := sql.Open("pgx", c.DSN)
 	if err == nil {
 		if err = db.Ping(); err == nil {
+			if err = initSchema(db); err != nil {
+				db.Close()
+				return nil, err
+			}
 			return &DB{DB: db}, nil
 		}
 		db.Close()
@@ -85,6 +89,12 @@ func Connect(cfg Config) (*DB, error) {
 		return nil, err
 	}
 	if err = db.PingContext(context.Background()); err != nil {
+		ep.Stop()
+		return nil, err
+	}
+
+	if err = initSchema(db); err != nil {
+		db.Close()
 		ep.Stop()
 		return nil, err
 	}

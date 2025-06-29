@@ -342,10 +342,21 @@ func (s *Server) initDB() error {
                         id SERIAL PRIMARY KEY,
                         url TEXT NOT NULL
                 )`,
+		`CREATE TABLE IF NOT EXISTS tasks (
+                        id SERIAL PRIMARY KEY,
+                        vendor TEXT NOT NULL,
+                        url TEXT NOT NULL,
+                        login TEXT,
+                        password TEXT,
+                        proxy TEXT
+                )`,
 		`CREATE TABLE IF NOT EXISTS credentials (
                         id SERIAL PRIMARY KEY,
+                        vendor TEXT,
+                        url TEXT,
                         login TEXT NOT NULL,
-                        password TEXT NOT NULL
+                        password TEXT NOT NULL,
+                        proxy TEXT
                 )`,
 		`CREATE TABLE IF NOT EXISTS proxies (
                         id SERIAL PRIMARY KEY,
@@ -452,7 +463,7 @@ func (s *Server) handleVendorURLsBulkDelete(w http.ResponseWriter, r *http.Reque
 func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		rows, err := s.db.Query(`SELECT id, login, password FROM credentials`)
+		rows, err := s.db.Query(`SELECT id, vendor, url, login, password, proxy FROM credentials`)
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
@@ -460,24 +471,50 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 		defer rows.Close()
 		var list []map[string]interface{}
 		for rows.Next() {
-			var id int
-			var l, p string
-			rows.Scan(&id, &l, &p)
-			list = append(list, map[string]interface{}{"id": id, "login": l, "password": p})
+			var (
+				id     int
+				vendor string
+				url    string
+				l      string
+				p      string
+				proxy  string
+			)
+			rows.Scan(&id, &vendor, &url, &l, &p, &proxy)
+			list = append(list, map[string]interface{}{
+				"id":       id,
+				"vendor":   vendor,
+				"url":      url,
+				"login":    l,
+				"password": p,
+				"proxy":    proxy,
+			})
 		}
 		s.sendJSON(w, APIResponse{Success: true, Data: list})
 	case http.MethodPost:
-		var item struct{ Login, Password string }
+		var item struct {
+			Vendor   string `json:"vendor"`
+			URL      string `json:"url"`
+			Login    string `json:"login"`
+			Password string `json:"password"`
+			Proxy    string `json:"proxy"`
+		}
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
 		var id int
-		if err := s.db.QueryRow(`INSERT INTO credentials(login, password) VALUES($1,$2) RETURNING id`, item.Login, item.Password).Scan(&id); err != nil {
+		if err := s.db.QueryRow(`INSERT INTO credentials(vendor, url, login, password, proxy) VALUES($1,$2,$3,$4,$5) RETURNING id`, item.Vendor, item.URL, item.Login, item.Password, item.Proxy).Scan(&id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "login": item.Login, "password": item.Password}})
+		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{
+			"id":       id,
+			"vendor":   item.Vendor,
+			"url":      item.URL,
+			"login":    item.Login,
+			"password": item.Password,
+			"proxy":    item.Proxy,
+		}})
 	}
 }
 
@@ -486,12 +523,18 @@ func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(idStr)
 	switch r.Method {
 	case http.MethodPut:
-		var item struct{ Login, Password string }
+		var item struct {
+			Vendor   string `json:"vendor"`
+			URL      string `json:"url"`
+			Login    string `json:"login"`
+			Password string `json:"password"`
+			Proxy    string `json:"proxy"`
+		}
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
-		if _, err := s.db.Exec(`UPDATE credentials SET login=$1,password=$2 WHERE id=$3`, item.Login, item.Password, id); err != nil {
+		if _, err := s.db.Exec(`UPDATE credentials SET vendor=$1,url=$2,login=$3,password=$4,proxy=$5 WHERE id=$6`, item.Vendor, item.URL, item.Login, item.Password, item.Proxy, id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
