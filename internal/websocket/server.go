@@ -295,20 +295,39 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 	switch msg.Type {
 	case "start_scanner":
-		// Handle start scanner command
+		// msg.Data may come as a simple string or an object
+		scanner := ""
+		switch v := msg.Data.(type) {
+		case string:
+			scanner = v
+		case map[string]interface{}:
+			if val, ok := v["scanner"].(string); ok {
+				scanner = val
+			}
+		}
+
 		response := Message{
 			Type:      "scanner_started",
-			Data:      map[string]string{"status": "success", "scanner": msg.Data.(string)},
+			Data:      map[string]string{"status": "success", "scanner": scanner},
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
 		conn.WriteMessage(websocket.TextMessage, data)
 
 	case "stop_scanner":
-		// Handle stop scanner command
+		scanner := ""
+		switch v := msg.Data.(type) {
+		case string:
+			scanner = v
+		case map[string]interface{}:
+			if val, ok := v["scanner"].(string); ok {
+				scanner = val
+			}
+		}
+
 		response := Message{
 			Type:      "scanner_stopped",
-			Data:      map[string]string{"status": "success", "scanner": msg.Data.(string)},
+			Data:      map[string]string{"status": "success", "scanner": scanner},
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
