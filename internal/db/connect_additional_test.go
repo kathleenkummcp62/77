@@ -21,7 +21,7 @@ func TestConnectToRunningDB(t *testing.T) {
 	}
 	defer pg.Stop()
 
-	cfg := Config{DSN: fmt.Sprintf("postgres://postgres:postgres@localhost:%d/testdb?sslmode=disable", 5545), User: "postgres", Password: "postgres", Name: "testdb"}
+	cfg := Config{DSN: fmt.Sprintf("postgres://postgres:postgres@localhost:%d/testdb?sslmode=disable", 5545), User: "postgres", Password: "postgres", Name: "testdb", Port: 5545}
 	d, err := Connect(cfg)
 	if err != nil {
 		t.Fatalf("Connect: %v", err)
