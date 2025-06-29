@@ -14,7 +14,7 @@ export interface ServerStats {
   processed: number;
   speed: number;
   uptime: number;
-  status: 'online' | 'offline' | 'processing';
+  status: "online" | "offline" | "processing";
 }
 
 export interface VPNType {
@@ -27,8 +27,8 @@ export interface VPNType {
 
 export interface TaskStatus {
   id: string;
-  type: 'generation' | 'upload' | 'processing' | 'collection';
-  status: 'pending' | 'running' | 'completed' | 'error';
+  type: "generation" | "upload" | "processing" | "collection";
+  status: "pending" | "running" | "completed" | "error";
   progress: number;
   message: string;
   timestamp: Date;
@@ -38,4 +38,22 @@ export interface SystemConfig {
   threads: number;
   timeout: number;
   proxyConfig: string;
+}
+
+export interface VendorURL {
+  id: number;
+  url: string;
+}
+
+export interface CredentialPair {
+  id: number;
+  login: string;
+  password: string;
+}
+
+export interface ProxySetting {
+  id: number;
+  address: string;
+  username?: string;
+  password?: string;
 }

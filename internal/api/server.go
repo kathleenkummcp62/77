@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/lib/pq"
+
 	"github.com/gorilla/mux"
 	"vpn-bruteforce-client/internal/aggregator"
+	"vpn-bruteforce-client/internal/config"
 	"vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
 	"vpn-bruteforce-client/internal/websocket"
@@ -39,6 +42,22 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 		port:     port,
 	}
 
+	if s.db == nil {
+		cfg := config.Default()
+		dbConn, err := db.ConnectFromApp(*cfg)
+		if err != nil {
+			log.Printf("database connection error: %v", err)
+		} else {
+			s.db = dbConn
+		}
+	}
+
+	if s.db != nil {
+		if err := s.initDB(); err != nil {
+			log.Printf("failed to init db: %v", err)
+		}
+	}
+
 	s.setupRoutes()
 	return s
 }
@@ -52,6 +71,15 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/stop", s.handleStop).Methods("POST")
 	api.HandleFunc("/logs", s.handleLogs).Methods("GET")
 	api.HandleFunc("/config", s.handleConfig).Methods("GET", "POST")
+	api.HandleFunc("/vendor_urls", s.handleVendorURLs).Methods("GET", "POST")
+	api.HandleFunc("/vendor_urls/{id}", s.handleVendorURL).Methods("PUT", "DELETE")
+	api.HandleFunc("/vendor_urls/bulk_delete", s.handleVendorURLsBulkDelete).Methods("POST")
+	api.HandleFunc("/credentials", s.handleCredentials).Methods("GET", "POST")
+	api.HandleFunc("/credentials/{id}", s.handleCredential).Methods("PUT", "DELETE")
+	api.HandleFunc("/credentials/bulk_delete", s.handleCredentialsBulkDelete).Methods("POST")
+	api.HandleFunc("/proxies", s.handleProxies).Methods("GET", "POST")
+	api.HandleFunc("/proxies/{id}", s.handleProxy).Methods("PUT", "DELETE")
+	api.HandleFunc("/proxies/bulk_delete", s.handleProxiesBulkDelete).Methods("POST")
 
 	// WebSocket endpoint
 	s.router.HandleFunc("/ws", s.wsServer.HandleWebSocket)
@@ -268,4 +296,265 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
+}
+
+// --- Data storage handlers ---
+
+func (s *Server) initDB() error {
+	if s.db == nil {
+		return nil
+	}
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS vendor_urls (
+                        id SERIAL PRIMARY KEY,
+                        url TEXT NOT NULL
+                )`,
+		`CREATE TABLE IF NOT EXISTS credentials (
+                        id SERIAL PRIMARY KEY,
+                        login TEXT NOT NULL,
+                        password TEXT NOT NULL
+                )`,
+		`CREATE TABLE IF NOT EXISTS proxies (
+                        id SERIAL PRIMARY KEY,
+                        address TEXT NOT NULL,
+                        username TEXT,
+                        password TEXT
+                )`,
+	}
+	for _, q := range queries {
+		if _, err := s.db.Exec(q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) handleVendorURLs(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		rows, err := s.db.Query(`SELECT id, url FROM vendor_urls`)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		defer rows.Close()
+		var list []map[string]interface{}
+		for rows.Next() {
+			var id int
+			var url string
+			rows.Scan(&id, &url)
+			list = append(list, map[string]interface{}{"id": id, "url": url})
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: list})
+	case http.MethodPost:
+		var item struct {
+			URL string `json:"url"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		var id int
+		if err := s.db.QueryRow(`INSERT INTO vendor_urls(url) VALUES($1) RETURNING id`, item.URL).Scan(&id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "url": item.URL}})
+	}
+}
+
+func (s *Server) handleVendorURL(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, _ := strconv.Atoi(idStr)
+	switch r.Method {
+	case http.MethodPut:
+		var item struct {
+			URL string `json:"url"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		if _, err := s.db.Exec(`UPDATE vendor_urls SET url=$1 WHERE id=$2`, item.URL, id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	case http.MethodDelete:
+		if _, err := s.db.Exec(`DELETE FROM vendor_urls WHERE id=$1`, id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	}
+}
+
+func (s *Server) handleVendorURLsBulkDelete(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+		return
+	}
+	if len(req.IDs) == 0 {
+		s.sendJSON(w, APIResponse{Success: true})
+		return
+	}
+	q := `DELETE FROM vendor_urls WHERE id = ANY($1)`
+	if _, err := s.db.Exec(q, pq.Array(req.IDs)); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+	s.sendJSON(w, APIResponse{Success: true})
+}
+
+func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		rows, err := s.db.Query(`SELECT id, login, password FROM credentials`)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		defer rows.Close()
+		var list []map[string]interface{}
+		for rows.Next() {
+			var id int
+			var l, p string
+			rows.Scan(&id, &l, &p)
+			list = append(list, map[string]interface{}{"id": id, "login": l, "password": p})
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: list})
+	case http.MethodPost:
+		var item struct{ Login, Password string }
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		var id int
+		if err := s.db.QueryRow(`INSERT INTO credentials(login, password) VALUES($1,$2) RETURNING id`, item.Login, item.Password).Scan(&id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "login": item.Login, "password": item.Password}})
+	}
+}
+
+func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, _ := strconv.Atoi(idStr)
+	switch r.Method {
+	case http.MethodPut:
+		var item struct{ Login, Password string }
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		if _, err := s.db.Exec(`UPDATE credentials SET login=$1,password=$2 WHERE id=$3`, item.Login, item.Password, id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	case http.MethodDelete:
+		if _, err := s.db.Exec(`DELETE FROM credentials WHERE id=$1`, id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	}
+}
+
+func (s *Server) handleCredentialsBulkDelete(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+		return
+	}
+	if len(req.IDs) == 0 {
+		s.sendJSON(w, APIResponse{Success: true})
+		return
+	}
+	if _, err := s.db.Exec(`DELETE FROM credentials WHERE id = ANY($1)`, pq.Array(req.IDs)); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+	s.sendJSON(w, APIResponse{Success: true})
+}
+
+func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		rows, err := s.db.Query(`SELECT id, address, username, password FROM proxies`)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		defer rows.Close()
+		var list []map[string]interface{}
+		for rows.Next() {
+			var id int
+			var addr, u, p string
+			rows.Scan(&id, &addr, &u, &p)
+			list = append(list, map[string]interface{}{"id": id, "address": addr, "username": u, "password": p})
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: list})
+	case http.MethodPost:
+		var item struct{ Address, Username, Password string }
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		var id int
+		if err := s.db.QueryRow(`INSERT INTO proxies(address, username, password) VALUES($1,$2,$3) RETURNING id`, item.Address, item.Username, item.Password).Scan(&id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "address": item.Address, "username": item.Username, "password": item.Password}})
+	}
+}
+
+func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, _ := strconv.Atoi(idStr)
+	switch r.Method {
+	case http.MethodPut:
+		var item struct{ Address, Username, Password string }
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		if _, err := s.db.Exec(`UPDATE proxies SET address=$1,username=$2,password=$3 WHERE id=$4`, item.Address, item.Username, item.Password, id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	case http.MethodDelete:
+		if _, err := s.db.Exec(`DELETE FROM proxies WHERE id=$1`, id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	}
+}
+
+func (s *Server) handleProxiesBulkDelete(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+		return
+	}
+	if len(req.IDs) == 0 {
+		s.sendJSON(w, APIResponse{Success: true})
+		return
+	}
+	if _, err := s.db.Exec(`DELETE FROM proxies WHERE id = ANY($1)`, pq.Array(req.IDs)); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+	s.sendJSON(w, APIResponse{Success: true})
 }
