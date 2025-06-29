@@ -2,10 +2,10 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +24,16 @@ type Server struct {
 	broadcast  chan []byte
 	register   chan *websocket.Conn
 	unregister chan *websocket.Conn
+}
+
+// logEvent inserts an entry into the logs table when a database connection is available.
+func (s *Server) logEvent(level, msg, src string) {
+	if s == nil || s.db == nil {
+		return
+	}
+	if _, err := s.db.Exec(`INSERT INTO logs(level, message, source) VALUES ($1,$2,$3)`, level, msg, src); err != nil {
+		log.Printf("log event error: %v", err)
+	}
 }
 
 type Message struct {
@@ -94,6 +104,7 @@ func (s *Server) handleConnections() {
 			s.clients[client] = true
 			s.clientsMux.Unlock()
 			log.Printf("WebSocket client connected. Total: %d", len(s.clients))
+			s.logEvent("info", "websocket client connected", "websocket")
 
 			// Send initial data to new client
 			s.sendInitialData(client)
@@ -106,6 +117,7 @@ func (s *Server) handleConnections() {
 			}
 			s.clientsMux.Unlock()
 			log.Printf("WebSocket client disconnected. Total: %d", len(s.clients))
+			s.logEvent("info", "websocket client disconnected", "websocket")
 
 		case message := <-s.broadcast:
 			s.clientsMux.Lock()
@@ -220,6 +232,7 @@ func (s *Server) getServerInfo() []ServerInfo {
 	infos, err := aggr.GetServerInfo()
 	if err != nil {
 		log.Printf("aggregator error: %v", err)
+		s.logEvent("error", fmt.Sprintf("aggregator error: %v", err), "websocket")
 		return nil
 	}
 
@@ -234,6 +247,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
+		s.logEvent("error", fmt.Sprintf("websocket upgrade error: %v", err), "websocket")
 		return
 	}
 
@@ -326,6 +340,7 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
+		s.logEvent("warn", fmt.Sprintf("unknown message: %s", msg.Type), "websocket")
 	}
 }
 
@@ -356,50 +371,29 @@ func (s *Server) getLogs(limit int) ([]map[string]interface{}, error) {
 		limit = 100
 	}
 
-	if s.db != nil {
-		rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT $1`, limit)
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-
-		var logs []map[string]interface{}
-		for rows.Next() {
-			var ts time.Time
-			var level, msg, src string
-			if err := rows.Scan(&ts, &level, &msg, &src); err != nil {
-				continue
-			}
-			logs = append(logs, map[string]interface{}{
-				"timestamp": ts.Format(time.RFC3339),
-				"level":     level,
-				"message":   msg,
-				"source":    src,
-			})
-		}
-		return logs, nil
+	if s.db == nil {
+		return nil, fmt.Errorf("database unavailable")
 	}
 
-	path := os.Getenv("LOG_FILE")
-	if path == "" {
-		path = "scanner.log"
-	}
-	data, err := os.ReadFile(path)
+	rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT $1`, limit)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if limit < len(lines) {
-		lines = lines[len(lines)-limit:]
-	}
-	logs := make([]map[string]interface{}, len(lines))
-	for i, l := range lines {
-		logs[i] = map[string]interface{}{
-			"timestamp": "",
-			"level":     "INFO",
-			"message":   l,
-			"source":    "file",
+	defer rows.Close()
+
+	var logs []map[string]interface{}
+	for rows.Next() {
+		var ts time.Time
+		var level, msg, src string
+		if err := rows.Scan(&ts, &level, &msg, &src); err != nil {
+			continue
 		}
+		logs = append(logs, map[string]interface{}{
+			"timestamp": ts.Format(time.RFC3339),
+			"level":     level,
+			"message":   msg,
+			"source":    src,
+		})
 	}
 	return logs, nil
 }
