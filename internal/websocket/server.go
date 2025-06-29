@@ -180,8 +180,12 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 		Timestamp: time.Now().Unix(),
 	}
 
-	data, _ := json.Marshal(message)
-	client.WriteMessage(websocket.TextMessage, data)
+	data, err := json.Marshal(message)
+	if err != nil {
+		log.Printf("Error marshaling initial stats: %v", err)
+	} else if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
+		log.Printf("Error sending initial stats: %v", err)
+	}
 
 	// Send server info
 	servers := s.getServerInfo()
@@ -191,8 +195,14 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 		Timestamp: time.Now().Unix(),
 	}
 
-	serverData, _ := json.Marshal(serverMessage)
-	client.WriteMessage(websocket.TextMessage, serverData)
+	serverData, err := json.Marshal(serverMessage)
+	if err != nil {
+		log.Printf("Error marshaling server info: %v", err)
+		return
+	}
+	if err := client.WriteMessage(websocket.TextMessage, serverData); err != nil {
+		log.Printf("Error sending server info: %v", err)
+	}
 }
 
 func (s *Server) getServerInfo() []ServerInfo {
