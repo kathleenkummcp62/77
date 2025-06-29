@@ -180,6 +180,9 @@ Tracks the progress of each scanning job. Columns include:
 
 - `id` – primary key
 - `vpn_type` or `vendor_url_id` – the VPN type or linked vendor URL
+- `vendor` – VPN vendor name
+- `url` – URL associated with the task's vendor
+- `proxy` – optional proxy used for the task
 - `server` – target server address
 - `status` – current job state
 - `progress` – credentials processed so far
@@ -195,6 +198,9 @@ Holds the credential sets used for scanning. Each entry has the fields:
 - `ip` – VPN gateway IP or hostname
 - `username` – login name
 - `password` – password
+- `vendor` – VPN vendor name
+- `url` – vendor URL the credentials belong to
+- `proxy` – optional proxy to test with
 
 ### **REST API Endpoints**
 
@@ -211,6 +217,35 @@ credentials:
 - `PUT  /api/credentials/{id}` – update a credential entry
 - `DELETE /api/credentials/{id}` – remove a credential entry
 - `POST /api/credentials/bulk_delete` – delete multiple credential entries
+
+### **/api/tasks Request & Response Format**
+
+The task endpoints accept and return JSON. Each task object may contain the
+following fields:
+
+- `id` – unique task identifier
+- `vendor` or `vpn_type` – VPN vendor name (or a `vendor_url_id` pointing to the
+  `vendor_urls` table)
+- `url` – URL associated with the vendor
+- `server` – target server address
+- `proxy` – optional proxy to route traffic through
+- `status` – current task state
+- `progress`, `processed` – progress metrics
+- `goods`, `bads`, `errors` – result counters
+- `rps` – requests per second
+- `created_at` – creation timestamp
+
+To create a task send a JSON object with the same fields (except `id`). The
+server responds with:
+
+```json
+{ "success": true, "data": { "id": 1, ... } }
+```
+
+Listing tasks returns the same structure with `data` as an array of tasks.
+
+These tables—including `tasks`, `credentials`, `vendor_urls` and `proxies`—are
+automatically initialized when the server launches with the embedded database.
 
 ## 🔧 **Advanced Features**
 
