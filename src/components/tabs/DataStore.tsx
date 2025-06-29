@@ -5,9 +5,9 @@ import { VendorURL, CredentialPair, ProxySetting, Task } from "../../types";
 import toast from "react-hot-toast";
 import { Link } from "lucide-react";
 
-interface Selectable<T> extends T {
+type Selectable<T> = T & {
   selected?: boolean;
-}
+};
 
 async function fetchJSON(path: string, options?: RequestInit) {
   const res = await fetch(path, {
@@ -119,34 +119,40 @@ export function DataStore() {
 
   const updateItem = async <T extends { id: number }>(
     path: string,
-    item: T,
+    item: Selectable<T>,
     list: Selectable<T>[],
     setList: (l: Selectable<T>[]) => void,
-  ) => {
+  ): Promise<Selectable<T>[]> => {
     try {
       await fetchJSON(`${path}/${item.id}`, {
         method: "PUT",
         body: JSON.stringify(item),
       });
-      setList(list.map((i) => (i.id === item.id ? item : i)));
+      const updated = list.map((i) => (i.id === item.id ? item : i));
+      setList(updated);
       toast.success("Saved");
+      return updated;
     } catch (err: any) {
       toast.error(err.message);
+      return list;
     }
   };
 
   const deleteItem = async <T extends { id: number }>(
     path: string,
-    id: number,
+    item: Selectable<T>,
     list: Selectable<T>[],
     setList: (l: Selectable<T>[]) => void,
-  ) => {
+  ): Promise<Selectable<T>[]> => {
     try {
-      await fetchJSON(`${path}/${id}`, { method: "DELETE" });
-      setList(list.filter((i) => i.id !== id));
+      await fetchJSON(`${path}/${item.id}`, { method: "DELETE" });
+      const updated = list.filter((i) => i.id !== item.id);
+      setList(updated);
       toast.success("Deleted");
+      return updated;
     } catch (err: any) {
       toast.error(err.message);
+      return list;
     }
   };
 
@@ -234,7 +240,7 @@ export function DataStore() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => deleteItem(path, item.id, list, setList)}
+                  onClick={() => deleteItem(path, item, list, setList)}
                 >
                   Delete
                 </Button>
