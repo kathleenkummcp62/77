@@ -86,12 +86,7 @@ func main() {
 	// from disk (or defaults). A db.Config is constructed from the loaded
 	// config.Config to decouple the database package from the application
 	// configuration structure.
-	dbCfg := db.Config{
-		DSN:      cfg.DatabaseDSN,
-		User:     cfg.DBUser,
-		Password: cfg.DBPassword,
-		Name:     cfg.DBName,
-	}
+	dbCfg := db.ConfigFromApp(*cfg)
 	database, err := db.Connect(dbCfg)
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to database: %v", err)
