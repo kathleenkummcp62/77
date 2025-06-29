@@ -102,6 +102,11 @@ Supply the path to your real credential files at runtime using one of these meth
 
 This keeps sensitive data on your machine and out of the repository and built assets.
 
+For extra safety, store `credentials.txt` in a directory *outside* this project. Then
+set the `INPUT_FILE` environment variable (or the `input_file` option in `config.yaml`)
+to the full path of that file. Your real credentials stay off version control while the
+application still knows where to find them at runtime.
+
 For example, set the path to your credential file using the `INPUT_FILE` environment variable:
 
 ```bash
