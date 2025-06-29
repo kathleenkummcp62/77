@@ -204,6 +204,10 @@ Stores the task queue. Columns include:
 - `login` – login associated with the task
 - `password` – password used for the task
 - `proxy` – optional proxy address
+- `vendor_url_id` – optional reference to an entry in `vendor_urls`
+
+If this column is present the API automatically joins with `vendor_urls` and
+expects/returns a `vendor_url_id` instead of the `vendor` and `url` fields.
 
 ### **credentials**
 
@@ -268,6 +272,11 @@ following fields:
 - `login` – login to test
 - `password` – password to test
 - `proxy` – optional proxy address
+- `vendor_url_id` – ID from `vendor_urls` when that column exists
+
+The server inspects the `tasks` table on startup. If `vendor_url_id` is
+available, all task endpoints use it and omit the separate `vendor` and `url`
+fields.
 
 To create a task send a JSON object with the same fields (except `id`). The
 server responds with:
