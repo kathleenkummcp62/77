@@ -141,6 +141,14 @@ make test-memory
 make install
 ```
 
+### Build the dashboard
+
+```bash
+npm run build
+```
+
+This command compiles the React UI into the `dist/` directory.
+
 ## 📊 **Performance Tuning**
 
 ### **For Maximum RPS:**
