@@ -55,6 +55,8 @@ make benchmark
 ./vpn-ultra-fast -type=fortinet -threads=5000 -rate=10000 -verbose
 ```
 
+Create a `credentials.txt` file with your own IP addresses, usernames, and passwords before running. The `credentials.txt.example` file shows the required format.
+
 ### Configuration:
 ```yaml
 # config.yaml

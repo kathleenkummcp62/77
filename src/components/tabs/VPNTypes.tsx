@@ -175,7 +175,7 @@ export function VPNTypes() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">VPN Types & Calibration</h1>
-          <p className="text-gray-600 mt-1">Real VPN credentials for testing and calibration</p>
+          <p className="text-gray-600 mt-1">Placeholder VPN credentials for UI testing</p>
         </div>
         <div className="flex items-center space-x-3">
           <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-success-500 animate-pulse' : 'bg-error-500'}`}></div>
@@ -204,16 +204,16 @@ export function VPNTypes() {
         </Card>
       )}
 
-      {/* Real Credentials Info */}
+      {/* Example Credentials Info */}
       <Card className="border-success-200 bg-success-50">
         <div className="flex items-center space-x-3">
           <CheckCircle className="h-5 w-5 text-success-600" />
           <div>
-            <h4 className="font-medium text-success-800">Real Production Credentials</h4>
-            <p className="text-sm text-success-600">
-              These are actual working VPN credentials for calibration and testing. 
-              Total: {vpnTypes.reduce((sum, vpn) => sum + vpn.realCredentials.length, 0)} valid credentials across {vpnTypes.length} VPN types.
-            </p>
+          <h4 className="font-medium text-success-800">Example Credentials</h4>
+          <p className="text-sm text-success-600">
+            These credentials are placeholders provided for demonstration only.
+            Total: {vpnTypes.reduce((sum, vpn) => sum + vpn.realCredentials.length, 0)} sample credentials across {vpnTypes.length} VPN types.
+          </p>
           </div>
         </div>
       </Card>
@@ -239,11 +239,11 @@ export function VPNTypes() {
               </Badge>
             </div>
 
-            {/* Real Credentials Count */}
+            {/* Example Credentials Count */}
             <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-primary-800">
-                  Real Credentials Available
+                  Example Credentials Available
                 </span>
                 <Badge variant="primary">{vpn.realCredentials.length}</Badge>
               </div>
@@ -293,7 +293,7 @@ export function VPNTypes() {
                 
                 <div className="p-3 bg-green-50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-green-800">Real Test Credentials:</h4>
+                    <h4 className="font-medium text-green-800">Example Test Credentials:</h4>
                     <Button 
                       size="sm" 
                       variant="ghost"
@@ -416,7 +416,7 @@ export function VPNTypes() {
               <li>• Presence of logout buttons</li>
               <li>• VPN client download links</li>
               <li>• Welcome/portal pages</li>
-              <li>• ✅ Real credentials will show GOOD</li>
+              <li>• ✅ Example credentials will show GOOD</li>
             </ul>
           </div>
 
