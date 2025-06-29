@@ -25,7 +25,7 @@ func main() {
 	go statsManager.Start()
 
 	// Initialize API server with WebSocket support
-	server := api.NewServer(statsManager, *port)
+	server := api.NewServer(statsManager, *port, nil)
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
