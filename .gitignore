@@ -2,3 +2,4 @@ node_modules/
 .env
 stats_*.json
 dist/
+credentials*.txt

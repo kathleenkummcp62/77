@@ -209,7 +209,7 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		{
 			"timestamp": "2024-01-15T10:30:15Z",
 			"level":     "SUCCESS",
-			"message":   "Valid credential found: 200.113.15.26;guest;guest",
+			"message":   "Valid credential found: example.com;guest;guest",
 			"source":    "fortinet",
 		},
 		{

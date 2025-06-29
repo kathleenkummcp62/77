@@ -61,6 +61,13 @@ max_threads: 5000
 streaming_mode: true
 ```
 
+## 🔐 **Secure Credential Management**
+
+Store your server and VPN credentials outside of the repository.
+Place them in files like `credentials.txt` or `.env` and add these paths to `.gitignore`.
+Set paths to these files via environment variables or `config.yaml` so sensitive data is never committed.
+
+
 ## 📝 **Credential Formats**
 
 ### **Fortinet:**
