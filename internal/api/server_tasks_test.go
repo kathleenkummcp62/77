@@ -108,6 +108,23 @@ func TestTasksHandlers(t *testing.T) {
 		t.Fatalf("put status %d", resp2.StatusCode)
 	}
 
+	// verify update reflected in list
+	resp, err = http.Get(ts.URL + "/api/tasks")
+	if err != nil {
+		t.Fatalf("get after update: %v", err)
+	}
+	defer resp.Body.Close()
+	listResp = struct {
+		Success bool          `json:"success"`
+		Data    []interface{} `json:"data"`
+	}{}
+	if err := json.NewDecoder(resp.Body).Decode(&listResp); err != nil {
+		t.Fatalf("decode list after update: %v", err)
+	}
+	if len(listResp.Data) != 1 {
+		t.Fatalf("expected one task after update")
+	}
+
 	// delete
 	req, _ = http.NewRequest(http.MethodDelete, ts.URL+"/api/tasks/"+strconv.Itoa(id), nil)
 	resp2, err = http.DefaultClient.Do(req)
@@ -117,6 +134,22 @@ func TestTasksHandlers(t *testing.T) {
 	resp2.Body.Close()
 	if resp2.StatusCode != http.StatusOK {
 		t.Fatalf("delete status %d", resp2.StatusCode)
+	}
+
+	resp, err = http.Get(ts.URL + "/api/tasks")
+	if err != nil {
+		t.Fatalf("get after delete: %v", err)
+	}
+	defer resp.Body.Close()
+	listResp = struct {
+		Success bool          `json:"success"`
+		Data    []interface{} `json:"data"`
+	}{}
+	if err := json.NewDecoder(resp.Body).Decode(&listResp); err != nil {
+		t.Fatalf("decode list after delete: %v", err)
+	}
+	if len(listResp.Data) != 0 {
+		t.Fatalf("expected no tasks after delete")
 	}
 }
 
