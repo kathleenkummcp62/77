@@ -93,7 +93,7 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 	}
 
 	if s.db != nil {
-		if err := s.initDB(); err != nil {
+		if err := db.InitSchema(s.db); err != nil {
 			log.Printf("failed to init db: %v", err)
 			s.logEvent("error", fmt.Sprintf("init db: %v", err), "api")
 		}
@@ -382,13 +382,6 @@ func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
 }
 
 // --- Data storage handlers ---
-
-func (s *Server) initDB() error {
-	if s.db == nil {
-		return nil
-	}
-	return db.InitSchema(s.db)
-}
 
 // detectSchema checks whether the tasks table uses the new vendor based
 // structure. If the vendor_url_id column exists we switch the handlers to use
