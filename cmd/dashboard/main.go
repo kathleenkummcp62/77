@@ -43,7 +43,7 @@ func main() {
 	}
 	defer database.Close()
 
-	if _, err := database.Exec(`INSERT INTO logs(level, message, source) VALUES ($1,$2,$3)`, "info", fmt.Sprintf("dashboard starting on port %d", *port), "dashboard"); err != nil {
+	if err := database.InsertLog("info", fmt.Sprintf("dashboard starting on port %d", *port), "dashboard"); err != nil {
 		log.Printf("log insert error: %v", err)
 	}
 
@@ -57,7 +57,7 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("🛑 Shutdown signal received...")
-		if _, derr := database.Exec(`INSERT INTO logs(level, message, source) VALUES ($1,$2,$3)`, "info", "dashboard shutdown", "dashboard"); derr != nil {
+		if derr := database.InsertLog("info", "dashboard shutdown", "dashboard"); derr != nil {
 			log.Printf("log insert error: %v", derr)
 		}
 		database.Close()

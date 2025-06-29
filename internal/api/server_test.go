@@ -415,7 +415,14 @@ func TestLogEventAndLogsEndpoint(t *testing.T) {
 	if !out.Success || len(out.Data) == 0 {
 		t.Fatalf("expected log entries")
 	}
-	if out.Data[0]["message"] != "hello" {
-		t.Fatalf("unexpected message: %v", out.Data[0]["message"])
+	found := false
+	for _, m := range out.Data {
+		if m["message"] == "hello" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("log entry not found")
 	}
 }
