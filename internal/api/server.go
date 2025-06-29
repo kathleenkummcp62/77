@@ -9,12 +9,14 @@ import (
 
 	"github.com/gorilla/mux"
 	"vpn-bruteforce-client/internal/aggregator"
+	"vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
 	"vpn-bruteforce-client/internal/websocket"
 )
 
 type Server struct {
 	stats    *stats.Stats
+	db       *db.DB
 	wsServer *websocket.Server
 	router   *mux.Router
 	port     int
@@ -26,11 +28,12 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
-func NewServer(stats *stats.Stats, port int) *Server {
+func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 	wsServer := websocket.NewServer(stats)
 
 	s := &Server{
 		stats:    stats,
+		db:       database,
 		wsServer: wsServer,
 		router:   mux.NewRouter(),
 		port:     port,

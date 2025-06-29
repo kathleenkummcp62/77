@@ -13,6 +13,7 @@ import (
 	"vpn-bruteforce-client/internal/api"
 	"vpn-bruteforce-client/internal/bruteforce"
 	"vpn-bruteforce-client/internal/config"
+	"vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
 )
 
@@ -81,6 +82,18 @@ func main() {
 	}
 	cfg.Verbose = *verbose
 
+	// Initialize database connection
+	database, err := db.Connect(db.Config{
+		DSN:      cfg.DatabaseDSN,
+		User:     cfg.DBUser,
+		Password: cfg.DBPassword,
+		Name:     cfg.DBName,
+	})
+	if err != nil {
+		log.Fatalf("❌ Failed to connect to database: %v", err)
+	}
+	defer database.Close()
+
 	// Validate input file exists
 	if _, err := os.Stat(cfg.InputFile); os.IsNotExist(err) {
 		log.Fatalf("❌ Input file not found: %s", cfg.InputFile)
@@ -99,7 +112,7 @@ func main() {
 
 	// Start dashboard server in background
 	go func() {
-		server := api.NewServer(statsManager, *dashboardPort)
+		server := api.NewServer(statsManager, *dashboardPort, database)
 		if err := server.Start(); err != nil {
 			log.Printf("⚠️  Dashboard server error: %v", err)
 		}
@@ -150,7 +163,7 @@ func runDashboard(port int) {
 	go statsManager.Start()
 
 	// Initialize API server with WebSocket support
-	server := api.NewServer(statsManager, port)
+	server := api.NewServer(statsManager, port, nil)
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
