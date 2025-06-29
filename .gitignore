@@ -13,3 +13,4 @@ stats_*.json
 
 # Файлы с чувствительными данными
 credentials*.txt
+gener.txt

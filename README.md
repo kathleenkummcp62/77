@@ -70,6 +70,14 @@ Store your server and VPN credentials outside of the repository.
 Place them in files like `credentials.txt` or `.env` and add these paths to `.gitignore`.
 Set paths to these files via environment variables or `config.yaml` so sensitive data is never committed.
 
+For example, set the path to your credential file using the `INPUT_FILE` environment variable:
+
+```bash
+export INPUT_FILE=/path/to/credentials.txt
+```
+
+The application reads this path at runtime so the actual credentials remain on your machine and never appear in the built assets or repository.
+
 
 ## 📝 **Credential Formats**
 

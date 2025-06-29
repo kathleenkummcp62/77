@@ -42,7 +42,7 @@ export function Processing() {
     {
       id: '1',
       vpnType: 'Fortinet',
-      server: '192.0.2.10',
+      server: 'server1.example.com',
       status: 'running',
       progress: 78,
       startTime: '2h 15m ago',
@@ -56,7 +56,7 @@ export function Processing() {
     {
       id: '2',
       vpnType: 'GlobalProtect',
-      server: '192.0.2.11',
+      server: 'server2.example.com',
       status: 'running',
       progress: 65,
       startTime: '1h 45m ago',
@@ -70,7 +70,7 @@ export function Processing() {
     {
       id: '3',
       vpnType: 'SonicWall',
-      server: '192.0.2.12',
+      server: 'server3.example.com',
       status: 'paused',
       progress: 42,
       startTime: '3h 12m ago',
@@ -84,7 +84,7 @@ export function Processing() {
     {
       id: '4',
       vpnType: 'Cisco',
-      server: '192.0.2.13',
+      server: 'server4.example.com',
       status: 'completed',
       progress: 100,
       startTime: '4h 28m ago',
