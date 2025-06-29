@@ -168,12 +168,11 @@ https://example.net:443:admin:pass:ANYCONNECT
 ## 🗄️ **Database Schema**
 
 The API server relies on PostgreSQL for storing runtime information.
-When the server starts it calls `InitSchema`, creating all tables if
-they don't already exist. The `db.Connect` helper automatically
-invokes this function so the schema is created even when an embedded
-database is launched. If no external database is reachable `db.Connect`
-falls back to an embedded Postgres instance so the application works
-with an empty database out of the box.
+`db.Connect` automatically initializes the schema by invoking
+`InitSchema` on first connect, ensuring all required tables exist even
+when an embedded database is started. If no external database is
+reachable `db.Connect` falls back to an embedded Postgres instance so
+the application works with an empty database out of the box.
 
 ### **tasks**
 

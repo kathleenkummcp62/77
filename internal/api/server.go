@@ -93,10 +93,6 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 	}
 
 	if s.db != nil {
-		if err := db.InitSchema(s.db); err != nil {
-			log.Printf("failed to init db: %v", err)
-			s.logEvent("error", fmt.Sprintf("init db: %v", err), "api")
-		}
 		s.detectSchema()
 	}
 
