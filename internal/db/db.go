@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/fergusstrange/embedded-postgres"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -57,6 +58,12 @@ func Connect(cfg Config) (*DB, error) {
 			return &DB{DB: db}, nil
 		}
 		db.Close()
+	}
+
+	if err != nil {
+		log.Printf("db connection failed, starting embedded: %v", err)
+	} else {
+		log.Printf("db ping failed, starting embedded")
 	}
 
 	// Start embedded Postgres
