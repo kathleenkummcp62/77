@@ -15,8 +15,8 @@
 
 Формат `credentials.txt` (коммент и пустые строки игнорируются):
 ```
-192.168.8.251;root;P@ssw0rd
-192.168.8.252;ubuntu;/home/you/.ssh/worker_ed25519
+192.0.2.10;user;pass123
+192.0.2.11;ubuntu;/path/to/key
 ```
 
 Для Windows‑нод скрипт не предназначен (ожидается Linux + apt).

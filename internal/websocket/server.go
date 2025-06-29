@@ -294,8 +294,8 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 		// Handle log request
 		logs := []string{
 			"[INFO] Scanner started successfully",
-			"[SUCCESS] Found valid credential: 192.168.1.1;admin;password",
-			"[ERROR] Connection timeout for 192.168.1.2",
+			"[SUCCESS] Found valid credential: 192.0.2.1;user;pass123",
+			"[ERROR] Connection timeout for 192.0.2.2",
 			"[INFO] Processing rate: 2500 req/s",
 		}
 		response := Message{

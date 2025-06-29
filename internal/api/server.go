@@ -218,7 +218,7 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		{
 			"timestamp": "2024-01-15T10:30:30Z",
 			"level":     "ERROR",
-			"message":   "Connection timeout for 192.168.1.100",
+			"message":   "Connection timeout for 192.0.2.100",
 			"source":    "network",
 		},
 		{
