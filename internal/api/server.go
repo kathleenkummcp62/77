@@ -86,6 +86,7 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 		dbConn, err := db.ConnectFromApp(*cfg)
 		if err != nil {
 			log.Printf("database connection error: %v", err)
+			s.logEvent("error", fmt.Sprintf("database connection error: %v", err), "api")
 		} else {
 			s.db = dbConn
 		}
@@ -94,6 +95,7 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 	if s.db != nil {
 		if err := s.initDB(); err != nil {
 			log.Printf("failed to init db: %v", err)
+			s.logEvent("error", fmt.Sprintf("init db: %v", err), "api")
 		}
 		s.detectSchema()
 	}
@@ -264,7 +266,7 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Printf("🚀 Starting %s scanner via API", vpnType)
-	s.InsertLog("info", fmt.Sprintf("start %s scanner", vpnType), "api")
+	s.logEvent("info", fmt.Sprintf("start %s scanner", vpnType), "api")
 	s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 		"status":   "started",
 		"vpn_type": vpnType,
@@ -292,7 +294,7 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Printf("🛑 Stopping %s scanner via API", vpnType)
-	s.InsertLog("info", fmt.Sprintf("stop %s scanner", vpnType), "api")
+	s.logEvent("info", fmt.Sprintf("stop %s scanner", vpnType), "api")
 	s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 		"status":   "stopped",
 		"vpn_type": vpnType,
@@ -334,31 +336,7 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fallback: read from default log file if database unavailable
-	path := os.Getenv("LOG_FILE")
-	if path == "" {
-		path = "scanner.log"
-	}
-	data, err := os.ReadFile(path)
-	if err == nil {
-		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-		if limit < len(lines) {
-			lines = lines[len(lines)-limit:]
-		}
-		logs := make([]map[string]interface{}, len(lines))
-		for i, l := range lines {
-			logs[i] = map[string]interface{}{
-				"timestamp": "",
-				"level":     "INFO",
-				"message":   l,
-				"source":    "file",
-			}
-		}
-		s.sendJSON(w, APIResponse{Success: true, Data: logs})
-		return
-	}
-
-	s.sendJSON(w, APIResponse{Success: true, Data: []interface{}{}})
+	s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
@@ -366,6 +344,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		cfg, err := config.Load("config.yaml")
 		if err != nil {
 			log.Printf("config load error: %v", err)
+			s.logEvent("error", fmt.Sprintf("config load error: %v", err), "api")
 			cfg = config.Default()
 		}
 		s.sendJSON(w, APIResponse{Success: true, Data: cfg})
@@ -390,7 +369,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 
 		s.wsServer.BroadcastMessage("config_update", cfg)
 		log.Printf("⚙️ Configuration updated via API")
-		s.InsertLog("info", "configuration updated", "api")
+		s.logEvent("info", "configuration updated", "api")
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 			"status": "updated",
 		}})

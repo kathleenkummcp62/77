@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -42,6 +43,10 @@ func main() {
 	}
 	defer database.Close()
 
+	if _, err := database.Exec(`INSERT INTO logs(level, message, source) VALUES ($1,$2,$3)`, "info", fmt.Sprintf("dashboard starting on port %d", *port), "dashboard"); err != nil {
+		log.Printf("log insert error: %v", err)
+	}
+
 	// Initialize API server with WebSocket support
 	server := api.NewServer(statsManager, *port, database)
 
@@ -52,6 +57,9 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("🛑 Shutdown signal received...")
+		if _, derr := database.Exec(`INSERT INTO logs(level, message, source) VALUES ($1,$2,$3)`, "info", "dashboard shutdown", "dashboard"); derr != nil {
+			log.Printf("log insert error: %v", derr)
+		}
 		database.Close()
 		os.Exit(0)
 	}()

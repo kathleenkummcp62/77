@@ -390,3 +390,32 @@ func TestProxyCRUDOperations(t *testing.T) {
 		t.Fatalf("expected empty list after delete")
 	}
 }
+
+func TestLogEventAndLogsEndpoint(t *testing.T) {
+	srv, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	srv.logEvent("info", "hello", "test")
+
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/logs?limit=5")
+	if err != nil {
+		t.Fatalf("get logs: %v", err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Success bool                     `json:"success"`
+		Data    []map[string]interface{} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !out.Success || len(out.Data) == 0 {
+		t.Fatalf("expected log entries")
+	}
+	if out.Data[0]["message"] != "hello" {
+		t.Fatalf("unexpected message: %v", out.Data[0]["message"])
+	}
+}

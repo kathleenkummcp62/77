@@ -1,13 +1,18 @@
 package websocket
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/fergusstrange/embedded-postgres"
 	gw "github.com/gorilla/websocket"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	dbpkg "vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
 )
 
@@ -35,6 +40,33 @@ func newTestWSPair(t *testing.T, s *Server) (*gw.Conn, *gw.Conn, func()) {
 		srv.Close()
 	}
 	return server, client, cleanup
+}
+
+func setupWSServer(t *testing.T) (*Server, func()) {
+	if os.Geteuid() == 0 {
+		t.Skip("cannot run embedded postgres as root")
+	}
+	pg := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().Port(5441).Database("testdb").Username("postgres").Password("postgres"))
+	if err := pg.Start(); err != nil {
+		t.Fatalf("failed to start embedded postgres: %v", err)
+	}
+	dsn := "postgres://postgres:postgres@localhost:5441/testdb?sslmode=disable"
+	sqlDB, err := sql.Open("pgx", dsn)
+	if err != nil {
+		pg.Stop()
+		t.Fatalf("failed to open db: %v", err)
+	}
+	db := &dbpkg.DB{DB: sqlDB}
+	if err := dbpkg.InitSchema(db); err != nil {
+		pg.Stop()
+		sqlDB.Close()
+		t.Fatalf("init schema: %v", err)
+	}
+	srv := NewServer(stats.New(), db)
+	return srv, func() {
+		sqlDB.Close()
+		pg.Stop()
+	}
 }
 
 func TestHandleMessageStartScanner(t *testing.T) {
@@ -73,5 +105,36 @@ func TestHandleMessageStartScanner(t *testing.T) {
 				t.Fatalf("unexpected data: %v", resp.Data)
 			}
 		})
+	}
+}
+
+func TestWebSocketGetLogs(t *testing.T) {
+	srv, cleanup := setupWSServer(t)
+	defer cleanup()
+
+	srv.logEvent("info", "ws-log", "test")
+
+	serverConn, clientConn, pairCleanup := newTestWSPair(t, srv)
+	defer pairCleanup()
+
+	msg := Message{Type: "get_logs", Data: map[string]interface{}{"limit": 5}}
+	srv.handleMessage(serverConn, msg)
+
+	_, respData, err := clientConn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	var resp struct {
+		Type string                   `json:"type"`
+		Data []map[string]interface{} `json:"data"`
+	}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if resp.Type != "logs_data" || len(resp.Data) == 0 {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+	if resp.Data[0]["message"] != "ws-log" {
+		t.Fatalf("unexpected message: %v", resp.Data[0]["message"])
 	}
 }
