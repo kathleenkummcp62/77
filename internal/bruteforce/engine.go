@@ -52,6 +52,7 @@ type Engine struct {
 	lastScaleTime  time.Time
 
 	taskBuilder *TaskBuilder
+	tasks       []Task
 }
 
 type Credential struct {
@@ -126,6 +127,10 @@ func New(cfg *config.Config, statsManager *stats.Stats, builder *TaskBuilder) (*
 		targetRPS:      int64(cfg.RateLimit),
 		lastScaleTime:  time.Now(),
 		taskBuilder:    builder,
+	}
+
+	if builder != nil {
+		engine.tasks = builder.Tasks
 	}
 
 	// Initialize object pools for zero-allocation

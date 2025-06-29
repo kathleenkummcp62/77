@@ -118,8 +118,13 @@ func main() {
 		}
 	}()
 
-	// Initialize ultra-fast bruteforce engine
-	engine, err := bruteforce.New(cfg, statsManager, nil)
+	// Load tasks from the database and initialize the bruteforce engine
+	builder := &bruteforce.TaskBuilder{}
+	if err := builder.LoadTasks(database); err != nil {
+		log.Printf("task load error: %v", err)
+	}
+
+	engine, err := bruteforce.New(cfg, statsManager, builder)
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize ultra-fast engine: %v", err)
 	}
