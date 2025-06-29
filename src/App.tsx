@@ -4,6 +4,12 @@ import { Dashboard } from './components/tabs/Dashboard';
 import { VPNTypes } from './components/tabs/VPNTypes';
 import { Servers } from './components/tabs/Servers';
 import { Generation } from './components/tabs/Generation';
+import { Upload } from './components/tabs/Upload';
+import { Processing } from './components/tabs/Processing';
+import { Results } from './components/tabs/Results';
+import { Monitoring } from './components/tabs/Monitoring';
+import { Terminal } from './components/tabs/Terminal';
+import { Settings } from './components/tabs/Settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -19,17 +25,17 @@ function App() {
       case 'generation':
         return <Generation />;
       case 'upload':
-        return <div className="p-8 text-center text-gray-500">Upload functionality coming soon...</div>;
+        return <Upload />;
       case 'processing':
-        return <div className="p-8 text-center text-gray-500">Processing monitoring coming soon...</div>;
+        return <Processing />;
       case 'results':
-        return <div className="p-8 text-center text-gray-500">Results management coming soon...</div>;
+        return <Results />;
       case 'monitoring':
-        return <div className="p-8 text-center text-gray-500">Advanced monitoring coming soon...</div>;
+        return <Monitoring />;
       case 'terminal':
-        return <div className="p-8 text-center text-gray-500">Web terminal coming soon...</div>;
+        return <Terminal />;
       case 'settings':
-        return <div className="p-8 text-center text-gray-500">Settings panel coming soon...</div>;
+        return <Settings />;
       default:
         return <Dashboard />;
     }
