@@ -14,7 +14,3 @@ stats_*.json
 # Файлы с чувствительными данными
 credentials*.txt
 gener.txt
-
-# Ignore distribution builds
-dist/
-dist/
