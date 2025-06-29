@@ -56,6 +56,7 @@ make benchmark
 ```
 
 Create a `credentials.txt` file with your own IP addresses, usernames, and passwords before running. The `credentials.txt.example` file shows the required format.
+The repository version of `credentials.txt` only contains placeholder values. Be sure to replace them with your real credentials when testing.
 
 ### Configuration:
 ```yaml

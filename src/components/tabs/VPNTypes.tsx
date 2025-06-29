@@ -7,7 +7,12 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import toast from 'react-hot-toast';
 
 // Sample VPN types for demonstration only.
-// Never store real credentials in this file.
+// Never store real credentials in this file. Replace these placeholders with
+// your own values during testing.
+const sampleCredentials = [
+  '198.51.100.10;demo;demo123',
+  '198.51.100.11;demo;demo123'
+];
 const vpnTypes = [
   {
     id: 'fortinet',
@@ -29,7 +34,7 @@ const vpnTypes = [
       'dashboard',
       'welcome.html'
     ],
-    realCredentials: []
+    realCredentials: sampleCredentials
   },
   {
     id: 'globalprotect',
@@ -49,7 +54,7 @@ const vpnTypes = [
       'clientDownload',
       'portal-userauthcookie'
     ],
-    realCredentials: []
+    realCredentials: sampleCredentials
   },
   {
     id: 'sonicwall',
@@ -69,7 +74,7 @@ const vpnTypes = [
       'portal.html',
       'welcome'
     ],
-    realCredentials: []
+    realCredentials: sampleCredentials
   },
   {
     id: 'sophos',
@@ -89,7 +94,7 @@ const vpnTypes = [
       'welcome',
       'logout'
     ],
-    realCredentials: []
+    realCredentials: sampleCredentials
   },
   {
     id: 'watchguard',
@@ -109,7 +114,7 @@ const vpnTypes = [
       'AuthPoint',
       'welcome'
     ],
-    realCredentials: []
+    realCredentials: sampleCredentials
   },
   {
     id: 'cisco',
@@ -129,7 +134,7 @@ const vpnTypes = [
       'ANYCONNECT',
       'remote_access'
     ],
-    realCredentials: []
+    realCredentials: sampleCredentials
   }
 ];
 
