@@ -94,6 +94,10 @@ export INPUT_FILE=/path/to/credentials.txt
 
 The application reads this path at runtime so the actual credentials remain on your machine and never appear in the built assets or repository.
 
+## 🚨 Do Not Commit Real Credentials
+
+Files like `credentials.txt` or `credentials_test.txt` should contain only the credentials you provide locally. If you want to keep them alongside this project, list their names in `.gitignore` so Git ignores them. The example files `credentials.txt.example` and `credentials_test.txt.example` are placeholders and do not contain valid credentials.
+
 
 ## 📝 **Credential Formats**
 
