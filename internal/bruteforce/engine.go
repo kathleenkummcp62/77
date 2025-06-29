@@ -151,12 +151,31 @@ func (e *Engine) setupProxyClients() {
 		return
 	}
 
-	for _, addr := range e.config.ProxyList {
+	e.proxyClients = make([]*http.Client, 0, len(e.config.ProxyList))
+
+	for _, raw := range e.config.ProxyList {
+		addr := strings.TrimSpace(raw)
+		if addr == "" {
+			continue
+		}
+
 		tr := baseTransport.Clone()
 
 		switch strings.ToLower(e.config.ProxyType) {
 		case "socks5", "socks", "socks5h":
-			d, err := proxy.SOCKS5("tcp", addr, nil, &net.Dialer{
+			// Allow user:pass@host:port as well as plain host:port
+			proxyURL, err := url.Parse(addr)
+			if err != nil || proxyURL.Host == "" {
+				proxyURL, _ = url.Parse("socks5://" + addr)
+			}
+
+			var auth *proxy.Auth
+			if proxyURL.User != nil {
+				pass, _ := proxyURL.User.Password()
+				auth = &proxy.Auth{User: proxyURL.User.Username(), Password: pass}
+			}
+
+			d, err := proxy.SOCKS5("tcp", proxyURL.Host, auth, &net.Dialer{
 				Timeout:   e.config.Timeout / 2,
 				KeepAlive: 0,
 				DualStack: true,
@@ -176,7 +195,11 @@ func (e *Engine) setupProxyClients() {
 			tr.Proxy = nil
 
 		default:
-			proxyURL := &url.URL{Scheme: e.config.ProxyType, Host: addr}
+			proxyURL, err := url.Parse(addr)
+			if err != nil || proxyURL.Scheme == "" {
+				proxyURL, _ = url.Parse(fmt.Sprintf("%s://%s", e.config.ProxyType, addr))
+			}
+
 			tr.Proxy = http.ProxyURL(proxyURL)
 			tr.DialContext = (&net.Dialer{
 				Timeout:   e.config.Timeout / 2,
@@ -192,6 +215,7 @@ func (e *Engine) setupProxyClients() {
 				return http.ErrUseLastResponse
 			},
 		}
+
 		e.proxyClients = append(e.proxyClients, client)
 	}
 }
