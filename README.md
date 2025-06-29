@@ -169,7 +169,9 @@ https://example.net:443:admin:pass:ANYCONNECT
 
 The API server relies on PostgreSQL for storing runtime information.
 When the server starts it calls `InitSchema`, creating all tables if
-they don't already exist. This means the application works with an
+they don't already exist. The `db.Connect` helper automatically
+invokes this function so the schema is created even when an embedded
+database is launched. This means the application works with an
 empty database out of the box.
 
 ### **tasks**
@@ -190,11 +192,25 @@ Tracks the progress of each scanning job. Columns include:
 
 Holds the credential sets used for scanning. Each entry has the fields:
 
-- `vendor` – VPN vendor name
-- `url` – gateway URL
-- `login` – username
+- `ip` – VPN gateway IP or hostname
+- `username` – login name
 - `password` – password
-- `proxy` – optional proxy to use
+
+### **REST API Endpoints**
+
+The dashboard exposes endpoints under `/api` for managing tasks and
+credentials:
+
+- `GET  /api/tasks` – list tasks
+- `POST /api/tasks` – create a task
+- `PUT  /api/tasks/{id}` – update a task
+- `DELETE /api/tasks/{id}` – remove a task
+- `POST /api/tasks/bulk_delete` – delete many tasks
+- `GET  /api/credentials` – list credentials
+- `POST /api/credentials` – create a credential entry
+- `PUT  /api/credentials/{id}` – update a credential entry
+- `DELETE /api/credentials/{id}` – remove a credential entry
+- `POST /api/credentials/bulk_delete` – delete multiple credential entries
 
 ## 🔧 **Advanced Features**
 
