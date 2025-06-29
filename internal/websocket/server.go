@@ -296,9 +296,17 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 	switch msg.Type {
 	case "start_scanner":
 		// Handle start scanner command
+		vpnType := ""
+		if m, ok := msg.Data.(map[string]interface{}); ok {
+			if v, ok := m["vpn_type"].(string); ok {
+				vpnType = v
+			}
+		} else if v, ok := msg.Data.(string); ok {
+			vpnType = v
+		}
 		response := Message{
 			Type:      "scanner_started",
-			Data:      map[string]string{"status": "success", "scanner": msg.Data.(string)},
+			Data:      map[string]string{"status": "success", "scanner": vpnType},
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
@@ -306,9 +314,17 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 
 	case "stop_scanner":
 		// Handle stop scanner command
+		vpnType := ""
+		if m, ok := msg.Data.(map[string]interface{}); ok {
+			if v, ok := m["vpn_type"].(string); ok {
+				vpnType = v
+			}
+		} else if v, ok := msg.Data.(string); ok {
+			vpnType = v
+		}
 		response := Message{
 			Type:      "scanner_stopped",
-			Data:      map[string]string{"status": "success", "scanner": msg.Data.(string)},
+			Data:      map[string]string{"status": "success", "scanner": vpnType},
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
