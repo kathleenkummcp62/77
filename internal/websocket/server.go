@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -44,19 +43,19 @@ type StatsData struct {
 }
 
 type ServerInfo struct {
-	IP        string  `json:"ip"`
-	Status    string  `json:"status"`
-	Uptime    string  `json:"uptime"`
-	CPU       int     `json:"cpu"`
-	Memory    int     `json:"memory"`
-	Disk      int     `json:"disk"`
-	Speed     string  `json:"speed"`
-	Processed int     `json:"processed"`
-	Goods     int     `json:"goods"`
-	Bads      int     `json:"bads"`
-	Errors    int     `json:"errors"`
-	Progress  int     `json:"progress"`
-	Task      string  `json:"current_task"`
+	IP        string `json:"ip"`
+	Status    string `json:"status"`
+	Uptime    string `json:"uptime"`
+	CPU       int    `json:"cpu"`
+	Memory    int    `json:"memory"`
+	Disk      int    `json:"disk"`
+	Speed     string `json:"speed"`
+	Processed int    `json:"processed"`
+	Goods     int    `json:"goods"`
+	Bads      int    `json:"bads"`
+	Errors    int    `json:"errors"`
+	Progress  int    `json:"progress"`
+	Task      string `json:"current_task"`
 }
 
 func NewServer(stats *stats.Stats) *Server {
@@ -89,7 +88,7 @@ func (s *Server) handleConnections() {
 			s.clients[client] = true
 			s.clientsMux.Unlock()
 			log.Printf("WebSocket client connected. Total: %d", len(s.clients))
-			
+
 			// Send initial data to new client
 			s.sendInitialData(client)
 
@@ -103,16 +102,14 @@ func (s *Server) handleConnections() {
 			log.Printf("WebSocket client disconnected. Total: %d", len(s.clients))
 
 		case message := <-s.broadcast:
-			s.clientsMux.RLock()
+			s.clientsMux.Lock()
 			for client := range s.clients {
-				select {
-				case client.WriteMessage(websocket.TextMessage, message):
-				default:
+				if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
 					delete(s.clients, client)
 					client.Close()
 				}
 			}
-			s.clientsMux.RUnlock()
+			s.clientsMux.Unlock()
 		}
 	}
 }
