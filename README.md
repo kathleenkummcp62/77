@@ -33,6 +33,15 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## 🚀 **Quick Start**
 
+### Node.js Version
+
+Ensure Node.js 20 is active when running dashboard scripts or linting. If you use [nvm](https://github.com/nvm-sh/nvm), run:
+
+```bash
+nvm install 20
+nvm use 20
+```
+
 ### Build the dashboard
 Run the command below to compile the frontend assets into the `dist/` directory:
 
