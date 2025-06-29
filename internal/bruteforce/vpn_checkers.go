@@ -11,7 +11,7 @@ import (
 
 func (e *Engine) checkFortinet(ctx context.Context, cred Credential) (bool, error) {
 	targetURL := fmt.Sprintf("https://%s/remote/login", cred.IP)
-	
+
 	data := url.Values{}
 	data.Set("username", cred.Username)
 	data.Set("password", cred.Password)
@@ -25,7 +25,7 @@ func (e *Engine) checkFortinet(ctx context.Context, cred Credential) (bool, erro
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 	req.Close = true // Force connection close
 
-	resp, err := e.client.Do(req)
+	resp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -43,7 +43,7 @@ func (e *Engine) checkFortinet(ctx context.Context, cred Credential) (bool, erro
 
 func (e *Engine) checkGlobalProtect(ctx context.Context, cred Credential) (bool, error) {
 	targetURL := fmt.Sprintf("https://%s/global-protect/login.esp", cred.IP)
-	
+
 	data := url.Values{}
 	data.Set("prot", "https%")
 	data.Set("server", cred.IP)
@@ -62,7 +62,7 @@ func (e *Engine) checkGlobalProtect(ctx context.Context, cred Credential) (bool,
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 	req.Close = true
 
-	resp, err := e.client.Do(req)
+	resp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -79,7 +79,7 @@ func (e *Engine) checkGlobalProtect(ctx context.Context, cred Credential) (bool,
 
 func (e *Engine) checkCitrix(ctx context.Context, cred Credential) (bool, error) {
 	targetURL := fmt.Sprintf("https://%s/p/u/doAuthentication.do", cred.IP)
-	
+
 	data := url.Values{}
 	data.Set("login", cred.Username)
 	data.Set("passwd", cred.Password)
@@ -96,7 +96,7 @@ func (e *Engine) checkCitrix(ctx context.Context, cred Credential) (bool, error)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 	req.Close = true
 
-	resp, err := e.client.Do(req)
+	resp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -113,7 +113,7 @@ func (e *Engine) checkCitrix(ctx context.Context, cred Credential) (bool, error)
 
 func (e *Engine) checkCisco(ctx context.Context, cred Credential) (bool, error) {
 	targetURL := fmt.Sprintf("https://%s/+webvpn+/index.html", cred.IP)
-	
+
 	data := url.Values{}
 	data.Set("username", cred.Username)
 	data.Set("password", cred.Password)
@@ -129,7 +129,7 @@ func (e *Engine) checkCisco(ctx context.Context, cred Credential) (bool, error) 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 	req.Close = true
 
-	resp, err := e.client.Do(req)
+	resp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
