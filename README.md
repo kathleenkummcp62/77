@@ -71,6 +71,13 @@ The script automatically builds the dashboard if the `dist/` directory is missin
 Create a `credentials.txt` file **in the project root** with your own IP addresses, usernames, and passwords before running. The `credentials.txt.example` file shows the required format.
 The tracked `credentials.txt` in this repository only contains placeholder values. Replace those placeholders with your real credentials (or point `config.yaml` to another file) when testing.
 
+### Using your own credentials locally
+
+1. Copy `credentials.txt.example` to `credentials.txt`.
+2. Edit `credentials.txt` and provide your server IPs, usernames and passwords.
+3. Run the client with `-input=credentials.txt` or set the `INPUT_FILE` environment variable to the file path.
+4. Keep this file untracked so your real credentials never leave your machine.
+
 ### Configuration:
 ```yaml
 # config.yaml

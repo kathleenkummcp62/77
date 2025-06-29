@@ -341,16 +341,16 @@ export function Dashboard() {
           <div>
             <h4 className="font-medium text-gray-900 mb-2">Fortinet VPN</h4>
             <div className="space-y-1 text-sm">
-              <code className="block bg-gray-100 p-1 rounded">https://example.com:4443;guest;guest</code>
-              <code className="block bg-gray-100 p-1 rounded">https://example.org:443;guest;guest</code>
+              <code className="block bg-gray-100 p-1 rounded">https://example.com:4443;user1;pass1</code>
+              <code className="block bg-gray-100 p-1 rounded">https://example.org:443;user2;pass2</code>
               <p className="text-xs text-gray-500 mt-1">9 valid credentials available</p>
             </div>
           </div>
           <div>
             <h4 className="font-medium text-gray-900 mb-2">GlobalProtect</h4>
             <div className="space-y-1 text-sm">
-              <code className="block bg-gray-100 p-1 rounded">https://example.net:443;test;test</code>
-              <code className="block bg-gray-100 p-1 rounded">https://example.net:443;test;test</code>
+              <code className="block bg-gray-100 p-1 rounded">https://example.net:443;user3;pass3</code>
+              <code className="block bg-gray-100 p-1 rounded">https://example.net:443;user4;pass4</code>
               <p className="text-xs text-gray-500 mt-1">3 valid credentials available</p>
             </div>
           </div>

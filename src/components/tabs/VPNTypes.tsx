@@ -10,8 +10,8 @@ import toast from 'react-hot-toast';
 // Never store real credentials in this file. Replace these placeholders with
 // your own values during testing.
 const sampleCredentials = [
-  '198.51.100.10;demo;demo123',
-  '198.51.100.11;demo;demo123'
+  '203.0.113.10;user1;pass1',
+  '203.0.113.11;user2;pass2'
 ];
 const vpnTypes = [
   {
