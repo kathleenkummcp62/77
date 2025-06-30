@@ -31,16 +31,16 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 - **Memory**: <500MB for millions of credentials
 - **CPU**: 100% utilization of all cores
 
-## 🚀 **Quick Start**
+## 🛠️ **Setup**
 
-### Node.js Version
-
-Node.js 20 is **required**. The repository includes an `.nvmrc` file pinned to this version. Ensure it is active when running dashboard scripts or linting. If you use [nvm](https://github.com/nvm-sh/nvm), run:
+Node.js 20 or higher is **required** to build the dashboard and run helper scripts. The `package.json` specifies this via the `engines` field and an `.nvmrc` file pins the default version. If you use [nvm](https://github.com/nvm-sh/nvm), run:
 
 ```bash
 nvm install 20
 nvm use 20
 ```
+
+## 🚀 **Quick Start**
 
 ### Build the dashboard
 Run the command below to compile the frontend assets into the `dist/` directory:
