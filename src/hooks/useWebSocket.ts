@@ -63,9 +63,14 @@ export function useWebSocket(url?: string) {
       return `ws://localhost:${port}/ws`;
     }
 
-    // Для WebContainer (StackBlitz) - всегда используем ws://
+    // Для WebContainer (StackBlitz) - заменяем порт в hostname
     if (host.includes('webcontainer-api.io')) {
-      return `ws://${host}:${port}/ws`;
+      const backendPort = import.meta.env.VITE_WS_PORT || '8080';
+      const frontendPort = window.location.port || '5173';
+      
+      // Заменяем порт фронтенда на порт бэкенда в hostname
+      const backendHost = host.replace(`--${frontendPort}--`, `--${backendPort}--`);
+      return `ws://${backendHost}/ws`;
     }
 
     // Fallback - используем ws:// для совместимости с Go сервером

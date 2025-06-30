@@ -1,0 +1,6 @@
+https://213.139.132.204:6443;test;test;intern.gutenberg-shop.de
+https://124.254.117.194:8443;test;test;fcc.wa.edu.au
+https://80.151.100.43:4433;test;test;bilstein.local
+https://213.139.132.205:6443;test;test;intern.gutenberg-shop.de
+https://167.98.99.132:443;test;test;unknown_domain
+https://212.100.41.190:4445;test;test;verwaltung.local

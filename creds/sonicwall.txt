@@ -1,0 +1,9 @@
+https://69.21.239.19:4433;test;test;LocalDomain
+https://68.189.7.50:4433;test;test;hudmech.local
+https://74.92.44.25:4433;test;test;microgroup.local
+https://96.70.252.65:4433;test;test;fm.local
+https://24.55.137.209:443;test;test;CMAAA15
+https://50.198.63.225:4433;test;test;MADISON
+https://96.89.127.141:4433;test;test;maloneysocular
+https://12.215.186.74:443;guest;guest;parksprings.com
+https://131.148.177.186:4433;guest;guest;dhte.dhtellc.com

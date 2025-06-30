@@ -1,0 +1,10 @@
+https://96.92.230.186:443:Firebox-DB:mpbchicago.masterpaperbox.com:printer:P@55w0rd
+https://75.146.37.105:444:Firebox-DB:comercial:P@ssw0rd123
+https://50.86.120.107:443:Firebox-DB:comercial:P@ssw0rd123
+https://35.131.180.112:443:Firebox-DB:engineer:eng1neer1
+https://98.100.209.218:443:Firebox-DB:chris:Welcome1!
+https://96.56.65.26:4100:AuthPoint:Firebox-DB:hudsonss.com:media:Password@1
+https://35.21.135.132:443:Firebox-DB:intranet:Password@1
+https://98.63.175.96:8595:Firebox-DB:download:Download#
+https://72.23.172.37:443:Firebox-DB:luis:pa$$w0rd
+https://12.2.120.90:4100:AuthPoint:Firebox-DB:RADIUS:banneroak.local:default:password@1
