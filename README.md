@@ -30,8 +30,10 @@ npm install
 3. Set up the environment:
 
 ```bash
-npm run setup-env
+npm run setup
 ```
+The command accepts an optional `--runtime` flag (`node` or `python`) to install
+dependencies for the desired environment. The default is `node`.
 
 ### Running the Dashboard
 
