@@ -22,7 +22,7 @@ func runSetup(cfgPath string) error {
 	}{
 		{"go", []string{"mod", "download"}},
 		{"npm", []string{"install"}},
-		{"pip", []string{"install", "-r", "requirements.txt"}},
+		{"python3", []string{"-m", "pip", "install", "-r", "requirements.txt"}},
 	}
 	for _, c := range cmds {
 		cmd := exec.Command(c.name, c.args...)
