@@ -2,6 +2,17 @@ import paramiko
 import threading
 import sys
 import subprocess
+import argparse
+import os
+
+parser = argparse.ArgumentParser(description="Manage remote scripts")
+parser.add_argument(
+    "--remote-dir",
+    default=os.environ.get("REMOTE_DIR", "/root/NAM/Servis"),
+    help="Remote working directory on target servers",
+)
+args = parser.parse_args()
+REMOTE_DIR = args.remote_dir
 
 # Устанавливаем кодировку UTF-8 для стандартного ввода и вывода
 sys.stdout.reconfigure(encoding='utf-8')
@@ -24,7 +35,7 @@ def run_sers_script(ip, username, password, script_number):
     }
     script_name = script_mapping.get(script_number)
     if script_name:
-        code = f'cd /root/NAM/Servis/ && python3 {script_name}'
+        code = f'cd {REMOTE_DIR} && python3 {script_name}'
         run_remote_code(ip, username, password, code)
     else:
         print("Invalid script choice")
@@ -84,7 +95,7 @@ def run_on_all_servers(choice, credentials):
 
     def run_on_all(ip, username, password):
         if choice in ['6']:
-            code = f'cd /root/NAM/Servis/ && python3 sers1.py'
+            code = f'cd {REMOTE_DIR} && python3 sers1.py'
             run_remote_code(ip, username, password, code)
 
     for ip, username, password in credentials:

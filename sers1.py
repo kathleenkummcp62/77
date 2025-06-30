@@ -1,14 +1,35 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import os, asyncio, aiohttp, aiofiles, re, json, time, signal
+import os
+import asyncio
+import aiohttp
+import aiofiles
+import re
+import json
+import time
+import signal
+import argparse
 from pathlib import Path
 
+parser = argparse.ArgumentParser(description="Fortinet VPN checker")
+parser.add_argument(
+    "--check-dir",
+    default=os.environ.get("CHECK_DIR", "/root/NAM/Check"),
+    help="Directory with part_*.txt files",
+)
+parser.add_argument(
+    "--servis-dir",
+    default=os.environ.get("SERVIS_DIR", "/root/NAM/Servis"),
+    help="Directory for config and stats files",
+)
+args = parser.parse_args()
+
 # === рабочий каталог с part_*.txt ===
-os.chdir("/root/NAM/Check")
+os.chdir(args.check_dir)
 
 # === Конфиг ===
-CONF_PATH = Path('/root/NAM/Servis/config.txt')
+CONF_PATH = Path(args.servis_dir) / 'config.txt'
 def load_conf():
     cfg = {'threads': '500', 'timeout': '10'}
     if CONF_PATH.exists():
@@ -23,7 +44,7 @@ SEM = asyncio.Semaphore(THREADS)
 HTTP_TIMEOUT = aiohttp.ClientTimeout(total=TIMEOUT)
 
 # === статистика ===
-STATS_PATH = Path(f'/root/NAM/Servis/stats_{os.getpid()}.json')
+STATS_PATH = Path(args.servis_dir) / f'stats_{os.getpid()}.json'
 stats = {
     'goods':0,'bads':0,'errors':0,'offline':0,'ipblock':0,
     'processed':0,'pair_index':0,'pair_total':1,'pair_start':time.time()
