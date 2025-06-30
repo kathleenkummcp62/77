@@ -1,12 +1,13 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
+        "flag"
+        "fmt"
+        "log"
+        "os"
+        "os/exec"
+        "os/signal"
+        "syscall"
 
 	"vpn-bruteforce-client/internal/api"
 	"vpn-bruteforce-client/internal/config"
@@ -15,11 +16,22 @@ import (
 )
 
 func main() {
-	var (
-		port       = flag.Int("port", 8080, "Dashboard server port")
-		configFile = flag.String("config", "config.yaml", "Configuration file path")
-	)
-	flag.Parse()
+        var (
+                port       = flag.Int("port", 8080, "Dashboard server port")
+                configFile = flag.String("config", "config.yaml", "Configuration file path")
+                setup      = flag.Bool("setup", false, "Install dependencies and exit")
+                setupDB    = flag.Bool("setup-db", false, "Initialize database and exit")
+        )
+        flag.Parse()
+
+        if *setup {
+                runSetup(*configFile)
+                return
+        }
+        if *setupDB {
+                runSetupDB(*configFile)
+                return
+        }
 
 	log.Printf("🚀 VPN Bruteforce Dashboard v3.0")
 	log.Printf("🌐 Starting dashboard server on port %d", *port)
@@ -65,5 +77,43 @@ func main() {
 	}()
 
 	// Start the server
-	log.Fatal(server.Start())
+        log.Fatal(server.Start())
+}
+
+// runSetup installs Go, Node, and Python dependencies and initializes the
+// database schema. It exits the program if any step fails.
+func runSetup(cfgPath string) {
+        log.Println("running setup...")
+
+        runCmd("go", "mod", "download")
+        runCmd("npm", "install")
+        if _, err := exec.LookPath("pip"); err == nil {
+                runCmd("pip", "install", "-r", "requirements.txt")
+        }
+        runSetupDB(cfgPath)
+        log.Println("setup complete")
+}
+
+func runCmd(name string, args ...string) {
+        cmd := exec.Command(name, args...)
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
+        if err := cmd.Run(); err != nil {
+                log.Fatalf("%s failed: %v", name, err)
+        }
+}
+
+// runSetupDB connects to the database to ensure the schema exists.
+func runSetupDB(cfgPath string) {
+        cfg, err := config.Load(cfgPath)
+        if err != nil {
+                log.Printf("config load error: %v", err)
+                cfg = config.Default()
+        }
+        dbCfg := db.ConfigFromApp(*cfg)
+        database, err := db.Connect(dbCfg)
+        if err != nil {
+                log.Fatalf("database setup failed: %v", err)
+        }
+        database.Close()
 }

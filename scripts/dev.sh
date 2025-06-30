@@ -13,15 +13,21 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 function usage() {
-    echo "Usage: $0 [--serve]"
-    echo "  --serve    Serve the built frontend instead of running Vite dev server"
+    echo "Usage: $0 [--serve|--setup]"
+    echo "  --serve     Serve the built frontend instead of running Vite dev server"
+    echo "  --setup     Install dependencies and initialize the database"
 }
 
 MODE=dev
+SETUP=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --serve)
             MODE=serve
+            shift
+            ;;
+        --setup)
+            SETUP=true
             shift
             ;;
         -h|--help)
@@ -34,6 +40,10 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [[ $SETUP == true ]]; then
+    "${ROOT_DIR}/scripts/setup.sh"
+fi
 
 if [[ ! -d dist ]]; then
     echo "Building frontend..."
