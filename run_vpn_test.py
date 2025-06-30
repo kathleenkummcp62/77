@@ -1,28 +1,4 @@
 #!/usr/bin/env python3
-"""
-Setup for VPN testing with real credentials
-"""
-import os
-import sys
-import shutil
-from pathlib import Path
-
-# Create necessary directories
-os.makedirs("Generated", exist_ok=True)
-os.makedirs("Valid", exist_ok=True)
-os.makedirs("Servis", exist_ok=True)
-os.makedirs("creds/dictionaries", exist_ok=True)
-
-# Copy configuration files to Servis directory
-with open("Servis/config.txt", "w") as f:
-    f.write("threads = 2500\n")
-
-with open("Servis/proxy_config.txt", "w") as f:
-    f.write("\n")
-
-# Create test script to run VPN tests
-with open("run_vpn_test.py", "w") as f:
-    f.write("""#!/usr/bin/env python3
 import os
 import sys
 import subprocess
@@ -36,7 +12,7 @@ args = parser.parse_args()
 VPN_TYPES = ["fortinet", "paloalto", "sonicwall", "sophos", "watchguard", "cisco"]
 
 def run_test(vpn_type):
-    print(f"\\n🚀 Testing {vpn_type.upper()} VPN...")
+    print(f"\n🚀 Testing {vpn_type.upper()} VPN...")
     
     # Use test_scanner.py for testing
     cmd = ["python3", "test_scanner.py", "--vpn-type", vpn_type, "--creds-file", f"creds/{vpn_type}.txt"]
@@ -59,7 +35,7 @@ if __name__ == "__main__":
             results[vpn_type] = run_test(vpn_type)
         
         # Print summary
-        print("\\n📊 Test Results:")
+        print("\n📊 Test Results:")
         for vpn_type, success in results.items():
             status = "✅" if success else "❌"
             print(f"{status} {vpn_type.upper()}")
@@ -70,10 +46,3 @@ if __name__ == "__main__":
             sys.exit(1)
         
         run_test(args.vpn_type.lower())
-""")
-
-# Make the script executable
-os.chmod("run_vpn_test.py", 0o755)
-
-print("✅ Test environment setup complete")
-print("📋 You can now run tests with: python3 run_vpn_test.py")

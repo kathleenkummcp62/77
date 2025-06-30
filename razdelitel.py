@@ -1,4 +1,3 @@
-
 with open('credentials.txt', 'r') as file:
     summer = len(file.readlines())
 
