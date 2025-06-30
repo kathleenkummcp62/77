@@ -1,2 +1,2 @@
 Upgrade attempt: npm audit fix --force run but no updates available.
-Current versions: vite 7.0.0, esbuild 0.25.5.
+Current versions after install: vite 4.4.5, esbuild 0.18.20.

@@ -17,6 +17,7 @@ A comprehensive dashboard for managing and monitoring VPN scanning operations.
 
 - Node.js 20 or newer
 - npm 9 or newer
+- Vite 4.4.5 is the officially supported version
 
 ### Installation
 
@@ -30,8 +31,10 @@ npm install
 3. Set up the environment:
 
 ```bash
-npm run setup-env
+npm run setup
 ```
+The command accepts an optional `--runtime` flag (`node` or `python`) to install
+dependencies for the desired environment. The default is `node`.
 
 ### Running the Dashboard
 
@@ -56,6 +59,14 @@ You can specify a VPN type:
 ```bash
 npm run test-vpn -- --vpn-type fortinet
 ```
+
+You can also run the Python scanner directly:
+
+```bash
+python3 vpn_scanner.py --vpn-type fortinet --creds-file creds/fortinet.txt
+```
+
+Add `--insecure` if the target uses self-signed certificates.
 
 ### Working with Remote Servers
 
