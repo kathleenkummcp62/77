@@ -13,9 +13,6 @@ export default defineConfig({
     port: 5173,
     strictPort: true // Fail if port is already in use
   },
-  optimizeDeps: {
-    exclude: ['@supabase/supabase-js']
-  },
   test: {
     environment: 'jsdom',
     exclude: [...configDefaults.exclude, 'dist']
