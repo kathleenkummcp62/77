@@ -8,7 +8,7 @@
 import { spawn } from 'cross-spawn';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import fs from 'fs-extra';
+import fs from 'fs';
 import waitOn from 'wait-on';
 import { createServer } from 'http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -26,6 +26,7 @@ const UNIFIED_PORT = 3000;
 async function startBackend() {
   console.log('🚀 Starting mock backend server...');
   console.log('ℹ️  Using mock API server (Go not available in WebContainer)');
+  console.log('⏳ Waiting for backend server to initialize...');
   
   const mockServer = spawn('node', ['scripts/mock-api-server.js'], {
     stdio: 'inherit',
@@ -62,36 +63,18 @@ async function startUnifiedServer() {
   // Start the backend
   const backendProcess = await startBackend();
   
-  // Add delay to allow the mock API server to fully initialize
-  console.log('⏳ Waiting for backend server to initialize...');
-  await new Promise(resolve => setTimeout(resolve, 10000));
-  
   // Wait for the backend to be ready
   try {
     await waitOn({
       resources: [`http://localhost:${BACKEND_PORT}/api/health`],
-      timeout: 90000, // Increased to 90 seconds timeout
-      interval: 2000, // Check every 2 seconds instead of 1
-      delay: 1000, // Initial delay before first check
+      timeout: 30000, // 30 seconds timeout
+      interval: 1000,
     });
     console.log('✅ Backend server is ready');
   } catch (error) {
     console.error('❌ Backend server failed to start:', error);
-    console.log('🔍 Attempting to check if server is running on different endpoint...');
-    
-    // Try alternative endpoints that might be available
-    try {
-      await waitOn({
-        resources: [`http://localhost:${BACKEND_PORT}/api`],
-        timeout: 30000,
-        interval: 2000,
-      });
-      console.log('✅ Backend server is responding on /api endpoint');
-    } catch (altError) {
-      console.error('❌ Backend server is not responding on any endpoint');
-      backendProcess.kill();
-      process.exit(1);
-    }
+    backendProcess.kill();
+    process.exit(1);
   }
   
   // Start the frontend
@@ -101,9 +84,8 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
-      timeout: 90000, // Increased to 90 seconds timeout
-      interval: 2000, // Check every 2 seconds
-      delay: 1000, // Initial delay before first check
+      timeout: 60000, // 60 seconds timeout
+      interval: 1000,
     });
     console.log('✅ Frontend server is ready');
   } catch (error) {
@@ -166,7 +148,7 @@ async function main() {
   console.log('=== VPN Bruteforce Dashboard ===');
   
   // Check if required packages are installed
-  if (!await fs.pathExists(path.join(projectRoot, 'node_modules/http-proxy-middleware'))) {
+  if (!fs.existsSync(path.join(projectRoot, 'node_modules/http-proxy-middleware'))) {
     console.log('📦 Installing required packages...');
     spawn.sync('npm', ['install', 'http-proxy-middleware', 'express', 'wait-on', 'cross-spawn'], {
       stdio: 'inherit'
