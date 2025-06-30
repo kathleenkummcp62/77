@@ -62,6 +62,10 @@ async function startUnifiedServer() {
   // Start the backend
   const backendProcess = await startBackend();
   
+  // Add delay to allow the mock API server to fully initialize
+  console.log('⏳ Waiting for backend server to initialize...');
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
   // Wait for the backend to be ready
   try {
     await waitOn({
