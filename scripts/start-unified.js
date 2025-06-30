@@ -66,7 +66,7 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${BACKEND_PORT}/api/stats`],
-      timeout: 60000,
+      timeout: 60000, // Increased timeout to 60 seconds
       interval: 1000,
     });
     console.log('✅ Backend server is ready');
@@ -83,7 +83,7 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
-      timeout: 60000,
+      timeout: 60000, // Increased timeout to 60 seconds
       interval: 1000,
     });
     console.log('✅ Frontend server is ready');
