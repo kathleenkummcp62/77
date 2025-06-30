@@ -48,7 +48,7 @@ export function useWebSocket(url?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 3;
+  const maxReconnectAttempts = 5;
   const isConnecting = useRef(false);
 
   // Determine WebSocket URL
@@ -59,9 +59,9 @@ export function useWebSocket(url?: string) {
     const port = import.meta.env.VITE_WS_PORT || window.location.port || '8080';
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-    // For WebContainer (StackBlitz) - always use ws:// regardless of the page protocol
-    if (host.includes('webcontainer') || host.includes('stackblitz')) {
-      return `ws://${host}:${port}/ws`;
+    // For WebContainer (StackBlitz) environments
+    if (host.includes('webcontainer') || host.includes('stackblitz') || host.includes('local-credentialless')) {
+      return `ws://${host.split(':')[0]}:${port}/ws`;
     }
 
     // For local development

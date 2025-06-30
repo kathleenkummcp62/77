@@ -227,7 +227,7 @@ export function Servers() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="servers">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
