@@ -5,7 +5,16 @@
  * This script starts both the mock backend and React frontend in a single process
  */
 
-import { spawn } from 'cross-spawn';
+// Ensure we're running on a supported Node.js version before loading heavy dependencies
+const [major] = process.versions.node.split('.').map(Number);
+if (major < 20) {
+  console.error(
+    `\u274c Node.js 20 or newer is required. Detected ${process.version}. Please upgrade Node or use nvm.`
+  );
+  process.exit(1);
+}
+
+import { spawn, spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs-extra';
@@ -195,7 +204,7 @@ async function main() {
   console.log('=== VPN Bruteforce Dashboard ===');
   
   // Check if required packages are installed
-  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'cross-spawn', 'cors', 'ws'];
+  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'cors', 'ws'];
   const packageJsonPath = path.join(projectRoot, 'package.json');
   
   if (await fs.pathExists(packageJsonPath)) {
@@ -205,7 +214,7 @@ async function main() {
     
     if (missingPackages.length > 0) {
       console.log(`📦 Installing missing packages: ${missingPackages.join(', ')}...`);
-      spawn.sync('npm', ['install', ...missingPackages], {
+      spawnSync('npm', ['install', ...missingPackages], {
         stdio: 'inherit'
       });
     }
