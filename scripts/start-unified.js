@@ -65,7 +65,7 @@ async function startUnifiedServer() {
   // Wait for the backend to be ready
   try {
     await waitOn({
-      resources: [`http://localhost:${BACKEND_PORT}/api/stats`],
+      resources: [`http://localhost:${BACKEND_PORT}/api/health`],
       timeout: 60000, // Increased timeout to 60 seconds
       interval: 1000,
     });
