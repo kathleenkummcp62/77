@@ -72,7 +72,11 @@ func (s *Server) InsertLog(level, message, source string) {
 		log.Printf("log file error: %v", err)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("log file close error: %v", err)
+		}
+	}()
 	if _, err := f.WriteString(line); err != nil {
 		log.Printf("log write error: %v", err)
 	}
@@ -206,7 +210,9 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		}
 		if t != token {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "unauthorized"})
+			if err := json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "unauthorized"}); err != nil {
+				log.Printf("write unauthorized response error: %v", err)
+			}
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -291,7 +297,11 @@ func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer rows.Close()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				log.Printf("rows close error: %v", err)
+			}
+		}()
 
 		var servers []map[string]interface{}
 		for rows.Next() {
@@ -419,7 +429,11 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer rows.Close()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				log.Printf("rows close error: %v", err)
+			}
+		}()
 
 		var logs []map[string]interface{}
 		for rows.Next() {
@@ -481,7 +495,9 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("write JSON error: %v", err)
+	}
 }
 
 // --- Data storage handlers ---
@@ -515,12 +531,18 @@ func (s *Server) handleVendorURLs(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer rows.Close()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				log.Printf("rows close error: %v", err)
+			}
+		}()
 		var list []map[string]interface{}
 		for rows.Next() {
 			var id int
 			var url string
-			rows.Scan(&id, &url)
+			if err := rows.Scan(&id, &url); err != nil {
+				continue
+			}
 			list = append(list, map[string]interface{}{"id": id, "url": url})
 		}
 		s.sendJSON(w, APIResponse{Success: true, Data: list})
@@ -610,12 +632,18 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer rows.Close()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				log.Printf("rows close error: %v", err)
+			}
+		}()
 		var list []map[string]interface{}
 		for rows.Next() {
 			var id int
 			var ip, u, p string
-			rows.Scan(&id, &ip, &u, &p)
+			if err := rows.Scan(&id, &ip, &u, &p); err != nil {
+				continue
+			}
 			ip, _ = decryptString(ip)
 			u, _ = decryptString(u)
 			p, _ = decryptString(p)
@@ -771,12 +799,18 @@ func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer rows.Close()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				log.Printf("rows close error: %v", err)
+			}
+		}()
 		var list []map[string]interface{}
 		for rows.Next() {
 			var id int
 			var addr, u, p string
-			rows.Scan(&id, &addr, &u, &p)
+			if err := rows.Scan(&id, &addr, &u, &p); err != nil {
+				continue
+			}
 			addr, _ = decryptString(addr)
 			u, _ = decryptString(u)
 			p, _ = decryptString(p)

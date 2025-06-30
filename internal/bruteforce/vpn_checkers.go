@@ -29,7 +29,9 @@ func (e *Engine) checkFortinet(ctx context.Context, cred Credential) (bool, erro
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Read limited response
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 8192))
@@ -66,7 +68,7 @@ func (e *Engine) checkGlobalProtect(ctx context.Context, cred Credential) (bool,
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 8192))
 	if err != nil {
@@ -100,7 +102,7 @@ func (e *Engine) checkCitrix(ctx context.Context, cred Credential) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 8192))
 	if err != nil {
@@ -133,7 +135,7 @@ func (e *Engine) checkCisco(ctx context.Context, cred Credential) (bool, error) 
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 8192))
 	if err != nil {
