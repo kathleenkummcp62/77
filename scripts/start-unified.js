@@ -201,7 +201,7 @@ async function main() {
   console.log('=== VPN Bruteforce Dashboard ===');
   
   // Check if required packages are installed
-  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'cross-spawn', 'cors', 'ws'];
+  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'ws', 'cors'];
   const packageJsonPath = path.join(projectRoot, 'package.json');
   
   if (await fs.pathExists(packageJsonPath)) {
@@ -211,7 +211,7 @@ async function main() {
     
     if (missingPackages.length > 0) {
       console.log(`📦 Installing missing packages: ${missingPackages.join(', ')}...`);
-      spawn.sync('npm', ['install', ...missingPackages], {
+      spawn.sync('npm', ['install', '--no-save', ...missingPackages], {
         stdio: 'inherit'
       });
     }
