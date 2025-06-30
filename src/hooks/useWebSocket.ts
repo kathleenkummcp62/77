@@ -48,33 +48,29 @@ export function useWebSocket(url?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 3; // Уменьшили количество попыток
+  const maxReconnectAttempts = 3;
   const isConnecting = useRef(false);
 
-  // Определяем URL для WebSocket
+  // Determine WebSocket URL
   const getWebSocketUrl = useCallback(() => {
     if (url) return url;
     
     const host = window.location.hostname;
-    const port = import.meta.env.VITE_WS_PORT || window.location.port;
+    const port = import.meta.env.VITE_WS_PORT || window.location.port || '8080';
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-    // Для локальной разработки
-    if (host.includes('localhost') || host.includes('127.0.0.1')) {
-      return `ws://localhost:${port}/ws`;
+    // For WebContainer (StackBlitz) - always use ws:// regardless of the page protocol
+    if (host.includes('webcontainer') || host.includes('stackblitz')) {
+      return `ws://${host}:${port}/ws`;
     }
 
-    // Для WebContainer (StackBlitz) - заменяем порт в hostname
-    if (host.includes('webcontainer-api.io')) {
-      const backendPort = import.meta.env.VITE_WS_PORT || '8080';
-      const frontendPort = window.location.port || '5173';
-      
-      // Заменяем порт фронтенда на порт бэкенда в hostname
-      const backendHost = host.replace(`--${frontendPort}--`, `--${backendPort}--`);
-      return `ws://${backendHost}/ws`;
+    // For local development
+    if (host === 'localhost' || host.includes('127.0.0.1')) {
+      return `ws://${host}:${port}/ws`;
     }
 
-    // Fallback - используем ws:// для совместимости с Go сервером
-    return `ws://${host}:${port}/ws`;
+    // For production - use the same protocol as the page
+    return `${protocol}//${host}:${port}/ws`;
   }, [url]);
 
   const connect = useCallback(() => {
@@ -96,7 +92,7 @@ export function useWebSocket(url?: string) {
         isConnecting.current = false;
         console.log('🔌 WebSocket connected successfully');
         
-        // Показываем уведомление только при переподключении
+        // Show notification only on reconnection
         if (reconnectAttempts.current > 0) {
           toast.success('Reconnected to server');
         }
@@ -116,12 +112,12 @@ export function useWebSocket(url?: string) {
         isConnecting.current = false;
         console.log('🔌 WebSocket disconnected:', event.code, event.reason);
         
-        // Не показываем ошибку при первом подключении
+        // Don't show error on first connection attempt
         if (reconnectAttempts.current > 0) {
           setError('Connection lost');
         }
         
-        // Auto-reconnect только если это не намеренное закрытие
+        // Auto-reconnect only if not intentionally closed
         if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
           const delay = Math.min(Math.pow(2, reconnectAttempts.current) * 1000, 10000);
           console.log(`🔌 Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
@@ -139,8 +135,10 @@ export function useWebSocket(url?: string) {
         isConnecting.current = false;
         console.error('🔌 WebSocket error:', err);
         
-        // Устанавливаем ошибку только если это не первая попытка подключения
-        if (reconnectAttempts.current === 0) {
+        // Set error only if not first connection attempt
+        if (reconnectAttempts.current > 0) {
+          setError('Connection error. Please check if the server is running.');
+        } else {
           setError('Server not available. Make sure the Go server is running.');
         }
       };
@@ -169,12 +167,12 @@ export function useWebSocket(url?: string) {
           
         case 'scanner_started':
           console.log('🚀 Scanner started:', message.data);
-          toast.success(`Scanner started: ${message.data.vpn_type || 'Unknown'}`);
+          toast.success(`Scanner started: ${message.data.vpn_type || message.data.scanner || 'Unknown'}`);
           break;
           
         case 'scanner_stopped':
           console.log('🛑 Scanner stopped:', message.data);
-          toast.success(`Scanner stopped: ${message.data.vpn_type || 'Unknown'}`);
+          toast.success(`Scanner stopped: ${message.data.vpn_type || message.data.scanner || 'Unknown'}`);
           break;
           
         case 'scanner_command':
@@ -200,7 +198,7 @@ export function useWebSocket(url?: string) {
   };
 
   useEffect(() => {
-    // Небольшая задержка перед первым подключением
+    // Small delay before first connection
     const timer = setTimeout(() => {
       connect();
     }, 1000);
@@ -211,7 +209,7 @@ export function useWebSocket(url?: string) {
         clearTimeout(reconnectTimeoutRef.current);
       }
       if (wsRef.current) {
-        wsRef.current.close(1000); // Нормальное закрытие
+        wsRef.current.close(1000); // Normal closure
       }
     };
   }, [connect]);
@@ -247,7 +245,7 @@ export function useWebSocket(url?: string) {
   }, [sendMessage]);
 
   const getLogs = useCallback(() => {
-    return sendMessage('get_logs', {});
+    return sendMessage('get_logs', { limit: 100 });
   }, [sendMessage]);
 
   return {

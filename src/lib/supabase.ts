@@ -1,153 +1,84 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
+import toast from 'react-hot-toast';
 
-// Проверяем наличие настроек
-const getSupabaseConfig = () => {
-  // Сначала проверяем localStorage
-  let url = localStorage.getItem('supabase_url');
-  let key = localStorage.getItem('supabase_anon_key');
-  
-  // Если нет в localStorage, проверяем переменные окружения
-  if (!url || !key) {
-    url = import.meta.env.VITE_SUPABASE_URL;
-    key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  }
-  
-  return { url, key };
-};
+// Check if Supabase is configured
+export function isSupabaseConfigured(): boolean {
+  return !!(localStorage.getItem('supabase_url') && localStorage.getItem('supabase_anon_key'));
+}
 
-// Создаем клиент только если есть настройки
-let supabaseClient: SupabaseClient | null = null;
-
-const initClient = () => {
-  const { url, key } = getSupabaseConfig();
-  if (url && key) {
-    try {
-      supabaseClient = createClient(url, key);
-      console.log('✅ Supabase client initialized');
-    } catch (error) {
-      console.error('❌ Failed to initialize Supabase client:', error);
-      supabaseClient = null;
-    }
-  }
-  return supabaseClient;
-};
-
-// Инициализируем клиент
-initClient();
-
-// Экспортируем геттер вместо прямого клиента
-export const getSupabase = (): SupabaseClient => {
-  if (!supabaseClient) {
-    const { url, key } = getSupabaseConfig();
-    if (!url || !key) {
-      throw new Error('Supabase not configured. Please set up your credentials first.');
-    }
-    try {
-      supabaseClient = createClient(url, key);
-    } catch (error) {
-      throw new Error(`Failed to create Supabase client: ${error}`);
-    }
-  }
-  return supabaseClient;
-};
-
-// Безопасный геттер, который не выбрасывает ошибки
-export const getSupabaseSafe = (): SupabaseClient | null => {
+// Initialize Supabase with provided credentials
+export async function initializeSupabase(url: string, key: string): Promise<void> {
   try {
-    return getSupabase();
-  } catch {
-    return null;
-  }
-};
-
-export const initializeSupabase = (url: string, key: string) => {
-  try {
-    // Валидация URL
+    // Validate URL format
     new URL(url);
     
-    // Валидация ключа (базовая проверка)
-    if (!key || key.length < 10) {
-      throw new Error('Invalid Supabase key');
+    // Basic validation for the key
+    if (!key || key.length < 20) {
+      throw new Error('Invalid Supabase anon key format');
     }
     
-    // Сохраняем в localStorage
+    // Store credentials in localStorage
     localStorage.setItem('supabase_url', url);
     localStorage.setItem('supabase_anon_key', key);
     
-    // Пересоздаем клиент с новыми настройками
-    supabaseClient = createClient(url, key);
+    // Test the connection
+    const supabase = createClient(url, key);
+    const { error } = await supabase.from('_test_connection').select('count', { count: 'exact', head: true });
     
-    console.log('✅ Supabase configured successfully');
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to initialize Supabase:', error);
-    throw error;
+    // If the table doesn't exist, that's fine - we just want to test the connection
+    if (error && !error.message.includes('does not exist') && !error.message.includes('PGRST116')) {
+      throw error;
+    }
+    
+    return;
+  } catch (error: any) {
+    console.error('Supabase initialization error:', error);
+    clearSupabaseConfig();
+    throw new Error(`Failed to initialize Supabase: ${error.message}`);
   }
-};
+}
 
-export const isSupabaseConfigured = () => {
-  const { url, key } = getSupabaseConfig();
-  return !!(url && key);
-};
+// Get Supabase client (throws error if not configured)
+export function getSupabase() {
+  const url = localStorage.getItem('supabase_url');
+  const key = localStorage.getItem('supabase_anon_key');
+  
+  if (!url || !key) {
+    throw new Error('Supabase not configured');
+  }
+  
+  return createClient(url, key);
+}
 
-export const clearSupabaseConfig = () => {
+// Get Supabase client (returns null if not configured)
+export function getSupabaseSafe() {
+  try {
+    return getSupabase();
+  } catch (error) {
+    return null;
+  }
+}
+
+// Clear Supabase configuration
+export function clearSupabaseConfig() {
   localStorage.removeItem('supabase_url');
   localStorage.removeItem('supabase_anon_key');
-  supabaseClient = null;
-  console.log('🗑️ Supabase configuration cleared');
-};
-
-// Database schemas
-export interface VPNCredential {
-  id: string;
-  ip: string;
-  username: string;
-  password: string;
-  vpn_type: string;
-  port?: number;
-  domain?: string;
-  group_name?: string;
-  status: 'pending' | 'testing' | 'valid' | 'invalid' | 'error';
-  tested_at?: string;
-  created_at: string;
-  updated_at: string;
 }
 
-export interface ScanResult {
-  id: string;
-  credential_id: string;
-  server_ip: string;
-  vpn_type: string;
-  status: 'success' | 'failed' | 'error' | 'timeout';
-  response_time: number;
-  error_message?: string;
-  response_data?: any;
-  created_at: string;
-}
-
-export interface Server {
-  id: string;
-  ip: string;
-  username: string;
-  status: 'online' | 'offline' | 'error';
-  cpu_usage: number;
-  memory_usage: number;
-  disk_usage: number;
-  current_task?: string;
-  last_seen: string;
-  created_at: string;
-}
-
-export interface ScanSession {
-  id: string;
-  name: string;
-  vpn_type: string;
-  status: 'pending' | 'running' | 'paused' | 'completed' | 'error';
-  total_credentials: number;
-  processed_credentials: number;
-  valid_found: number;
-  errors_count: number;
-  started_at?: string;
-  completed_at?: string;
-  created_at: string;
+// Helper function to execute SQL via RPC (if available)
+export async function executeSql(sql: string) {
+  try {
+    const supabase = getSupabase();
+    const { error } = await supabase.rpc('exec_sql', { sql });
+    
+    if (error) {
+      throw error;
+    }
+    
+    return true;
+  } catch (error: any) {
+    console.error('SQL execution error:', error);
+    toast.error(`SQL error: ${error.message}`);
+    return false;
+  }
 }
