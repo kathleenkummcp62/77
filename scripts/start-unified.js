@@ -5,6 +5,15 @@
  * This script starts both the mock backend and React frontend in a single process
  */
 
+// Ensure we're running on a supported Node.js version before loading heavy dependencies
+const [major] = process.versions.node.split('.').map(Number);
+if (major < 20) {
+  console.error(
+    `\u274c Node.js 20 or newer is required. Detected ${process.version}. Please upgrade Node or use nvm.`
+  );
+  process.exit(1);
+}
+
 import { spawn } from 'cross-spawn';
 import { fileURLToPath } from 'url';
 import path from 'path';
