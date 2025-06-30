@@ -15,9 +15,10 @@ A comprehensive dashboard for managing and monitoring VPN scanning operations.
 
 ### Prerequisites
 
-- Node.js 20 or newer
+- Node.js 20 or newer (older versions may fail with `crypto.hash is not a function`)
 - npm 9 or newer
 - Vite 4.4.5 is the officially supported version
+  (running `npm audit fix --force` may upgrade Vite and require a newer Node.js)
 
 ### Installation
 

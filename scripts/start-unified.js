@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+// Ensure Node.js 20+ is used
+const [major] = process.versions.node.split('.').map(Number);
+if (major < 20) {
+  console.error(`\u274c Node.js 20 or newer is required. Current version: ${process.versions.node}`);
+  console.error('Please upgrade Node.js to run the dashboard.');
+  process.exit(1);
+}
+
 /**
  * Unified starter script for VPN Bruteforce Dashboard
  * This script starts both the mock backend and React frontend in a single process
