@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -255,7 +256,11 @@ func (e *Engine) doRequest(req *http.Request) (*http.Response, error) {
 }
 
 func (e *Engine) Start() error {
-	defer e.outputFile.Close()
+	defer func() {
+		if err := e.outputFile.Close(); err != nil {
+			log.Printf("output file close error: %v", err)
+		}
+	}()
 
 	// Load credentials with streaming for large files
 	credChan := make(chan Credential, 10000)
@@ -311,7 +316,9 @@ func (e *Engine) ultraFastWorker(credChan <-chan Credential) {
 func (e *Engine) processCredentialUltraFast(cred Credential, buf []byte) {
 	// Rate limiting
 	if e.rateLimiter != nil {
-		e.rateLimiter.Wait(e.ctx)
+		if err := e.rateLimiter.Wait(e.ctx); err != nil {
+			return
+		}
 	}
 
 	// Acquire semaphore
@@ -474,7 +481,11 @@ func (e *Engine) loadCredentialsStream(credChan chan<- Credential) {
 		fmt.Printf("Error opening input file: %v\n", err)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Error closing input file: %v\n", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024) // 1MB buffer for large lines
@@ -510,8 +521,12 @@ func (e *Engine) saveValidUltraFast(cred Credential) {
 
 	// Pre-format string to avoid allocations
 	line := fmt.Sprintf("%s;%s;%s\n", cred.IP, cred.Username, cred.Password)
-	e.outputFile.WriteString(line)
-	e.outputFile.Sync() // Force write to disk
+	if _, err := e.outputFile.WriteString(line); err != nil {
+		log.Printf("write output file error: %v", err)
+	}
+	if err := e.outputFile.Sync(); err != nil {
+		log.Printf("sync output file error: %v", err)
+	}
 }
 
 func (e *Engine) dynamicScaler() {

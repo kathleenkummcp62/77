@@ -60,7 +60,7 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 	if err != nil {
 		return false, err
 	}
-	defer httpResp.Body.Close()
+	defer func() { _ = httpResp.Body.Close() }()
 
 	// Read response with pre-allocated buffer
 	n, err := io.ReadFull(httpResp.Body, buf[:min(len(buf), 8192)])
@@ -179,7 +179,7 @@ func (e *Engine) checkGlobalProtectUltraFast(ctx context.Context, cred Credentia
 	if err != nil {
 		return false, err
 	}
-	defer httpResp.Body.Close()
+	defer func() { _ = httpResp.Body.Close() }()
 
 	n, err := io.ReadFull(httpResp.Body, buf[:min(len(buf), 8192)])
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
@@ -272,7 +272,7 @@ func (e *Engine) checkSonicWallUltraFast(ctx context.Context, cred Credential, r
 	if err != nil {
 		return false, err
 	}
-	defer httpResp.Body.Close()
+	defer func() { _ = httpResp.Body.Close() }()
 
 	n, err := io.ReadFull(httpResp.Body, buf[:min(len(buf), 8192)])
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {

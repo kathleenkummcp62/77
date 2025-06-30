@@ -136,41 +136,38 @@ func (s *Server) broadcastStats() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	for {
+	for range ticker.C {
+		statsData := StatsData{
+			Goods:     s.stats.GetGoods(),
+			Bads:      s.stats.GetBads(),
+			Errors:    s.stats.GetErrors(),
+			Offline:   s.stats.GetOffline(),
+			IPBlock:   s.stats.GetIPBlock(),
+			Processed: s.stats.GetProcessed(),
+			RPS:       s.stats.GetRPS(),
+			AvgRPS:    s.stats.GetAvgRPS(),
+			PeakRPS:   s.stats.GetPeakRPS(),
+			Threads:   s.stats.GetThreads(),
+			Uptime:    s.stats.GetUptime(),
+			Success:   s.stats.GetSuccessRate(),
+		}
+
+		message := Message{
+			Type:      "stats_update",
+			Data:      statsData,
+			Timestamp: time.Now().Unix(),
+		}
+
+		data, err := json.Marshal(message)
+		if err != nil {
+			log.Printf("Error marshaling stats: %v", err)
+			continue
+		}
+
 		select {
-		case <-ticker.C:
-			statsData := StatsData{
-				Goods:     s.stats.GetGoods(),
-				Bads:      s.stats.GetBads(),
-				Errors:    s.stats.GetErrors(),
-				Offline:   s.stats.GetOffline(),
-				IPBlock:   s.stats.GetIPBlock(),
-				Processed: s.stats.GetProcessed(),
-				RPS:       s.stats.GetRPS(),
-				AvgRPS:    s.stats.GetAvgRPS(),
-				PeakRPS:   s.stats.GetPeakRPS(),
-				Threads:   s.stats.GetThreads(),
-				Uptime:    s.stats.GetUptime(),
-				Success:   s.stats.GetSuccessRate(),
-			}
-
-			message := Message{
-				Type:      "stats_update",
-				Data:      statsData,
-				Timestamp: time.Now().Unix(),
-			}
-
-			data, err := json.Marshal(message)
-			if err != nil {
-				log.Printf("Error marshaling stats: %v", err)
-				continue
-			}
-
-			select {
-			case s.broadcast <- data:
-			default:
-				// Channel full, skip this update
-			}
+		case s.broadcast <- data:
+		default:
+			// Channel full, skip this update
 		}
 	}
 }
