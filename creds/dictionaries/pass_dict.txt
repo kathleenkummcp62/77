@@ -1,0 +1,10 @@
+guest
+test
+password
+P@ssw0rd
+admin
+123456
+qwerty
+welcome
+changeme
+admin123

@@ -1,0 +1,10 @@
+guest
+test
+admin
+user
+operator
+support
+helpdesk
+sysadmin
+netadmin
+technician
