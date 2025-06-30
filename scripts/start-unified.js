@@ -38,8 +38,8 @@ async function startBackend() {
     process.exit(1);
   });
   
-  // Add a delay to allow the server to fully initialize
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  // Increase delay to allow the server to fully initialize
+  await new Promise(resolve => setTimeout(resolve, 5000));
   
   return mockServer;
 }
@@ -70,8 +70,9 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${BACKEND_PORT}/api/health`],
-      timeout: 30000, // 30 seconds timeout
-      interval: 1000,
+      timeout: 45000, // Increased timeout to 45 seconds
+      interval: 2000, // Increased interval to 2 seconds
+      delay: 1000, // Add initial delay before first check
     });
     console.log('✅ Backend server is ready');
   } catch (error) {
