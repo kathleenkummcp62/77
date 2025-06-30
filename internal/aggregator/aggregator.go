@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,9 +88,18 @@ func (a *Aggregator) GetServerInfo() ([]ServerInfo, error) {
 	}
 
 	// System metrics using gopsutil
-	cpuPercent, _ := cpu.Percent(0, false)
-	memStat, _ := mem.VirtualMemory()
-	diskStat, _ := disk.Usage("/")
+	cpuPercent, errCPU := cpu.Percent(0, false)
+	if errCPU != nil {
+		log.Printf("cpu.Percent error: %v", errCPU)
+	}
+	memStat, errMem := mem.VirtualMemory()
+	if errMem != nil {
+		log.Printf("mem.VirtualMemory error: %v", errMem)
+	}
+	diskStat, errDisk := disk.Usage("/")
+	if errDisk != nil {
+		log.Printf("disk.Usage error: %v", errDisk)
+	}
 	uptimeSec := getUptime()
 
 	info := ServerInfo{
