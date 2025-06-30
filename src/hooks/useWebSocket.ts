@@ -56,22 +56,11 @@ export function useWebSocket(url?: string) {
     if (url) return url;
     
     // Пробуем разные варианты URL
-    const currentHost = window.location.host;
+    const hostname = window.location.hostname;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    
-    // Для локальной разработки
-    if (currentHost.includes('localhost') || currentHost.includes('127.0.0.1')) {
-      return 'ws://localhost:8080/ws';
-    }
-    
-    // Для WebContainer (StackBlitz)
-    if (currentHost.includes('webcontainer-api.io')) {
-      const baseUrl = currentHost.replace(/:\d+/, '');
-      return `${protocol}//${baseUrl}:8080/ws`;
-    }
-    
-    // Fallback
-    return `${protocol}//${currentHost.replace(/:\d+/, '')}:8080/ws`;
+    const port = import.meta.env.VITE_WS_PORT || window.location.port || '8080';
+
+    return `${protocol}//${hostname}:${port}/ws`;
   }, [url]);
 
   const connect = useCallback(() => {
