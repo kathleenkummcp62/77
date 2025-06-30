@@ -55,8 +55,6 @@ export function useWebSocket(url?: string) {
   const getWebSocketUrl = useCallback(() => {
     if (url) return url;
     
-    // Пробуем разные варианты URL
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
     const port = import.meta.env.VITE_WS_PORT || window.location.port;
 
@@ -65,13 +63,13 @@ export function useWebSocket(url?: string) {
       return `ws://localhost:${port}/ws`;
     }
 
-    // Для WebContainer (StackBlitz)
+    // Для WebContainer (StackBlitz) - всегда используем ws://
     if (host.includes('webcontainer-api.io')) {
-      return `${protocol}//${host}:${port}/ws`;
+      return `ws://${host}:${port}/ws`;
     }
 
-    // Fallback
-    return `${protocol}//${host}:${port}/ws`;
+    // Fallback - используем ws:// для совместимости с Go сервером
+    return `ws://${host}:${port}/ws`;
   }, [url]);
 
   const connect = useCallback(() => {
