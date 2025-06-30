@@ -57,9 +57,9 @@ func New(dir string) *Aggregator {
 // GetServerInfo aggregates metrics from all stats_*.json files.
 func (a *Aggregator) GetServerInfo() ([]ServerInfo, error) {
 	var total StatsFile
-	filepath.WalkDir(a.dir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(a.dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return err
 		}
 		if d.IsDir() {
 			return nil
@@ -68,7 +68,7 @@ func (a *Aggregator) GetServerInfo() ([]ServerInfo, error) {
 		if strings.HasPrefix(name, "stats_") && strings.HasSuffix(name, ".json") {
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return nil
+				return err
 			}
 			var s StatsFile
 			if json.Unmarshal(data, &s) == nil {
@@ -82,6 +82,9 @@ func (a *Aggregator) GetServerInfo() ([]ServerInfo, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	// System metrics using gopsutil
 	cpuPercent, _ := cpu.Percent(0, false)

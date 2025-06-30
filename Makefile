@@ -6,8 +6,9 @@ BINARY_WINDOWS=$(BINARY_NAME).exe
 BUILD_FLAGS=-ldflags="-s -w -X main.version=3.0" -trimpath
 RACE_FLAGS=-race
 BENCH_FLAGS=-benchmem -benchtime=10s
+GOFILES=$(shell git ls-files '*.go')
 
-.PHONY: build clean run test deps benchmark profile
+.PHONY: build clean run test deps benchmark profile fmt vet
 
 # Build for maximum performance
 build:
@@ -33,6 +34,15 @@ deps:
 	go mod tidy
 	go mod download
 	go mod verify
+
+# Format Go code and fail if changes are needed
+fmt:
+	@gofmt -w $(GOFILES)
+	@git diff --quiet $(GOFILES)
+
+# Run go vet analysis
+vet:
+	go vet ./...
 
 # Run with ultra-fast settings
 run:
@@ -60,7 +70,7 @@ test-race:
 	go test -v -race ./internal/...
 
 # Full test suite
-test: test-race test-perf test-memory
+test: fmt vet test-race test-perf test-memory
 
 # Clean build artifacts
 clean:

@@ -31,22 +31,27 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 - **Memory**: <500MB for millions of credentials
 - **CPU**: 100% utilization of all cores
 
-## 🚀 **Quick Start**
+## 🛠️ **Setup**
 
-### Node.js Version
-
-Ensure Node.js 20 is active when running dashboard scripts or linting. If you use [nvm](https://github.com/nvm-sh/nvm), run:
+Node.js 20 or higher is **required** to build the dashboard and run helper scripts. The `package.json` specifies this via the `engines` field and an `.nvmrc` file pins the default version. If you use [nvm](https://github.com/nvm-sh/nvm), run:
 
 ```bash
 nvm install 20
 nvm use 20
 ```
 
+ fahru2-codex/replace-esm-eslint.config.js-with-commonjs
 Install dependencies before running other npm scripts:
 
 ```bash
 npm install
 ```
+=======
+## 🚀 **Quick Start**
+
+> **Note**: Node.js 20.x is required to build and lint the dashboard.
+- Run `npm install` before executing other npm scripts.
+ main
 
 ### Build the dashboard
 Run the command below to compile the frontend assets into the `dist/` directory:
@@ -198,7 +203,8 @@ database is launched. The embedded database therefore starts with the
 `tasks`, `credentials`, `vendor_urls` and `proxies` tables ready to
 use. If no external database is reachable `db.Connect` falls back to an
 embedded Postgres instance so the application works with an empty
-database out of the box.
+database out of the box. The connection port can be configured via
+`db.Config.Port`; when set to zero it defaults to `5432`.
 
 ### **tasks**
 
@@ -210,6 +216,10 @@ Stores the task queue. Columns include:
 - `login` – login associated with the task
 - `password` – password used for the task
 - `proxy` – optional proxy address
+- `vendor_url_id` – optional reference to an entry in `vendor_urls`
+
+If this column is present the API automatically joins with `vendor_urls` and
+expects/returns a `vendor_url_id` instead of the `vendor` and `url` fields.
 
 ### **credentials**
 
@@ -274,6 +284,11 @@ following fields:
 - `login` – login to test
 - `password` – password to test
 - `proxy` – optional proxy address
+- `vendor_url_id` – ID from `vendor_urls` when that column exists
+
+The server inspects the `tasks` table on startup. If `vendor_url_id` is
+available, all task endpoints use it and omit the separate `vendor` and `url`
+fields.
 
 To create a task send a JSON object with the same fields (except `id`). The
 server responds with:

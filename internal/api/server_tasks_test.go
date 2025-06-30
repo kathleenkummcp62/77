@@ -53,6 +53,12 @@ func TestTasksHandlers(t *testing.T) {
 		}
 	}
 
+	// create vendor url for tasks
+	var vendorID int
+	if err := srv.db.QueryRow(`INSERT INTO vendor_urls(url) VALUES($1) RETURNING id`, "https://vendor.example").Scan(&vendorID); err != nil {
+		t.Fatalf("insert vendor url: %v", err)
+	}
+
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 
@@ -75,7 +81,7 @@ func TestTasksHandlers(t *testing.T) {
 	}
 
 	// create task
-	body := bytes.NewBufferString(`{"vendor":"fortinet","url":"https://example.com","login":"user","password":"pass","proxy":""}`)
+	body := bytes.NewBufferString(fmt.Sprintf(`{"vpn_type":"openvpn","vendor_url_id":%d,"server":"srv","status":""}`, vendorID))
 	resp, err = http.Post(ts.URL+"/api/tasks", "application/json", body)
 	if err != nil {
 		t.Fatalf("post task: %v", err)
@@ -95,7 +101,7 @@ func TestTasksHandlers(t *testing.T) {
 	id := int(postResp.Data["id"].(float64))
 
 	// update
-	upd := map[string]interface{}{"vendor": "cisco", "url": "https://example.org", "login": "u2", "password": "p2", "proxy": ""}
+	upd := map[string]interface{}{"vpn_type": "wireguard", "vendor_url_id": vendorID, "server": "srv2", "status": "running"}
 	ub, _ := json.Marshal(upd)
 	req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/"+strconv.Itoa(id), bytes.NewReader(ub))
 	req.Header.Set("Content-Type", "application/json")
@@ -156,11 +162,17 @@ func TestTasksHandlers(t *testing.T) {
 func TestTasksBulkDeleteHandler(t *testing.T) {
 	srv, cleanup := setupTasksServer(t)
 	defer cleanup()
+	// vendor URL needed for tasks
+	var vendorID int
+	if err := srv.db.QueryRow(`INSERT INTO vendor_urls(url) VALUES($1) RETURNING id`, "https://vendor.example").Scan(&vendorID); err != nil {
+		t.Fatalf("insert vendor url: %v", err)
+	}
+
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 
 	create := func() int {
-		body := bytes.NewBufferString(`{"vpn_type":"openvpn","server":"srv"}`)
+		body := bytes.NewBufferString(fmt.Sprintf(`{"vpn_type":"openvpn","vendor_url_id":%d,"server":"srv","status":""}`, vendorID))
 		resp, err := http.Post(ts.URL+"/api/tasks", "application/json", body)
 		if err != nil {
 			t.Fatalf("post: %v", err)

@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -148,10 +149,15 @@ func TestProxyCRUDHandlers(t *testing.T) {
 func TestTasksCRUDHandlers(t *testing.T) {
 	srv, cleanup := setupAPIServer(t)
 	defer cleanup()
+	var vendorID int
+	if err := srv.db.QueryRow(`INSERT INTO vendor_urls(url) VALUES($1) RETURNING id`, "https://vendor.example").Scan(&vendorID); err != nil {
+		t.Fatalf("insert vendor url: %v", err)
+	}
+
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 
-	body := bytes.NewBufferString(`{"vendor":"fortinet","url":"https://ex","login":"u","password":"p","proxy":""}`)
+	body := bytes.NewBufferString(fmt.Sprintf(`{"vpn_type":"openvpn","vendor_url_id":%d,"server":"srv","status":""}`, vendorID))
 	resp, err := http.Post(ts.URL+"/api/tasks", "application/json", body)
 	if err != nil {
 		t.Fatalf("post: %v", err)
@@ -166,7 +172,7 @@ func TestTasksCRUDHandlers(t *testing.T) {
 	}
 	id := int(postResp.Data["id"].(float64))
 
-	upd := map[string]string{"vendor": "cisco", "url": "https://ex2", "login": "u2", "password": "p2", "proxy": ""}
+	upd := map[string]interface{}{"vpn_type": "wireguard", "vendor_url_id": vendorID, "server": "srv2", "status": "running"}
 	ub, _ := json.Marshal(upd)
 	req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/"+strconv.Itoa(id), bytes.NewReader(ub))
 	req.Header.Set("Content-Type", "application/json")

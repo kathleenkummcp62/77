@@ -399,14 +399,6 @@ func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
 	json.NewEncoder(w).Encode(data)
 }
 
-// initDB ensures the database schema exists using the shared initializer.
-func (s *Server) initDB() error {
-	if s == nil || s.db == nil {
-		return nil
-	}
-	return db.InitSchema(s.db)
-}
-
 // --- Data storage handlers ---
 
 // detectSchema checks whether the tasks table uses the new vendor based
