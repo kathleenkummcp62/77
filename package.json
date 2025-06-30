@@ -12,7 +12,8 @@
     "setup-env": "node scripts/setup-environment.js",
     "deploy-scripts": "node scripts/deploy-scripts.js",
     "collect-results": "node scripts/collect-results.js",
-    "start-scanners": "node scripts/start-scanners.js --vpn-type fortinet"
+    "start-scanners": "node scripts/start-scanners.js --vpn-type fortinet",
+    "setup": "node scripts/setup-environment.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.2",
