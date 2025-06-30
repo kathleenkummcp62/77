@@ -103,6 +103,7 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 func (s *Server) setupRoutes() {
 	// API routes
 	api := s.router.PathPrefix("/api").Subrouter()
+	api.Use(s.authMiddleware)
 	api.HandleFunc("/stats", s.handleStats).Methods("GET")
 	api.HandleFunc("/servers", s.handleServers).Methods("GET")
 	api.HandleFunc("/start", s.handleStart).Methods("POST")
@@ -138,13 +139,33 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Token")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) authMiddleware(next http.Handler) http.Handler {
+	token := os.Getenv("API_TOKEN")
+	if token == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t := r.Header.Get("X-API-Token")
+		if t == "" {
+			auth := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			t = strings.TrimSpace(auth)
+		}
+		if t != token {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "unauthorized"})
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -528,6 +549,9 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 			var id int
 			var ip, u, p string
 			rows.Scan(&id, &ip, &u, &p)
+			ip, _ = decryptString(ip)
+			u, _ = decryptString(u)
+			p, _ = decryptString(p)
 			list = append(list, map[string]interface{}{"id": id, "ip": ip, "username": u, "password": p})
 		}
 		s.sendJSON(w, APIResponse{Success: true, Data: list})
@@ -537,8 +561,11 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
+		encIP, _ := encryptString(item.IP)
+		encU, _ := encryptString(item.Username)
+		encP, _ := encryptString(item.Password)
 		var id int
-		if err := s.db.QueryRow(`INSERT INTO credentials(ip, username, password) VALUES($1,$2,$3) RETURNING id`, item.IP, item.Username, item.Password).Scan(&id); err != nil {
+		if err := s.db.QueryRow(`INSERT INTO credentials(ip, username, password) VALUES($1,$2,$3) RETURNING id`, encIP, encU, encP).Scan(&id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
@@ -560,7 +587,10 @@ func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
-		if _, err := s.db.Exec(`UPDATE credentials SET ip=$1,username=$2,password=$3 WHERE id=$4`, item.IP, item.Username, item.Password, id); err != nil {
+		encIP, _ := encryptString(item.IP)
+		encU, _ := encryptString(item.Username)
+		encP, _ := encryptString(item.Password)
+		if _, err := s.db.Exec(`UPDATE credentials SET ip=$1,username=$2,password=$3 WHERE id=$4`, encIP, encU, encP, id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
@@ -615,6 +645,9 @@ func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
 			var id int
 			var addr, u, p string
 			rows.Scan(&id, &addr, &u, &p)
+			addr, _ = decryptString(addr)
+			u, _ = decryptString(u)
+			p, _ = decryptString(p)
 			list = append(list, map[string]interface{}{"id": id, "address": addr, "username": u, "password": p})
 		}
 		s.sendJSON(w, APIResponse{Success: true, Data: list})
@@ -624,8 +657,11 @@ func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
+		encAddr, _ := encryptString(item.Address)
+		encU, _ := encryptString(item.Username)
+		encP, _ := encryptString(item.Password)
 		var id int
-		if err := s.db.QueryRow(`INSERT INTO proxies(address, username, password) VALUES($1,$2,$3) RETURNING id`, item.Address, item.Username, item.Password).Scan(&id); err != nil {
+		if err := s.db.QueryRow(`INSERT INTO proxies(address, username, password) VALUES($1,$2,$3) RETURNING id`, encAddr, encU, encP).Scan(&id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
@@ -647,7 +683,10 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
 			return
 		}
-		if _, err := s.db.Exec(`UPDATE proxies SET address=$1,username=$2,password=$3 WHERE id=$4`, item.Address, item.Username, item.Password, id); err != nil {
+		encAddr, _ := encryptString(item.Address)
+		encU, _ := encryptString(item.Username)
+		encP, _ := encryptString(item.Password)
+		if _, err := s.db.Exec(`UPDATE proxies SET address=$1,username=$2,password=$3 WHERE id=$4`, encAddr, encU, encP, id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
