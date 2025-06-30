@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -14,12 +15,53 @@ import (
 	"vpn-bruteforce-client/internal/stats"
 )
 
+func runSetup(cfgPath string) error {
+	cmds := []struct {
+		name string
+		args []string
+	}{
+		{"go", []string{"mod", "download"}},
+		{"npm", []string{"install"}},
+		{"pip", []string{"install", "-r", "requirements.txt"}},
+	}
+	for _, c := range cmds {
+		cmd := exec.Command(c.name, c.args...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("%s %v failed: %w", c.name, c.args, err)
+		}
+	}
+
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		log.Printf("config load error: %v", err)
+		cfg = config.Default()
+	}
+	dbCfg := db.ConfigFromApp(*cfg)
+	database, err := db.Connect(dbCfg)
+	if err != nil {
+		return fmt.Errorf("db setup failed: %w", err)
+	}
+	defer database.Close()
+	return database.InsertLog("info", "setup complete", "setup")
+}
+
 func main() {
 	var (
 		port       = flag.Int("port", 8080, "Dashboard server port")
 		configFile = flag.String("config", "config.yaml", "Configuration file path")
+		setupFlag  = flag.Bool("setup", false, "Install dependencies and exit")
 	)
 	flag.Parse()
+
+	if *setupFlag {
+		if err := runSetup(*configFile); err != nil {
+			log.Fatalf("setup failed: %v", err)
+		}
+		log.Println("setup completed")
+		return
+	}
 
 	log.Printf("🚀 VPN Bruteforce Dashboard v3.0")
 	log.Printf("🌐 Starting dashboard server on port %d", *port)
