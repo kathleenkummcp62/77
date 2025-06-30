@@ -12,6 +12,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+export VITE_WS_PORT=${VITE_WS_PORT:-8080}
+
 function usage() {
     echo "Usage: $0 [--serve]"
     echo "  --serve    Serve the built frontend instead of running Vite dev server"
