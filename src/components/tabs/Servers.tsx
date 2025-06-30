@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { ProgressBar } from '../ui/ProgressBar';
-import { useWebSocket } from '../../hooks/useWebSocket';
-import { 
-  Server, 
-  Activity, 
-  RefreshCw, 
-  Terminal, 
-  Trash2, 
+import React, { useState, useEffect, useRef } from "react";
+import { Card } from "../ui/Card";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
+import { ProgressBar } from "../ui/ProgressBar";
+import { useWebSocket } from "../../hooks/useWebSocket";
+import {
+  Server,
+  Activity,
+  RefreshCw,
+  Terminal,
+  Trash2,
   Upload,
   Download,
   Cpu,
@@ -17,144 +17,176 @@ import {
   Wifi,
   WifiOff,
   AlertTriangle,
-  CheckCircle
-} from 'lucide-react';
-import toast from 'react-hot-toast';
+  CheckCircle,
+} from "lucide-react";
+import toast from "react-hot-toast";
 
 // Placeholder worker servers used for UI demonstrations only
 const exampleServers = [
   {
-    ip: 'server1.example.com',
-    username: 'root',
-    password: 'placeholder',
-    status: 'online',
-    uptime: '0h 0m',
+    ip: "server1.example.com",
+    username: "root",
+    password: "placeholder",
+    status: "online",
+    uptime: "0h 0m",
     cpu: 0,
     memory: 0,
     disk: 0,
-    speed: '0/s',
+    speed: "0/s",
     processed: 0,
     goods: 0,
     bads: 0,
     errors: 0,
-    currentTask: 'Idle',
+    currentTask: "Idle",
     progress: 0,
-    lastSeen: new Date().toISOString()
+    lastSeen: new Date().toISOString(),
   },
   {
-    ip: 'server2.example.com',
-    username: 'root',
-    password: 'placeholder',
-    status: 'online',
-    uptime: '0h 0m',
+    ip: "server2.example.com",
+    username: "root",
+    password: "placeholder",
+    status: "online",
+    uptime: "0h 0m",
     cpu: 0,
     memory: 0,
     disk: 0,
-    speed: '0/s',
+    speed: "0/s",
     processed: 0,
     goods: 0,
     bads: 0,
     errors: 0,
-    currentTask: 'Idle',
+    currentTask: "Idle",
     progress: 0,
-    lastSeen: new Date().toISOString()
+    lastSeen: new Date().toISOString(),
   },
   {
-    ip: 'server3.example.com',
-    username: 'root',
-    password: 'placeholder',
-    status: 'online',
-    uptime: '0h 0m',
+    ip: "server3.example.com",
+    username: "root",
+    password: "placeholder",
+    status: "online",
+    uptime: "0h 0m",
     cpu: 0,
     memory: 0,
     disk: 0,
-    speed: '0/s',
+    speed: "0/s",
     processed: 0,
     goods: 0,
     bads: 0,
     errors: 0,
-    currentTask: 'Idle',
+    currentTask: "Idle",
     progress: 0,
-    lastSeen: new Date().toISOString()
+    lastSeen: new Date().toISOString(),
   },
   {
-    ip: 'server4.example.com',
-    username: 'root',
-    password: 'placeholder',
-    status: 'online',
-    uptime: '0h 0m',
+    ip: "server4.example.com",
+    username: "root",
+    password: "placeholder",
+    status: "online",
+    uptime: "0h 0m",
     cpu: 0,
     memory: 0,
     disk: 0,
-    speed: '0/s',
+    speed: "0/s",
     processed: 0,
     goods: 0,
     bads: 0,
     errors: 0,
-    currentTask: 'Idle',
+    currentTask: "Idle",
     progress: 0,
-    lastSeen: new Date().toISOString()
-  }
+    lastSeen: new Date().toISOString(),
+  },
 ];
 
 export function Servers() {
   const [selectedServers, setSelectedServers] = useState<string[]>([]);
   const [servers, setServers] = useState(exampleServers);
   const [loading, setLoading] = useState(false);
-  const { isConnected, servers: wsServers } = useWebSocket('ws://localhost:8080/ws');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isConnected, servers: wsServers } = useWebSocket(
+    "ws://localhost:8080/ws",
+  );
+
+  const handleWorkerFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const lines = text
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      for (const line of lines) {
+        const [ip, portStr, user, pass] = line.split(":");
+        const port = parseInt(portStr, 10);
+        if (!ip || !port || !user || !pass) continue;
+        await fetch("/api/workers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ip, port, username: user, password: pass }),
+        });
+      }
+      toast.success("Workers uploaded");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to upload workers");
+    }
+  };
 
   // Обновляем серверы из WebSocket, если доступны
   useEffect(() => {
     if (wsServers && wsServers.length > 0) {
-      setServers(wsServers.map(ws => ({
-        ip: ws.ip,
-        username: 'root',
-        password: '***',
-        status: ws.status as 'online' | 'offline',
-        uptime: ws.uptime,
-        cpu: ws.cpu,
-        memory: ws.memory,
-        disk: ws.disk,
-        speed: ws.speed,
-        processed: ws.processed,
-        goods: ws.goods,
-        bads: ws.bads,
-        errors: ws.errors,
-        currentTask: ws.current_task,
-        progress: ws.progress,
-        lastSeen: new Date().toISOString()
-      })));
+      setServers(
+        wsServers.map((ws) => ({
+          ip: ws.ip,
+          username: "root",
+          password: "***",
+          status: ws.status as "online" | "offline",
+          uptime: ws.uptime,
+          cpu: ws.cpu,
+          memory: ws.memory,
+          disk: ws.disk,
+          speed: ws.speed,
+          processed: ws.processed,
+          goods: ws.goods,
+          bads: ws.bads,
+          errors: ws.errors,
+          currentTask: ws.current_task,
+          progress: ws.progress,
+          lastSeen: new Date().toISOString(),
+        })),
+      );
     }
   }, [wsServers]);
 
   const handleServerSelect = (ip: string) => {
-    setSelectedServers(prev => 
-      prev.includes(ip) 
-        ? prev.filter(s => s !== ip)
-        : [...prev, ip]
+    setSelectedServers((prev) =>
+      prev.includes(ip) ? prev.filter((s) => s !== ip) : [...prev, ip],
     );
   };
 
   const handleBulkAction = async (action: string) => {
     if (selectedServers.length === 0) {
-      toast.error('Please select at least one server');
+      toast.error("Please select at least one server");
       return;
     }
 
     setLoading(true);
     try {
       switch (action) {
-        case 'reboot':
+        case "reboot":
           toast.success(`Rebooting ${selectedServers.length} servers...`);
           break;
-        case 'upload':
-          toast.success(`Uploading scripts to ${selectedServers.length} servers...`);
+        case "upload":
+          toast.success(
+            `Uploading scripts to ${selectedServers.length} servers...`,
+          );
           break;
-        case 'cleanup':
+        case "cleanup":
           toast.success(`Cleaning up ${selectedServers.length} servers...`);
           break;
         default:
-          toast.error('Unknown action');
+          toast.error("Unknown action");
       }
     } catch (error: any) {
       toast.error(`Action failed: ${error.message}`);
@@ -168,7 +200,7 @@ export function Servers() {
     try {
       // Здесь можно добавить реальную проверку SSH подключения
       toast.success(`Testing connection to ${server.ip}...`);
-      
+
       // Симуляция проверки подключения
       setTimeout(() => {
         toast.success(`✅ Connection to ${server.ip} successful!`);
@@ -184,7 +216,7 @@ export function Servers() {
     setLoading(true);
     try {
       toast.success(`Deploying scripts to ${server.ip}...`);
-      
+
       // Симуляция развертывания скриптов
       setTimeout(() => {
         toast.success(`✅ Scripts deployed to ${server.ip}!`);
@@ -202,17 +234,32 @@ export function Servers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Worker Servers</h1>
-          <p className="text-gray-600 mt-1">Monitor and manage your worker servers</p>
+          <p className="text-gray-600 mt-1">
+            Monitor and manage your worker servers
+          </p>
         </div>
         <div className="flex items-center space-x-3">
-          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-success-500 animate-pulse' : 'bg-error-500'}`}></div>
+          <div
+            className={`w-3 h-3 rounded-full ${isConnected ? "bg-success-500 animate-pulse" : "bg-error-500"}`}
+          ></div>
           <span className="text-sm text-gray-600">
-            {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+            {isConnected ? "WebSocket Connected" : "WebSocket Disconnected"}
           </span>
           <Button variant="ghost" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+          <Button variant="ghost" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import List
+          </Button>
+          <input
+            type="file"
+            accept="text/plain"
+            ref={fileInputRef}
+            onChange={handleWorkerFile}
+            className="hidden"
+          />
           <Button variant="primary">
             <Server className="h-4 w-4 mr-2" />
             Add Server
@@ -225,10 +272,11 @@ export function Servers() {
         <div className="flex items-center space-x-3">
           <CheckCircle className="h-5 w-5 text-primary-600" />
           <div>
-          <h4 className="font-medium text-primary-800">Example Servers</h4>
-          <p className="text-sm text-primary-600">
-            These demo servers use placeholder SSH credentials for UI previews only.
-          </p>
+            <h4 className="font-medium text-primary-800">Example Servers</h4>
+            <p className="text-sm text-primary-600">
+              These demo servers use placeholder SSH credentials for UI previews
+              only.
+            </p>
           </div>
         </div>
       </Card>
@@ -241,28 +289,28 @@ export function Servers() {
               {selectedServers.length} server(s) selected
             </span>
             <div className="flex space-x-2">
-              <Button 
-                size="sm" 
-                variant="secondary" 
-                onClick={() => handleBulkAction('reboot')}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleBulkAction("reboot")}
                 loading={loading}
               >
                 <RefreshCw className="h-4 w-4 mr-1" />
                 Reboot
               </Button>
-              <Button 
-                size="sm" 
-                variant="warning" 
-                onClick={() => handleBulkAction('upload')}
+              <Button
+                size="sm"
+                variant="warning"
+                onClick={() => handleBulkAction("upload")}
                 loading={loading}
               >
                 <Upload className="h-4 w-4 mr-1" />
                 Upload Scripts
               </Button>
-              <Button 
-                size="sm" 
-                variant="error" 
-                onClick={() => handleBulkAction('cleanup')}
+              <Button
+                size="sm"
+                variant="error"
+                onClick={() => handleBulkAction("cleanup")}
                 loading={loading}
               >
                 <Trash2 className="h-4 w-4 mr-1" />
@@ -276,7 +324,10 @@ export function Servers() {
       {/* Server Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {servers.map((server) => (
-          <Card key={server.ip} className="hover:shadow-lg transition-shadow duration-200">
+          <Card
+            key={server.ip}
+            className="hover:shadow-lg transition-shadow duration-200"
+          >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <input
@@ -289,14 +340,22 @@ export function Servers() {
                   <Server className="h-6 w-6 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{server.ip}</h3>
-                  <p className="text-sm text-gray-600">User: {server.username}</p>
-                  <p className="text-xs text-gray-500 font-mono">SSH: {server.ip}:22</p>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {server.ip}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    User: {server.username}
+                  </p>
+                  <p className="text-xs text-gray-500 font-mono">
+                    SSH: {server.ip}:22
+                  </p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <Badge variant={server.status === 'online' ? 'success' : 'error'}>
-                  {server.status === 'online' ? (
+                <Badge
+                  variant={server.status === "online" ? "success" : "error"}
+                >
+                  {server.status === "online" ? (
                     <Wifi className="h-3 w-3 mr-1" />
                   ) : (
                     <WifiOff className="h-3 w-3 mr-1" />
@@ -309,13 +368,17 @@ export function Servers() {
             {/* Current Task */}
             <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">{server.currentTask}</span>
-                <span className="text-sm text-gray-600">{server.progress}%</span>
+                <span className="text-sm font-medium text-gray-700">
+                  {server.currentTask}
+                </span>
+                <span className="text-sm text-gray-600">
+                  {server.progress}%
+                </span>
               </div>
-              <ProgressBar 
-                value={server.progress} 
-                color={server.progress > 0 ? 'primary' : 'gray'} 
-                size="sm" 
+              <ProgressBar
+                value={server.progress}
+                color={server.progress > 0 ? "primary" : "gray"}
+                size="sm"
               />
             </div>
 
@@ -326,10 +389,16 @@ export function Servers() {
                   <span className="text-xs text-gray-600">CPU</span>
                   <span className="text-xs font-medium">{server.cpu}%</span>
                 </div>
-                <ProgressBar 
-                  value={server.cpu} 
-                  color={server.cpu > 80 ? 'error' : server.cpu > 60 ? 'warning' : 'success'} 
-                  size="sm" 
+                <ProgressBar
+                  value={server.cpu}
+                  color={
+                    server.cpu > 80
+                      ? "error"
+                      : server.cpu > 60
+                        ? "warning"
+                        : "success"
+                  }
+                  size="sm"
                 />
               </div>
               <div>
@@ -337,10 +406,16 @@ export function Servers() {
                   <span className="text-xs text-gray-600">Memory</span>
                   <span className="text-xs font-medium">{server.memory}%</span>
                 </div>
-                <ProgressBar 
-                  value={server.memory} 
-                  color={server.memory > 80 ? 'error' : server.memory > 60 ? 'warning' : 'success'} 
-                  size="sm" 
+                <ProgressBar
+                  value={server.memory}
+                  color={
+                    server.memory > 80
+                      ? "error"
+                      : server.memory > 60
+                        ? "warning"
+                        : "success"
+                  }
+                  size="sm"
                 />
               </div>
               <div>
@@ -348,10 +423,16 @@ export function Servers() {
                   <span className="text-xs text-gray-600">Disk</span>
                   <span className="text-xs font-medium">{server.disk}%</span>
                 </div>
-                <ProgressBar 
-                  value={server.disk} 
-                  color={server.disk > 80 ? 'error' : server.disk > 60 ? 'warning' : 'success'} 
-                  size="sm" 
+                <ProgressBar
+                  value={server.disk}
+                  color={
+                    server.disk > 80
+                      ? "error"
+                      : server.disk > 60
+                        ? "warning"
+                        : "success"
+                  }
+                  size="sm"
                 />
               </div>
             </div>
@@ -359,19 +440,27 @@ export function Servers() {
             {/* Stats */}
             <div className="grid grid-cols-4 gap-3 mb-4 text-center">
               <div>
-                <p className="text-lg font-bold text-success-600">{server.goods.toLocaleString()}</p>
+                <p className="text-lg font-bold text-success-600">
+                  {server.goods.toLocaleString()}
+                </p>
                 <p className="text-xs text-gray-600">Valid</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-error-600">{server.bads.toLocaleString()}</p>
+                <p className="text-lg font-bold text-error-600">
+                  {server.bads.toLocaleString()}
+                </p>
                 <p className="text-xs text-gray-600">Invalid</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-warning-600">{server.errors.toLocaleString()}</p>
+                <p className="text-lg font-bold text-warning-600">
+                  {server.errors.toLocaleString()}
+                </p>
                 <p className="text-xs text-gray-600">Errors</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-primary-600">{server.speed}</p>
+                <p className="text-lg font-bold text-primary-600">
+                  {server.speed}
+                </p>
                 <p className="text-xs text-gray-600">Speed</p>
               </div>
             </div>
@@ -385,7 +474,9 @@ export function Servers() {
                 </div>
                 <div>
                   <span className="text-gray-600">Processed:</span>
-                  <span className="ml-1 font-medium">{server.processed.toLocaleString()}</span>
+                  <span className="ml-1 font-medium">
+                    {server.processed.toLocaleString()}
+                  </span>
                 </div>
                 <div className="col-span-2">
                   <span className="text-gray-600">Last seen:</span>
@@ -398,9 +489,9 @@ export function Servers() {
 
             {/* Actions */}
             <div className="flex space-x-2">
-              <Button 
-                size="sm" 
-                variant="ghost" 
+              <Button
+                size="sm"
+                variant="ghost"
                 className="flex-1"
                 onClick={() => testConnection(server)}
                 loading={loading}
@@ -408,9 +499,9 @@ export function Servers() {
                 <Terminal className="h-4 w-4 mr-1" />
                 Test SSH
               </Button>
-              <Button 
-                size="sm" 
-                variant="ghost" 
+              <Button
+                size="sm"
+                variant="ghost"
                 className="flex-1"
                 onClick={() => deployScripts(server)}
                 loading={loading}
@@ -432,7 +523,9 @@ export function Servers() {
 
       {/* Server Management Tools */}
       <Card>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Server Management Tools</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Server Management Tools
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Button variant="primary" className="w-full">
             <Upload className="h-4 w-4 mr-2" />
@@ -455,13 +548,20 @@ export function Servers() {
 
       {/* Connection Instructions */}
       <Card>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">SSH Connection Details</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          SSH Connection Details
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="font-medium text-gray-900 mb-2">Manual SSH Connection:</h4>
+            <h4 className="font-medium text-gray-900 mb-2">
+              Manual SSH Connection:
+            </h4>
             <div className="space-y-2">
-              {servers.slice(0, 2).map(server => (
-                <code key={server.ip} className="block text-sm bg-gray-100 p-2 rounded">
+              {servers.slice(0, 2).map((server) => (
+                <code
+                  key={server.ip}
+                  className="block text-sm bg-gray-100 p-2 rounded"
+                >
                   ssh {server.username}@{server.ip}
                 </code>
               ))}

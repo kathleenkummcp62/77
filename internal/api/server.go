@@ -138,6 +138,8 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/credentials", s.handleCredentials).Methods("GET", "POST")
 	api.HandleFunc("/credentials/{id}", s.handleCredential).Methods("PUT", "DELETE")
 	api.HandleFunc("/credentials/bulk_delete", s.handleCredentialsBulkDelete).Methods("POST")
+	api.HandleFunc("/workers", s.handleWorkers).Methods("GET", "POST")
+	api.HandleFunc("/workers/{id}", s.handleWorker).Methods("DELETE")
 	api.HandleFunc("/proxies", s.handleProxies).Methods("GET", "POST")
 	api.HandleFunc("/proxies/{id}", s.handleProxy).Methods("PUT", "DELETE")
 	api.HandleFunc("/proxies/bulk_delete", s.handleProxiesBulkDelete).Methods("POST")
@@ -696,6 +698,65 @@ func (s *Server) handleCredentialsBulkDelete(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	s.sendJSON(w, APIResponse{Success: true})
+}
+
+func (s *Server) handleWorkers(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		rows, err := s.db.Query(`SELECT id, ip, port, username, password FROM workers`)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		defer rows.Close()
+		var list []map[string]interface{}
+		for rows.Next() {
+			var id, port int
+			var ip, u, p string
+			if err := rows.Scan(&id, &ip, &port, &u, &p); err != nil {
+				continue
+			}
+			list = append(list, map[string]interface{}{"id": id, "ip": ip, "port": port, "username": u, "password": p})
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: list})
+	case http.MethodPost:
+		var item struct {
+			IP       string `json:"ip"`
+			Port     int    `json:"port"`
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid json"})
+			return
+		}
+		var id int
+		if err := s.db.QueryRow(`INSERT INTO workers(ip, port, username, password) VALUES($1,$2,$3,$4) RETURNING id`, item.IP, item.Port, item.Username, item.Password).Scan(&id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "ip": item.IP, "port": item.Port, "username": item.Username, "password": item.Password}})
+	}
+}
+
+func (s *Server) handleWorker(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
+		return
+	}
+	idStr := mux.Vars(r)["id"]
+	id, _ := strconv.Atoi(idStr)
+	if r.Method == http.MethodDelete {
+		if _, err := s.db.Exec(`DELETE FROM workers WHERE id=$1`, id); err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		s.sendJSON(w, APIResponse{Success: true})
+	}
 }
 
 func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
