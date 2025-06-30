@@ -57,6 +57,14 @@ You can specify a VPN type:
 npm run test-vpn -- --vpn-type fortinet
 ```
 
+You can also run the Python scanner directly:
+
+```bash
+python3 vpn_scanner.py --vpn-type fortinet --creds-file creds/fortinet.txt
+```
+
+Add `--insecure` if the target uses self-signed certificates.
+
 ### Working with Remote Servers
 
 Deploy scripts to worker servers:
