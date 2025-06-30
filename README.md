@@ -21,7 +21,8 @@ Run the dashboard setup once to download dependencies and initialize the embedde
 go run cmd/dashboard/main.go --setup
 ```
 
-This command executes `go mod download`, `npm install` and `pip install -r requirements.txt` before creating the database.
+This command executes `go mod download`, `npm install` and
+`python3 -m pip install -r requirements.txt` before creating the database.
 
 ## Running the Backend
 
