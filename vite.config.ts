@@ -16,5 +16,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     exclude: [...configDefaults.exclude, 'dist']
+  },
+  optimizeDeps: {
+    include: ['@supabase/supabase-js']
+  },
+  resolve: {
+    dedupe: ['@supabase/supabase-js', 'react', 'react-dom']
   }
 })
