@@ -11,6 +11,8 @@ import {
   Terminal,
   Wifi,
   Database,
+  TestTube,
+  ShieldCheck,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -31,6 +33,8 @@ const menuItems = [
   { id: "data", label: "Data Store", icon: FileText },
   { id: "database", label: "Database", icon: Database },
   { id: "terminal", label: "Terminal", icon: Terminal },
+  { id: "testing", label: "Testing", icon: TestTube },
+  { id: "security", label: "Security Audit", icon: ShieldCheck },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 

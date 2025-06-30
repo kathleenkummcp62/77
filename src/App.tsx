@@ -13,6 +13,8 @@ import { Database } from "./components/tabs/Database";
 import { DataStore } from "./components/tabs/DataStore";
 import { Terminal } from "./components/tabs/Terminal";
 import { Settings } from "./components/tabs/Settings";
+import { TestSuite } from "./components/testing/TestSuite";
+import { SecurityAudit } from "./components/testing/SecurityAudit";
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -43,6 +45,10 @@ function App() {
         return <Terminal />;
       case "settings":
         return <Settings />;
+      case "testing":
+        return <TestSuite />;
+      case "security":
+        return <SecurityAudit />;
       default:
         return <Dashboard />;
     }
