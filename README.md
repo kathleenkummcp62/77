@@ -77,6 +77,20 @@ Collect results from worker servers:
 npm run collect-results
 ```
 
+## Testing
+
+Run Python unit tests:
+
+```bash
+pytest
+```
+
+Run frontend tests with Vitest:
+
+```bash
+npm test
+```
+
 ## Project Structure
 
 - `/src` - Frontend React application
