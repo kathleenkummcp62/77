@@ -3,6 +3,8 @@ package aggregator
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -53,5 +55,42 @@ func TestGetServerInfoUnreadableFiles(t *testing.T) {
 	logStr := buf.String()
 	if !strings.Contains(logStr, "stats read error") || !strings.Contains(logStr, "stats_bad.json") {
 		t.Fatalf("expected read error log for bad file, got %q", logStr)
+	}
+}
+
+func TestGetServerInfoWalkErrorNilEntry(t *testing.T) {
+	dir := t.TempDir()
+	writeStatsFile(t, dir, "stats_ok.json", StatsFile{Goods: 5, Processed: 5})
+
+	var buf bytes.Buffer
+	oldOut := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(oldOut)
+
+	oldWalk := walkDir
+	walkDir = func(root string, fn fs.WalkDirFunc) error {
+		if err := oldWalk(root, fn); err != nil {
+			return err
+		}
+		return fn(filepath.Join(root, "stats_fail.json"), nil, fmt.Errorf("fail"))
+	}
+	defer func() { walkDir = oldWalk }()
+
+	aggr := New(dir)
+	infos, err := aggr.GetServerInfo()
+	if err != nil {
+		t.Fatalf("GetServerInfo: %v", err)
+	}
+	if len(infos) != 1 {
+		t.Fatalf("expected 1 info, got %d", len(infos))
+	}
+	info := infos[0]
+	if info.Goods != 5 || info.Processed != 5 {
+		t.Fatalf("unexpected aggregated values: %+v", info)
+	}
+
+	logStr := buf.String()
+	if !strings.Contains(logStr, "stats walk error") || !strings.Contains(logStr, "stats_fail.json") {
+		t.Fatalf("expected walk error log, got %q", logStr)
 	}
 }
