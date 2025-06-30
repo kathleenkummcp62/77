@@ -38,9 +38,6 @@ async function startBackend() {
     process.exit(1);
   });
   
-  // Increase delay to allow the server to fully initialize
-  await new Promise(resolve => setTimeout(resolve, 15000));
-  
   return mockServer;
 }
 
@@ -73,7 +70,7 @@ async function startUnifiedServer() {
       resources: [`http://localhost:${BACKEND_PORT}/api/health`],
       timeout: 90000, // Increased timeout to 90 seconds
       interval: 3000, // Increased interval to 3 seconds
-      delay: 2000, // Increased initial delay
+      delay: 10000, // Increased initial delay to 10 seconds
       verbose: true, // Enable verbose logging
       log: true // Enable logging
     });
