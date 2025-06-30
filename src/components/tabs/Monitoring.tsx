@@ -41,7 +41,7 @@ export function Monitoring() {
     {
       id: '1',
       type: 'warning',
-      message: 'High CPU usage on server 185.93.89.206 (78%)',
+      message: 'High CPU usage on server 192.0.2.12 (78%)',
       timestamp: '2 minutes ago',
       severity: 'medium'
     },
@@ -55,7 +55,7 @@ export function Monitoring() {
     {
       id: '3',
       type: 'info',
-      message: 'Memory usage optimized on server 77.90.185.26',
+      message: 'Memory usage optimized on server 192.0.2.11',
       timestamp: '10 minutes ago',
       severity: 'low'
     },

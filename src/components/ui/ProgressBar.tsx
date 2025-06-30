@@ -5,7 +5,7 @@ interface ProgressBarProps {
   value: number;
   max?: number;
   className?: string;
-  color?: 'primary' | 'success' | 'warning' | 'error';
+  color?: 'primary' | 'success' | 'warning' | 'error' | 'gray';
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
 }
@@ -24,8 +24,9 @@ export function ProgressBar({
     primary: 'bg-primary-600',
     success: 'bg-success-600',
     warning: 'bg-warning-600',
-    error: 'bg-error-600'
-  };
+    error: 'bg-error-600',
+    gray: 'bg-gray-400'
+  } as const;
   
   const sizes = {
     sm: 'h-1',

@@ -21,12 +21,12 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// ✅ РЕАЛЬНЫЕ ВОРКЕРЫ ДЛЯ КАЛИБРОВКИ
-const realServers = [
+// Placeholder worker servers used for UI demonstrations only
+const exampleServers = [
   {
-    ip: '194.0.234.203',
+    ip: 'server1.example.com',
     username: 'root',
-    password: '1jt5a7p4FZTM0vY',
+    password: 'placeholder',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -42,9 +42,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '77.90.185.26',
+    ip: 'server2.example.com',
     username: 'root',
-    password: '2dF9bS7UV6wvHy3',
+    password: 'placeholder',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -60,9 +60,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '185.93.89.206',
+    ip: 'server3.example.com',
     username: 'root',
-    password: 'G6t8NnHgI4i0x7K',
+    password: 'placeholder',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -78,9 +78,9 @@ const realServers = [
     lastSeen: new Date().toISOString()
   },
   {
-    ip: '185.93.89.35',
+    ip: 'server4.example.com',
     username: 'root',
-    password: '2asI5uvS047AqHM',
+    password: 'placeholder',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -99,7 +99,7 @@ const realServers = [
 
 export function Servers() {
   const [selectedServers, setSelectedServers] = useState<string[]>([]);
-  const [servers, setServers] = useState(realServers);
+  const [servers, setServers] = useState(exampleServers);
   const [loading, setLoading] = useState(false);
   const { isConnected, servers: wsServers } = useWebSocket('ws://localhost:8080/ws');
 
@@ -220,15 +220,15 @@ export function Servers() {
         </div>
       </div>
 
-      {/* Real Servers Info */}
+      {/* Example Servers Info */}
       <Card className="border-primary-200 bg-primary-50">
         <div className="flex items-center space-x-3">
           <CheckCircle className="h-5 w-5 text-primary-600" />
           <div>
-            <h4 className="font-medium text-primary-800">Real Production Servers</h4>
-            <p className="text-sm text-primary-600">
-              These are actual worker servers with real SSH credentials for calibration and testing.
-            </p>
+          <h4 className="font-medium text-primary-800">Example Servers</h4>
+          <p className="text-sm text-primary-600">
+            These demo servers use placeholder SSH credentials for UI previews only.
+          </p>
           </div>
         </div>
       </Card>

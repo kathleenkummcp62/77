@@ -6,7 +6,13 @@ import { Shield, Play, Pause, Settings, Activity, AlertTriangle, CheckCircle, Ey
 import { useWebSocket } from '../../hooks/useWebSocket';
 import toast from 'react-hot-toast';
 
-// ✅ РЕАЛЬНЫЕ VPN ТИПЫ С ВАЛИДНЫМИ CREDENTIALS ДЛЯ КАЛИБРОВКИ
+// Sample VPN types for demonstration only.
+// Never store real credentials in this file. Replace these placeholders with
+// your own values during testing.
+const sampleCredentials = [
+  '203.0.113.10;user1;pass1',
+  '203.0.113.11;user2;pass2'
+];
 const vpnTypes = [
   {
     id: 'fortinet',
@@ -28,17 +34,7 @@ const vpnTypes = [
       'dashboard',
       'welcome.html'
     ],
-    realCredentials: [
-      'https://200.113.15.26:4443;guest;guest',
-      'https://195.150.192.5:443;guest;guest',
-      'https://88.117.174.186:443;guest;guest',
-      'https://118.238.205.22:10443;guest;guest',
-      'https://49.205.180.172:10443;guest;guest',
-      'https://37.142.24.153:10443;guest;guest',
-      'https://206.74.89.110:10443;guest;guest',
-      'https://222.119.99.24:10443;guest;guest',
-      'https://220.241.67.242:3443;guest;guest'
-    ]
+    realCredentials: sampleCredentials
   },
   {
     id: 'globalprotect',
@@ -58,11 +54,7 @@ const vpnTypes = [
       'clientDownload',
       'portal-userauthcookie'
     ],
-    realCredentials: [
-      'https://216.229.124.44:443;test;test',
-      'https://72.26.131.86:443;test;test',
-      'https://216.247.223.23:443;test;test'
-    ]
+    realCredentials: sampleCredentials
   },
   {
     id: 'sonicwall',
@@ -82,17 +74,7 @@ const vpnTypes = [
       'portal.html',
       'welcome'
     ],
-    realCredentials: [
-      'https://69.21.239.19:4433;test;test;LocalDomain',
-      'https://68.189.7.50:4433;test;test;hudmech.local',
-      'https://74.92.44.25:4433;test;test;microgroup.local',
-      'https://96.70.252.65:4433;test;test;fm.local',
-      'https://24.55.137.209:443;test;test;CMAAA15',
-      'https://50.198.63.225:4433;test;test;MADISON',
-      'https://96.89.127.141:4433;test;test;maloneysocular',
-      'https://12.215.186.74:443;guest;guest;parksprings.com',
-      'https://131.148.177.186:4433;guest;guest;dhte.dhtellc.com'
-    ]
+    realCredentials: sampleCredentials
   },
   {
     id: 'sophos',
@@ -112,14 +94,7 @@ const vpnTypes = [
       'welcome',
       'logout'
     ],
-    realCredentials: [
-      'https://213.139.132.204:6443;test;test;intern.gutenberg-shop.de',
-      'https://124.254.117.194:8443;test;test;fcc.wa.edu.au',
-      'https://80.151.100.43:4433;test;test;bilstein.local',
-      'https://213.139.132.205:6443;test;test;intern.gutenberg-shop.de',
-      'https://167.98.99.132:443;test;test;unknown_domain',
-      'https://212.100.41.190:4445;test;test;verwaltung.local'
-    ]
+    realCredentials: sampleCredentials
   },
   {
     id: 'watchguard',
@@ -139,18 +114,7 @@ const vpnTypes = [
       'AuthPoint',
       'welcome'
     ],
-    realCredentials: [
-      'https://96.92.230.186:443:Firebox-DB:mpbchicago.masterpaperbox.com:printer:P@55w0rd',
-      'https://75.146.37.105:444:Firebox-DB:comercial:P@ssw0rd123',
-      'https://50.86.120.107:443:Firebox-DB:comercial:P@ssw0rd123',
-      'https://35.131.180.112:443:Firebox-DB:engineer:eng1neer1',
-      'https://98.100.209.218:443:Firebox-DB:chris:Welcome1!',
-      'https://96.56.65.26:4100:AuthPoint:Firebox-DB:hudsonss.com:media:Password@1',
-      'https://35.21.135.132:443:Firebox-DB:intranet:Password@1',
-      'https://98.63.175.96:8595:Firebox-DB:download:Download#',
-      'https://72.23.172.37:443:Firebox-DB:luis:pa$$w0rd',
-      'https://12.2.120.90:4100:AuthPoint:Firebox-DB:RADIUS:banneroak.local:default:password@1'
-    ]
+    realCredentials: sampleCredentials
   },
   {
     id: 'cisco',
@@ -170,16 +134,7 @@ const vpnTypes = [
       'ANYCONNECT',
       'remote_access'
     ],
-    realCredentials: [
-      'https://74.209.225.52:443:test:test:remote_access',
-      'https://67.202.240.148:443:test:test:ANYCONNECT',
-      'https://72.23.123.187:443:test:test:AnyConnect_HVAC',
-      'https://72.32.124.5:443:test:test:POLITICALDATA-ANYCONNECT-SSL',
-      'https://209.43.59.2:443:test:test:remote_access',
-      'https://204.235.221.57:8443:test:test',
-      'https://184.106.123.244:443:test:test:ANYCONNECT-GAVIOTA-SA',
-      'https://72.73.71.60:443:guest:guest'
-    ]
+    realCredentials: sampleCredentials
   }
 ];
 
@@ -225,7 +180,7 @@ export function VPNTypes() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">VPN Types & Calibration</h1>
-          <p className="text-gray-600 mt-1">Real VPN credentials for testing and calibration</p>
+          <p className="text-gray-600 mt-1">Placeholder VPN credentials for UI testing</p>
         </div>
         <div className="flex items-center space-x-3">
           <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-success-500 animate-pulse' : 'bg-error-500'}`}></div>
@@ -254,16 +209,16 @@ export function VPNTypes() {
         </Card>
       )}
 
-      {/* Real Credentials Info */}
+      {/* Example Credentials Info */}
       <Card className="border-success-200 bg-success-50">
         <div className="flex items-center space-x-3">
           <CheckCircle className="h-5 w-5 text-success-600" />
           <div>
-            <h4 className="font-medium text-success-800">Real Production Credentials</h4>
-            <p className="text-sm text-success-600">
-              These are actual working VPN credentials for calibration and testing. 
-              Total: {vpnTypes.reduce((sum, vpn) => sum + vpn.realCredentials.length, 0)} valid credentials across {vpnTypes.length} VPN types.
-            </p>
+          <h4 className="font-medium text-success-800">Example Credentials</h4>
+          <p className="text-sm text-success-600">
+            These credentials are placeholders provided for demonstration only.
+            Total: {vpnTypes.reduce((sum, vpn) => sum + vpn.realCredentials.length, 0)} sample credentials across {vpnTypes.length} VPN types.
+          </p>
           </div>
         </div>
       </Card>
@@ -289,11 +244,11 @@ export function VPNTypes() {
               </Badge>
             </div>
 
-            {/* Real Credentials Count */}
+            {/* Example Credentials Count */}
             <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-primary-800">
-                  Real Credentials Available
+                  Example Credentials Available
                 </span>
                 <Badge variant="primary">{vpn.realCredentials.length}</Badge>
               </div>
@@ -343,7 +298,7 @@ export function VPNTypes() {
                 
                 <div className="p-3 bg-green-50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-green-800">Real Test Credentials:</h4>
+                    <h4 className="font-medium text-green-800">Example Test Credentials:</h4>
                     <Button 
                       size="sm" 
                       variant="ghost"
@@ -466,7 +421,7 @@ export function VPNTypes() {
               <li>• Presence of logout buttons</li>
               <li>• VPN client download links</li>
               <li>• Welcome/portal pages</li>
-              <li>• ✅ Real credentials will show GOOD</li>
+              <li>• ✅ Example credentials will show GOOD</li>
             </ul>
           </div>
 

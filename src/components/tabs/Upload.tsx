@@ -32,10 +32,10 @@ export function Upload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const servers = [
-    { ip: '194.0.234.203', status: 'online', space: '2.1 GB' },
-    { ip: '77.90.185.26', status: 'online', space: '1.8 GB' },
-    { ip: '185.93.89.206', status: 'online', space: '3.2 GB' },
-    { ip: '185.93.89.35', status: 'online', space: '2.7 GB' }
+    { ip: '192.0.2.10', status: 'online', space: '2.1 GB' },
+    { ip: '192.0.2.11', status: 'online', space: '1.8 GB' },
+    { ip: '192.0.2.12', status: 'online', space: '3.2 GB' },
+    { ip: '192.0.2.13', status: 'online', space: '2.7 GB' }
   ];
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {

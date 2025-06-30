@@ -63,7 +63,17 @@ export function Settings() {
     sshTimeout: 30,
     maxConnections: 10,
     keepAlive: true,
-    compression: true
+    compression: true,
+    sshPort: 22,
+    sshUser: 'root',
+    sshKeyPath: '',
+    autoReconnect: true,
+
+    // Advanced Settings
+    debugLogging: false,
+    logLevel: 'info',
+    customConfigPath: '',
+    experimentalFeatures: false
   });
 
   const sections: ConfigSection[] = [
@@ -466,14 +476,216 @@ export function Settings() {
     </div>
   );
 
+  const renderServerSettings = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            SSH Timeout (s)
+          </label>
+          <input
+            type="number"
+            value={config.sshTimeout}
+            onChange={(e) => handleConfigChange('sshTimeout', parseInt(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            min="1"
+            max="120"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            SSH Port
+          </label>
+          <input
+            type="number"
+            value={config.sshPort}
+            onChange={(e) => handleConfigChange('sshPort', parseInt(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            min="1"
+            max="65535"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Max Connections
+          </label>
+          <input
+            type="number"
+            value={config.maxConnections}
+            onChange={(e) => handleConfigChange('maxConnections', parseInt(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            min="1"
+          max="100"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Default User
+          </label>
+          <input
+            type="text"
+            value={config.sshUser}
+            onChange={(e) => handleConfigChange('sshUser', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="root"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Private Key Path
+          </label>
+          <input
+            type="text"
+            value={config.sshKeyPath}
+            onChange={(e) => handleConfigChange('sshKeyPath', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="/path/to/id_rsa"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Keep Alive</h4>
+            <p className="text-sm text-gray-600">Maintain persistent SSH connections</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.keepAlive}
+              onChange={(e) => handleConfigChange('keepAlive', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Auto Reconnect</h4>
+            <p className="text-sm text-gray-600">Reconnect dropped SSH sessions automatically</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.autoReconnect}
+              onChange={(e) => handleConfigChange('autoReconnect', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Compression</h4>
+            <p className="text-sm text-gray-600">Use compression for SSH transfers</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.compression}
+              onChange={(e) => handleConfigChange('compression', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+      </div>
+      <p className="text-sm text-gray-500 ml-0.5">More server management options will be available soon.</p>
+    </div>
+  );
+
+  const renderAdvancedSettings = () => (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Debug Logging</h4>
+            <p className="text-sm text-gray-600">Log verbose output for troubleshooting</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.debugLogging}
+              onChange={(e) => handleConfigChange('debugLogging', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Experimental Features</h4>
+            <p className="text-sm text-gray-600">Enable beta functionality</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.experimentalFeatures}
+              onChange={(e) => handleConfigChange('experimentalFeatures', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Log Level
+          </label>
+          <select
+            value={config.logLevel}
+            onChange={(e) => handleConfigChange('logLevel', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            <option value="info">Info</option>
+            <option value="debug">Debug</option>
+            <option value="trace">Trace</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Custom Config Path
+          </label>
+          <input
+            type="text"
+            value={config.customConfigPath}
+            onChange={(e) => handleConfigChange('customConfigPath', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="/etc/vpn-extra.conf"
+          />
+        </div>
+      </div>
+      <p className="text-sm text-gray-500 ml-0.5">Additional advanced options are under development.</p>
+    </div>
+  );
+
+  const renderContentMap: Record<string, () => JSX.Element> = {
+    performance: renderPerformanceSettings,
+    security: renderSecuritySettings,
+    notifications: renderNotificationSettings,
+    display: renderDisplaySettings,
+    servers: renderServerSettings,
+    advanced: renderAdvancedSettings,
+  };
+
   const renderContent = () => {
-    switch (activeSection) {
-      case 'performance': return renderPerformanceSettings();
-      case 'security': return renderSecuritySettings();
-      case 'notifications': return renderNotificationSettings();
-      case 'display': return renderDisplaySettings();
-      default: return <div className="text-center text-gray-500 py-8">Settings section coming soon...</div>;
-    }
+    const renderFn = renderContentMap[activeSection];
+    return renderFn
+      ? renderFn()
+      : (
+          <div className="text-center text-gray-500 py-8">
+            Settings section coming soon...
+          </div>
+        );
   };
 
   return (

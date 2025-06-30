@@ -2,12 +2,16 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"vpn-bruteforce-client/internal/aggregator"
+	"vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
 )
 
@@ -16,9 +20,20 @@ type Server struct {
 	clientsMux sync.RWMutex
 	upgrader   websocket.Upgrader
 	stats      *stats.Stats
+	db         *db.DB
 	broadcast  chan []byte
 	register   chan *websocket.Conn
 	unregister chan *websocket.Conn
+}
+
+// logEvent inserts an entry into the logs table when a database connection is available.
+func (s *Server) logEvent(level, msg, src string) {
+	if s == nil || s.db == nil {
+		return
+	}
+	if err := s.db.InsertLog(level, msg, src); err != nil {
+		log.Printf("log event error: %v", err)
+	}
 }
 
 type Message struct {
@@ -58,7 +73,7 @@ type ServerInfo struct {
 	Task      string `json:"current_task"`
 }
 
-func NewServer(stats *stats.Stats) *Server {
+func NewServer(stats *stats.Stats, database *db.DB) *Server {
 	return &Server{
 		clients: make(map[*websocket.Conn]bool),
 		upgrader: websocket.Upgrader{
@@ -69,6 +84,7 @@ func NewServer(stats *stats.Stats) *Server {
 			WriteBufferSize: 1024,
 		},
 		stats:      stats,
+		db:         database,
 		broadcast:  make(chan []byte, 256),
 		register:   make(chan *websocket.Conn),
 		unregister: make(chan *websocket.Conn),
@@ -88,6 +104,7 @@ func (s *Server) handleConnections() {
 			s.clients[client] = true
 			s.clientsMux.Unlock()
 			log.Printf("WebSocket client connected. Total: %d", len(s.clients))
+			s.logEvent("info", "websocket client connected", "websocket")
 
 			// Send initial data to new client
 			s.sendInitialData(client)
@@ -100,6 +117,7 @@ func (s *Server) handleConnections() {
 			}
 			s.clientsMux.Unlock()
 			log.Printf("WebSocket client disconnected. Total: %d", len(s.clients))
+			s.logEvent("info", "websocket client disconnected", "websocket")
 
 		case message := <-s.broadcast:
 			s.clientsMux.Lock()
@@ -180,8 +198,12 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 		Timestamp: time.Now().Unix(),
 	}
 
-	data, _ := json.Marshal(message)
-	client.WriteMessage(websocket.TextMessage, data)
+	data, err := json.Marshal(message)
+	if err != nil {
+		log.Printf("Error marshaling initial stats: %v", err)
+	} else if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
+		log.Printf("Error sending initial stats: %v", err)
+	}
 
 	// Send server info
 	servers := s.getServerInfo()
@@ -191,80 +213,41 @@ func (s *Server) sendInitialData(client *websocket.Conn) {
 		Timestamp: time.Now().Unix(),
 	}
 
-	serverData, _ := json.Marshal(serverMessage)
-	client.WriteMessage(websocket.TextMessage, serverData)
+	serverData, err := json.Marshal(serverMessage)
+	if err != nil {
+		log.Printf("Error marshaling server info: %v", err)
+		return
+	}
+	if err := client.WriteMessage(websocket.TextMessage, serverData); err != nil {
+		log.Printf("Error sending server info: %v", err)
+	}
 }
 
 func (s *Server) getServerInfo() []ServerInfo {
-	// Mock server data - in real implementation, this would come from aggregator
-	return []ServerInfo{
-		{
-			IP:        "194.0.234.203",
-			Status:    "online",
-			Uptime:    "12h 34m",
-			CPU:       45,
-			Memory:    67,
-			Disk:      23,
-			Speed:     "2.1k/s",
-			Processed: 15420,
-			Goods:     1927,
-			Bads:      12893,
-			Errors:    600,
-			Progress:  78,
-			Task:      "Processing Fortinet VPN",
-		},
-		{
-			IP:        "77.90.185.26",
-			Status:    "online",
-			Uptime:    "11h 45m",
-			CPU:       62,
-			Memory:    54,
-			Disk:      31,
-			Speed:     "2.4k/s",
-			Processed: 18950,
-			Goods:     2156,
-			Bads:      15794,
-			Errors:    1000,
-			Progress:  65,
-			Task:      "Processing GlobalProtect",
-		},
-		{
-			IP:        "185.93.89.206",
-			Status:    "online",
-			Uptime:    "13h 12m",
-			CPU:       38,
-			Memory:    71,
-			Disk:      19,
-			Speed:     "1.9k/s",
-			Processed: 12340,
-			Goods:     1876,
-			Bads:      9864,
-			Errors:    600,
-			Progress:  82,
-			Task:      "Processing SonicWall",
-		},
-		{
-			IP:        "185.93.89.35",
-			Status:    "online",
-			Uptime:    "10h 28m",
-			CPU:       71,
-			Memory:    48,
-			Disk:      41,
-			Speed:     "2.7k/s",
-			Processed: 21780,
-			Goods:     1482,
-			Bads:      19298,
-			Errors:    1000,
-			Progress:  91,
-			Task:      "Processing Cisco VPN",
-		},
+	dir := os.Getenv("STATS_DIR")
+	if dir == "" {
+		dir = "."
 	}
+	aggr := aggregator.New(dir)
+	infos, err := aggr.GetServerInfo()
+	if err != nil {
+		log.Printf("aggregator error: %v", err)
+		s.logEvent("error", fmt.Sprintf("aggregator error: %v", err), "websocket")
+		return nil
+	}
+
+	result := make([]ServerInfo, len(infos))
+	for i, inf := range infos {
+		result[i] = ServerInfo(inf)
+	}
+	return result
 }
 
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
+		s.logEvent("error", fmt.Sprintf("websocket upgrade error: %v", err), "websocket")
 		return
 	}
 
@@ -295,6 +278,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 	switch msg.Type {
 	case "start_scanner":
+ 6um7ak-codex/исправить-ошибки-в-исходниках
 		// msg.Data may come as a simple string or an object
 		scanner := ""
 		switch v := msg.Data.(type) {
@@ -309,12 +293,27 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 		response := Message{
 			Type:      "scanner_started",
 			Data:      map[string]string{"status": "success", "scanner": scanner},
+      
+		// Handle start scanner command
+		vpnType := ""
+		if m, ok := msg.Data.(map[string]interface{}); ok {
+			if v, ok := m["vpn_type"].(string); ok {
+				vpnType = v
+			}
+		} else if v, ok := msg.Data.(string); ok {
+			vpnType = v
+		}
+		response := Message{
+			Type:      "scanner_started",
+			Data:      map[string]string{"status": "success", "scanner": vpnType},
+ main
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
 		conn.WriteMessage(websocket.TextMessage, data)
 
 	case "stop_scanner":
+ 6um7ak-codex/исправить-ошибки-в-исходниках
 		scanner := ""
 		switch v := msg.Data.(type) {
 		case string:
@@ -328,19 +327,42 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 		response := Message{
 			Type:      "scanner_stopped",
 			Data:      map[string]string{"status": "success", "scanner": scanner},
+
+		// Handle stop scanner command
+		vpnType := ""
+		if m, ok := msg.Data.(map[string]interface{}); ok {
+			if v, ok := m["vpn_type"].(string); ok {
+				vpnType = v
+			}
+		} else if v, ok := msg.Data.(string); ok {
+			vpnType = v
+		}
+		response := Message{
+			Type:      "scanner_stopped",
+			Data:      map[string]string{"status": "success", "scanner": vpnType},
+ main
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
 		conn.WriteMessage(websocket.TextMessage, data)
 
 	case "get_logs":
-		// Handle log request
-		logs := []string{
-			"[INFO] Scanner started successfully",
-			"[SUCCESS] Found valid credential: 192.168.1.1;admin;password",
-			"[ERROR] Connection timeout for 192.168.1.2",
-			"[INFO] Processing rate: 2500 req/s",
+		limit := 100
+		if m, ok := msg.Data.(map[string]interface{}); ok {
+			if v, ok := m["limit"].(float64); ok {
+				limit = int(v)
+			}
 		}
+
+		logs, err := s.getLogs(limit)
+		if err != nil {
+			resp := Message{Type: "error", Data: map[string]string{"message": err.Error()}, Timestamp: time.Now().Unix()}
+			if data, err := json.Marshal(resp); err == nil {
+				conn.WriteMessage(websocket.TextMessage, data)
+			}
+			return
+		}
+
 		response := Message{
 			Type:      "logs_data",
 			Data:      logs,
@@ -351,6 +373,7 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
+		s.logEvent("warn", fmt.Sprintf("unknown message: %s", msg.Type), "websocket")
 	}
 }
 
@@ -372,4 +395,38 @@ func (s *Server) BroadcastMessage(msgType string, data interface{}) {
 	default:
 		// Channel full, skip this message
 	}
+}
+
+// getLogs retrieves recent log entries either from the database or from the
+// default log file when the database is unavailable.
+func (s *Server) getLogs(limit int) ([]map[string]interface{}, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
+	if s.db == nil {
+		return nil, fmt.Errorf("database unavailable")
+	}
+
+	rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY timestamp DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []map[string]interface{}
+	for rows.Next() {
+		var ts time.Time
+		var level, msg, src string
+		if err := rows.Scan(&ts, &level, &msg, &src); err != nil {
+			continue
+		}
+		logs = append(logs, map[string]interface{}{
+			"timestamp": ts.Format(time.RFC3339),
+			"level":     level,
+			"message":   msg,
+			"source":    src,
+		})
+	}
+	return logs, nil
 }

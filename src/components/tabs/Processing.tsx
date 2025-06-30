@@ -18,6 +18,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import TaskManager from './TaskManager';
 
 interface ProcessingTask {
   id: string;
@@ -42,7 +43,7 @@ export function Processing() {
     {
       id: '1',
       vpnType: 'Fortinet',
-      server: '194.0.234.203',
+      server: 'server1.example.com',
       status: 'running',
       progress: 78,
       startTime: '2h 15m ago',
@@ -56,7 +57,7 @@ export function Processing() {
     {
       id: '2',
       vpnType: 'GlobalProtect',
-      server: '77.90.185.26',
+      server: 'server2.example.com',
       status: 'running',
       progress: 65,
       startTime: '1h 45m ago',
@@ -70,7 +71,7 @@ export function Processing() {
     {
       id: '3',
       vpnType: 'SonicWall',
-      server: '185.93.89.206',
+      server: 'server3.example.com',
       status: 'paused',
       progress: 42,
       startTime: '3h 12m ago',
@@ -84,7 +85,7 @@ export function Processing() {
     {
       id: '4',
       vpnType: 'Cisco',
-      server: '185.93.89.35',
+      server: 'server4.example.com',
       status: 'completed',
       progress: 100,
       startTime: '4h 28m ago',
@@ -397,6 +398,7 @@ export function Processing() {
           })}
         </div>
       </Card>
+      <TaskManager />
     </div>
   );
 }

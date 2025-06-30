@@ -15,19 +15,19 @@ type Stats struct {
 	Offline   int64 `json:"offline"`
 	IPBlock   int64 `json:"ipblock"`
 	Processed int64 `json:"processed"`
-	
+
 	startTime time.Time
 	stopChan  chan struct{}
-	
+
 	// Performance metrics
-	RPS       int64 `json:"rps"`
-	AvgRPS    int64 `json:"avg_rps"`
-	PeakRPS   int64 `json:"peak_rps"`
-	
+	RPS     int64 `json:"rps"`
+	AvgRPS  int64 `json:"avg_rps"`
+	PeakRPS int64 `json:"peak_rps"`
+
 	// Advanced metrics
-	Threads   int64 `json:"threads"`
-	Memory    int64 `json:"memory_mb"`
-	CPUUsage  int64 `json:"cpu_usage"`
+	Threads  int64 `json:"threads"`
+	Memory   int64 `json:"memory_mb"`
+	CPUUsage int64 `json:"cpu_usage"`
 }
 
 func New() *Stats {
@@ -52,15 +52,15 @@ func (s *Stats) Start() {
 			currentProcessed := atomic.LoadInt64(&s.Processed)
 			currentRPS := currentProcessed - lastProcessed
 			lastProcessed = currentProcessed
-			
+
 			atomic.StoreInt64(&s.RPS, currentRPS)
-			
+
 			// Update RPS history
 			rpsHistory = append(rpsHistory, currentRPS)
 			if len(rpsHistory) > maxHistory {
 				rpsHistory = rpsHistory[1:]
 			}
-			
+
 			// Calculate average RPS
 			var totalRPS int64
 			for _, rps := range rpsHistory {
@@ -72,7 +72,7 @@ func (s *Stats) Start() {
 			if len(rpsHistory) > 0 {
 				atomic.StoreInt64(&s.AvgRPS, totalRPS/int64(len(rpsHistory)))
 			}
-			
+
 			s.display()
 			s.saveToFile()
 		case <-s.stopChan:
@@ -132,9 +132,9 @@ func (s *Stats) display() {
 	if processed > 0 {
 		successRate = float64(goods) / float64(processed) * 100
 	}
-	
+
 	fmt.Printf("\r🔥 G:%d B:%d E:%d Off:%d Blk:%d | ⚡%d/s (avg:%d peak:%d) | 📊%.1f%% | 🧵%d | ⏱️%v",
-		goods, bads, errors, offline, ipblock, 
+		goods, bads, errors, offline, ipblock,
 		currentRPS, avgRPS, peakRPS, successRate, threads,
 		elapsed.Truncate(time.Second))
 }
