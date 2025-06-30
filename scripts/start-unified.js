@@ -152,8 +152,9 @@ async function startUnifiedServer() {
   }));
   
   // Start the proxy server
-  const server = app.listen(UNIFIED_PORT, () => {
+  const server = app.listen(UNIFIED_PORT, '0.0.0.0', () => {
     console.log(`\n🚀 VPN Bruteforce Dashboard is running at http://localhost:${UNIFIED_PORT}`);
+    console.log(`🌐 External access: http://${getServerIP()}:${UNIFIED_PORT}`);
     console.log('ℹ️  Running with mock backend (Go not available in WebContainer)');
     console.log('Press Ctrl+C to stop');
   });
@@ -174,6 +175,23 @@ async function startUnifiedServer() {
     frontendProcess.kill();
     process.exit(0);
   });
+}
+
+// Helper function to get server IP
+function getServerIP() {
+  const { networkInterfaces } = require('os');
+  const nets = networkInterfaces();
+  
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // Skip internal and non-IPv4 addresses
+      if (!net.internal && net.family === 'IPv4') {
+        return net.address;
+      }
+    }
+  }
+  
+  return 'localhost';
 }
 
 // Main function
