@@ -13,6 +13,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 export VITE_WS_PORT=${VITE_WS_PORT:-8080}
+# Set HOST to bind to all interfaces for webcontainer compatibility
+export HOST=${HOST:-0.0.0.0}
 
 function usage() {
     echo "Usage: $0 [--serve]"
@@ -37,17 +39,29 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Check if setup has been run
+if [[ ! -f go.mod ]] || [[ ! -d node_modules ]]; then
+    echo "⚠️  Initial setup may not have been completed."
+    echo "Please run: go run cmd/dashboard/main.go --setup"
+    echo "This will download dependencies and initialize the database."
+    echo ""
+fi
+
 if [[ ! -d dist ]]; then
     echo "Building frontend..."
     npm run build
 fi
 
+echo "Starting Go API server on $HOST:8080..."
 # Start the Go API server (will start embedded DB if needed)
 GO_CMD="go run cmd/dashboard/main.go"
 $GO_CMD &
 API_PID=$!
 
 echo "API server started with PID $API_PID"
+
+# Give the server a moment to start
+sleep 2
 
 if [[ $MODE == "dev" ]]; then
     echo "Starting Vite dev server..."
