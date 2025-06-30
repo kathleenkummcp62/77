@@ -278,22 +278,6 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 	switch msg.Type {
 	case "start_scanner":
- 6um7ak-codex/исправить-ошибки-в-исходниках
-		// msg.Data may come as a simple string or an object
-		scanner := ""
-		switch v := msg.Data.(type) {
-		case string:
-			scanner = v
-		case map[string]interface{}:
-			if val, ok := v["scanner"].(string); ok {
-				scanner = val
-			}
-		}
-
-		response := Message{
-			Type:      "scanner_started",
-			Data:      map[string]string{"status": "success", "scanner": scanner},
-      
 		// Handle start scanner command
 		vpnType := ""
 		if m, ok := msg.Data.(map[string]interface{}); ok {
@@ -306,28 +290,12 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 		response := Message{
 			Type:      "scanner_started",
 			Data:      map[string]string{"status": "success", "scanner": vpnType},
- main
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)
 		conn.WriteMessage(websocket.TextMessage, data)
 
 	case "stop_scanner":
- 6um7ak-codex/исправить-ошибки-в-исходниках
-		scanner := ""
-		switch v := msg.Data.(type) {
-		case string:
-			scanner = v
-		case map[string]interface{}:
-			if val, ok := v["scanner"].(string); ok {
-				scanner = val
-			}
-		}
-
-		response := Message{
-			Type:      "scanner_stopped",
-			Data:      map[string]string{"status": "success", "scanner": scanner},
-
 		// Handle stop scanner command
 		vpnType := ""
 		if m, ok := msg.Data.(map[string]interface{}); ok {
@@ -340,7 +308,6 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 		response := Message{
 			Type:      "scanner_stopped",
 			Data:      map[string]string{"status": "success", "scanner": vpnType},
- main
 			Timestamp: time.Now().Unix(),
 		}
 		data, _ := json.Marshal(response)

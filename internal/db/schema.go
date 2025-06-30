@@ -17,6 +17,13 @@ func initSchema(d *DB) error {
                         id SERIAL PRIMARY KEY,
                         url TEXT NOT NULL
                 )`,
+		`CREATE TABLE IF NOT EXISTS workers (
+                        id SERIAL PRIMARY KEY,
+                        ip TEXT NOT NULL,
+                        port INT NOT NULL,
+                        username TEXT NOT NULL,
+                        password TEXT NOT NULL
+                )`,
 		`CREATE TABLE IF NOT EXISTS credentials (
                         id SERIAL PRIMARY KEY,
                         ip TEXT NOT NULL,

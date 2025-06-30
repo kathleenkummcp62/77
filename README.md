@@ -265,6 +265,12 @@ credentials:
 - **DELETE** `/api/credentials/{id}` – remove a credential entry
 - **POST** `/api/credentials/bulk_delete` – delete multiple credential entries
 
+### **/api/workers**
+
+- **GET** `/api/workers` – list worker servers
+- **POST** `/api/workers` – create a worker record
+- **DELETE** `/api/workers/{id}` – remove a worker record
+
 ### **/api/tasks Request & Response Format**
 
 The task endpoints accept and return JSON. Each task object contains the
