@@ -1,6 +1,5 @@
 # VPN Bruteforce Dashboard
 
- codex/modify-websocket-port-to-use-environment-variable
 This project provides a small dashboard UI for controlling the Go based VPN bruteforce scanner.
 
 ## Environment variables
@@ -43,4 +42,3 @@ npm run dev -- --host
 ```
 
 The frontend will be available on the address set in `HOST` using the default port from Vite (usually `5173`).
- main
