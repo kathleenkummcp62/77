@@ -42,6 +42,8 @@ nvm use 20
 
 ## 🚀 **Quick Start**
 
+> **Note**: Node.js 20.x is required to build and lint the dashboard.
+
 ### Build the dashboard
 Run the command below to compile the frontend assets into the `dist/` directory:
 
