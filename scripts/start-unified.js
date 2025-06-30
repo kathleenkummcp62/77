@@ -81,7 +81,7 @@ async function startUnifiedServer() {
   // Wait for the backend to be ready with increased timeout and better error handling
   try {
     await waitOn({
-      resources: [`http://localhost:${BACKEND_PORT}/api/health`],
+      resources: [`http://127.0.0.1:${BACKEND_PORT}/api/health`],
       timeout: 60000, // Increased to 60 seconds
       interval: 2000, // Check every 2 seconds instead of 1
       window: 2000, // Wait 2 seconds after success before continuing
@@ -99,7 +99,7 @@ async function startUnifiedServer() {
     
     // Try to check if the server is actually running on a different endpoint
     try {
-      const response = await fetch(`http://localhost:${BACKEND_PORT}/api/`);
+      const response = await fetch(`http://127.0.0.1:${BACKEND_PORT}/api/`);
       if (response.ok) {
         console.log('ℹ️  Backend server is running but health endpoint may not be available');
         console.log('✅ Continuing with startup...');
@@ -119,7 +119,7 @@ async function startUnifiedServer() {
   // Wait for the frontend to be ready
   try {
     await waitOn({
-      resources: [`http://localhost:${FRONTEND_PORT}`],
+      resources: [`http://127.0.0.1:${FRONTEND_PORT}`],
       timeout: 60000, // 60 seconds
       interval: 2000, // Check every 2 seconds
       window: 2000
@@ -138,7 +138,7 @@ async function startUnifiedServer() {
   
   // Proxy API requests to the backend
   app.use('/api', createProxyMiddleware({
-    target: `http://localhost:${BACKEND_PORT}`,
+    target: `http://127.0.0.1:${BACKEND_PORT}`,
     changeOrigin: true,
     pathRewrite: {
       '^/api': '/api'
@@ -151,7 +151,7 @@ async function startUnifiedServer() {
   
   // Proxy WebSocket requests to the backend
   app.use('/ws', createProxyMiddleware({
-    target: `http://localhost:${BACKEND_PORT}`,
+    target: `http://127.0.0.1:${BACKEND_PORT}`,
     ws: true,
     changeOrigin: true,
     onError: (err, req, res) => {
@@ -161,7 +161,7 @@ async function startUnifiedServer() {
   
   // Proxy all other requests to the frontend
   app.use('/', createProxyMiddleware({
-    target: `http://localhost:${FRONTEND_PORT}`,
+    target: `http://127.0.0.1:${FRONTEND_PORT}`,
     changeOrigin: true,
     ws: true,
     onError: (err, req, res) => {
