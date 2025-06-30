@@ -42,6 +42,12 @@ nvm install 20
 nvm use 20
 ```
 
+Install dependencies before running other npm scripts:
+
+```bash
+npm install
+```
+
 ### Build the dashboard
 Run the command below to compile the frontend assets into the `dist/` directory:
 
