@@ -82,7 +82,7 @@ const realServers = [
 ];
 
 export function Dashboard() {
-  const { isConnected, stats, servers, error } = useWebSocket('ws://localhost:8080/ws');
+  const { isConnected, stats, servers, error } = useWebSocket();
 
   // Используем реальные серверы, если WebSocket не подключен
   const displayServers = servers && servers.length > 0 ? servers : realServers;
