@@ -191,6 +191,30 @@ app.post('/api/config', (req, res) => {
   });
 });
 
+// PUT and DELETE endpoints for each resource
+['credentials', 'proxies', 'tasks', 'vendor_urls'].forEach(resource => {
+  app.put(`/api/${resource}/:id`, (req, res) => {
+    res.json({
+      success: true,
+      data: { id: parseInt(req.params.id), ...req.body }
+    });
+  });
+  
+  app.delete(`/api/${resource}/:id`, (req, res) => {
+    res.json({
+      success: true,
+      data: { id: parseInt(req.params.id) }
+    });
+  });
+  
+  app.post(`/api/${resource}/bulk_delete`, (req, res) => {
+    res.json({
+      success: true,
+      data: { count: req.body.ids?.length || 0 }
+    });
+  });
+});
+
 // Create HTTP server
 const server = createServer(app);
 
