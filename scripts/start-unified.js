@@ -8,7 +8,7 @@
 import { spawn } from 'cross-spawn';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs-extra';
 import waitOn from 'wait-on';
 import { createServer } from 'http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -26,7 +26,6 @@ const UNIFIED_PORT = 3000;
 async function startBackend() {
   console.log('🚀 Starting mock backend server...');
   console.log('ℹ️  Using mock API server (Go not available in WebContainer)');
-  console.log('⏳ Waiting for backend server to initialize...');
   
   const mockServer = spawn('node', ['scripts/mock-api-server.js'], {
     stdio: 'inherit',
@@ -37,6 +36,9 @@ async function startBackend() {
     console.error('❌ Failed to start mock server:', err);
     process.exit(1);
   });
+  
+  // Give the server some time to initialize
+  await new Promise(resolve => setTimeout(resolve, 3000));
   
   return mockServer;
 }
@@ -58,40 +60,47 @@ function startFrontend() {
   return frontend;
 }
 
+// Simple function to check if a server is responding
+async function isServerResponding(url) {
+  try {
+    const response = await fetch(url);
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
 // Start the unified server
 async function startUnifiedServer() {
   // Start the backend
   const backendProcess = await startBackend();
   
-  // Wait for the backend to be ready with increased timeout
-  try {
-    console.log('⏳ Checking backend health...');
-    await waitOn({
-      resources: [`http://localhost:${BACKEND_PORT}/api/health`],
-      timeout: 90000, // Increased timeout to 90 seconds
-      interval: 3000, // Increased interval to 3 seconds
-      delay: 10000, // Increased initial delay to 10 seconds
-      verbose: true, // Enable verbose logging
-      log: true // Enable logging
-    });
-    console.log('✅ Backend server is ready');
-  } catch (error) {
-    console.error('❌ Backend server failed to start within timeout period');
-    console.error('ℹ️  This might be due to slow initialization. Trying to continue...');
-    
-    // Try a simple HTTP request to check if the server is actually running
+  // Check if the backend is responding without using wait-on
+  let backendReady = false;
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  console.log('⏳ Checking backend health...');
+  
+  while (!backendReady && attempts < maxAttempts) {
+    attempts++;
     try {
-      const response = await fetch(`http://localhost:${BACKEND_PORT}/api/health`);
-      if (response.ok) {
-        console.log('✅ Backend server is actually running, continuing...');
-      } else {
-        throw new Error(`Health check failed with status: ${response.status}`);
+      backendReady = await isServerResponding(`http://localhost:${BACKEND_PORT}/api/health`);
+      if (backendReady) {
+        console.log('✅ Backend server is ready');
+        break;
       }
-    } catch (fetchError) {
-      console.error('❌ Backend server is not responding:', fetchError.message);
-      backendProcess.kill();
-      process.exit(1);
+      console.log(`⏳ Waiting for backend server (attempt ${attempts}/${maxAttempts})...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (error) {
+      console.log(`⏳ Backend not ready yet, retrying... (${attempts}/${maxAttempts})`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
+  }
+  
+  if (!backendReady) {
+    console.log('⚠️ Backend health check timed out, but continuing anyway...');
+    console.log('ℹ️ The server might still be initializing in the background');
   }
   
   // Start the frontend
@@ -101,7 +110,7 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
-      timeout: 90000, // Increased timeout to 90 seconds
+      timeout: 60000,
       interval: 2000,
       delay: 1000
     });
@@ -119,7 +128,11 @@ async function startUnifiedServer() {
   // Proxy API requests to the backend
   app.use('/api', createProxyMiddleware({
     target: `http://localhost:${BACKEND_PORT}`,
-    changeOrigin: true
+    changeOrigin: true,
+    onError: (err, req, res) => {
+      console.log('⚠️ API proxy error:', err.message);
+      res.status(503).json({ error: 'Backend service unavailable' });
+    }
   }));
   
   // Proxy WebSocket requests to the backend
