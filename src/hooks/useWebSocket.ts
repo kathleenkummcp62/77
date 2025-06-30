@@ -51,25 +51,26 @@ export function useWebSocket(url?: string) {
   const maxReconnectAttempts = 5;
   const isConnecting = useRef(false);
 
-  // Determine WebSocket URL
+  // Determine WebSocket URL based on environment
   const getWebSocketUrl = useCallback(() => {
     if (url) return url;
     
     const host = window.location.hostname;
-    const port = import.meta.env.VITE_WS_PORT || window.location.port || '8080';
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-    // For WebContainer (StackBlitz) environments
+    const port = import.meta.env.VITE_WS_PORT || '8080';
+    
+    // For WebContainer/StackBlitz environments
     if (host.includes('webcontainer') || host.includes('stackblitz') || host.includes('local-credentialless')) {
-      return `ws://${host.split(':')[0]}:${port}/ws`;
+      // Use the same hostname but with ws:// protocol
+      return `ws://${host}/ws`;
     }
-
+    
     // For local development
     if (host === 'localhost' || host.includes('127.0.0.1')) {
       return `ws://${host}:${port}/ws`;
     }
-
-    // For production - use the same protocol as the page
+    
+    // For production - use secure WebSocket if page is loaded over HTTPS
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//${host}:${port}/ws`;
   }, [url]);
 

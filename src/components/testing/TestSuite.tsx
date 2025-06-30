@@ -215,7 +215,10 @@ export function TestSuite() {
   const testWebSocketHook = async (): Promise<TestResult> => {
     try {
       // Проверяем доступность WebSocket
-      const wsUrl = `ws://${window.location.hostname}:${window.location.port || '8080'}/ws`;
+      const host = window.location.hostname;
+      const port = import.meta.env.VITE_WS_PORT || '8080';
+      const wsUrl = `ws://${host}:${port}/ws`;
+      
       const ws = new WebSocket(wsUrl);
       
       return new Promise((resolve) => {

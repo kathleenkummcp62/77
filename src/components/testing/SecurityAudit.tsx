@@ -154,6 +154,24 @@ const session = {
   userId: user.id,
   permissions: user.permissions
 };`
+    },
+    {
+      id: 'input-validation',
+      title: 'Недостаточная валидация входных данных',
+      description: 'Отсутствует проверка пользовательского ввода',
+      severity: 'high',
+      category: 'data',
+      recommendation: 'Добавить валидацию для всех пользовательских входных данных',
+      codeExample: `// ✅ Валидация входных данных
+const { error, value } = Joi.object({
+  username: Joi.string().alphanum().min(3).max(30).required(),
+  password: Joi.string().pattern(new RegExp('^[a-zA-Z0-9]{3,30}$')).required(),
+  email: Joi.string().email().required()
+}).validate(req.body);
+
+if (error) {
+  return res.status(400).json({ error: error.details[0].message });
+}`
     }
   ];
 
