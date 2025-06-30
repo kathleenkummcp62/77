@@ -39,7 +39,7 @@ async function startBackend() {
   });
   
   // Increase delay to allow the server to fully initialize
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise(resolve => setTimeout(resolve, 8000));
   
   return mockServer;
 }
@@ -66,19 +66,35 @@ async function startUnifiedServer() {
   // Start the backend
   const backendProcess = await startBackend();
   
-  // Wait for the backend to be ready
+  // Wait for the backend to be ready with increased timeout
   try {
+    console.log('⏳ Checking backend health...');
     await waitOn({
       resources: [`http://localhost:${BACKEND_PORT}/api/health`],
-      timeout: 45000, // Increased timeout to 45 seconds
-      interval: 2000, // Increased interval to 2 seconds
-      delay: 1000, // Add initial delay before first check
+      timeout: 90000, // Increased timeout to 90 seconds
+      interval: 3000, // Increased interval to 3 seconds
+      delay: 2000, // Increased initial delay
+      verbose: true, // Enable verbose logging
+      log: true // Enable logging
     });
     console.log('✅ Backend server is ready');
   } catch (error) {
-    console.error('❌ Backend server failed to start:', error);
-    backendProcess.kill();
-    process.exit(1);
+    console.error('❌ Backend server failed to start within timeout period');
+    console.error('ℹ️  This might be due to slow initialization. Trying to continue...');
+    
+    // Try a simple HTTP request to check if the server is actually running
+    try {
+      const response = await fetch(`http://localhost:${BACKEND_PORT}/api/health`);
+      if (response.ok) {
+        console.log('✅ Backend server is actually running, continuing...');
+      } else {
+        throw new Error(`Health check failed with status: ${response.status}`);
+      }
+    } catch (fetchError) {
+      console.error('❌ Backend server is not responding:', fetchError.message);
+      backendProcess.kill();
+      process.exit(1);
+    }
   }
   
   // Start the frontend
@@ -88,8 +104,9 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
-      timeout: 60000, // 60 seconds timeout
-      interval: 1000,
+      timeout: 90000, // Increased timeout to 90 seconds
+      interval: 2000,
+      delay: 1000
     });
     console.log('✅ Frontend server is ready');
   } catch (error) {
