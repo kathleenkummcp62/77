@@ -9,6 +9,7 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0', // Allow connections from any IP address
-    port: 5173
+    port: 5173,
+    strictPort: true // Fail if port is already in use
   }
 })
