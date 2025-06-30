@@ -55,3 +55,38 @@ func TestGetServerInfoUnreadableFiles(t *testing.T) {
 		t.Fatalf("expected read error log for bad file, got %q", logStr)
 	}
 }
+
+func TestGetServerInfoInvalidJSON(t *testing.T) {
+        dir := t.TempDir()
+
+        writeStatsFile(t, dir, "stats_good.json", StatsFile{Goods: 5, Processed: 5})
+
+        if err := os.WriteFile(filepath.Join(dir, "stats_bad.json"), []byte("{"), 0644); err != nil {
+                t.Fatalf("write bad json: %v", err)
+        }
+
+        var buf bytes.Buffer
+        oldOut := log.Writer()
+        log.SetOutput(&buf)
+        defer log.SetOutput(oldOut)
+
+        aggr := New(dir)
+        infos, err := aggr.GetServerInfo()
+        if err != nil {
+                t.Fatalf("GetServerInfo: %v", err)
+        }
+
+        if len(infos) != 1 {
+                t.Fatalf("expected 1 info, got %d", len(infos))
+        }
+        info := infos[0]
+
+        if info.Goods != 5 || info.Processed != 5 {
+                t.Fatalf("unexpected aggregated values: %+v", info)
+        }
+
+        logStr := buf.String()
+        if !strings.Contains(logStr, "stats parse error") || !strings.Contains(logStr, "stats_bad.json") {
+                t.Fatalf("expected parse error log for bad json, got %q", logStr)
+        }
+}
