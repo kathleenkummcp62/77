@@ -264,9 +264,10 @@ func (s *Server) Start() error {
 	s.wsServer.Start()
 
 	log.Printf("🌐 API Server starting on port %d", s.port)
-	log.Printf("📊 Dashboard: http://localhost:%d", s.port)
-	log.Printf("🔌 WebSocket: ws://localhost:%d/ws", s.port)
-	log.Printf("🔗 API: http://localhost:%d/api/", s.port)
+	// Display URLs for both localhost and external access
+	log.Printf("📊 Dashboard: http://localhost:%d (or http://<host>:%d)", s.port, s.port)
+	log.Printf("🔌 WebSocket: ws://localhost:%d/ws (or ws://<host>:%d/ws)", s.port, s.port)
+	log.Printf("🔗 API: http://localhost:%d/api/ (or http://<host>:%d/api/)", s.port, s.port)
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), s.router)
 }

@@ -141,7 +141,8 @@ const vpnTypes = [
 export function VPNTypes() {
   const [selectedVPN, setSelectedVPN] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState<string | null>(null);
-  const { startScanner, stopScanner, isConnected } = useWebSocket('ws://localhost:8080/ws');
+  // Use default WebSocket settings so the panel works locally and over the network
+  const { startScanner, stopScanner, isConnected } = useWebSocket();
 
   const handleStart = (vpnId: string) => {
     if (!isConnected) {

@@ -82,7 +82,8 @@ const realServers = [
 ];
 
 export function Dashboard() {
-  const { isConnected, stats, servers, error } = useWebSocket('ws://localhost:8080/ws');
+  // Connect using the current host so both localhost and remote access work
+  const { isConnected, stats, servers, error } = useWebSocket();
 
   // Используем реальные серверы, если WebSocket не подключен
   const displayServers = servers && servers.length > 0 ? servers : realServers;

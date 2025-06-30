@@ -102,9 +102,8 @@ export function Servers() {
   const [servers, setServers] = useState(exampleServers);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { isConnected, servers: wsServers } = useWebSocket(
-    "ws://localhost:8080/ws",
-  );
+  // Use default WebSocket URL so the dashboard is reachable from the network
+  const { isConnected, servers: wsServers } = useWebSocket();
 
   const handleWorkerFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

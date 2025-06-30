@@ -23,7 +23,9 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 
 export function Monitoring() {
-  const { isConnected, stats, servers } = useWebSocket('ws://localhost:8080/ws');
+  // Use default WebSocket URL based on window.location so the dashboard works
+  // from localhost and remote hosts.
+  const { isConnected, stats, servers } = useWebSocket();
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
   const [selectedMetric, setSelectedMetric] = useState<'rps' | 'cpu' | 'memory' | 'network'>('rps');
 

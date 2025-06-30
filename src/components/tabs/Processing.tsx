@@ -36,7 +36,8 @@ interface ProcessingTask {
 }
 
 export function Processing() {
-  const { isConnected, stats, startScanner, stopScanner } = useWebSocket('ws://localhost:8080/ws');
+  // Connect to the WebSocket using the current host so remote access works
+  const { isConnected, stats, startScanner, stopScanner } = useWebSocket();
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 
   const tasks: ProcessingTask[] = [
