@@ -13,7 +13,7 @@ if (major < 20) {
  * This script starts both the mock backend and React frontend in a single process
  */
 
-import { spawn } from 'cross-spawn';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs-extra';
@@ -74,8 +74,6 @@ function startFrontend() {
 async function startUnifiedServer() {
   // Start the backend
   const backendProcess = await startBackend();
-
-  console.log('⏳ Waiting for backend server to initialize...');
   
   // Wait for the backend to be ready with increased timeout and better error handling
   try {
@@ -107,7 +105,7 @@ async function startUnifiedServer() {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
       timeout: 60000, // 60 seconds
-      interval: 1000,
+      interval: 1000, // Check every second
       window: 1000
     });
     console.log('✅ Frontend server is ready');
