@@ -75,13 +75,16 @@ async function startUnifiedServer() {
   // Start the backend
   const backendProcess = await startBackend();
   
+  // Add a small delay to let the server initialize
+  await delay(2000);
+  
   // Wait for the backend to be ready with increased timeout and better error handling
   try {
     await waitOn({
       resources: [`http://localhost:${BACKEND_PORT}/api/health`],
-      timeout: 30000, // 30 seconds
-      interval: 1000, // Check every second
-      window: 1000, // Wait 1 second after success before continuing
+      timeout: 60000, // Increased to 60 seconds
+      interval: 2000, // Check every 2 seconds instead of 1
+      window: 2000, // Wait 2 seconds after success before continuing
       validateStatus: function(status) {
         return status >= 200 && status < 300; // Only accept 2xx status codes
       },
@@ -93,8 +96,21 @@ async function startUnifiedServer() {
   } catch (error) {
     console.error('❌ Backend server failed to start:', error);
     console.error('💡 Try checking if port 8080 is available or restart the application');
-    backendProcess.kill();
-    process.exit(1);
+    
+    // Try to check if the server is actually running on a different endpoint
+    try {
+      const response = await fetch(`http://localhost:${BACKEND_PORT}/api/`);
+      if (response.ok) {
+        console.log('ℹ️  Backend server is running but health endpoint may not be available');
+        console.log('✅ Continuing with startup...');
+      } else {
+        throw new Error('Backend server not responding');
+      }
+    } catch (fetchError) {
+      console.error('❌ Backend server is not responding at all');
+      backendProcess.kill();
+      process.exit(1);
+    }
   }
   
   // Start the frontend
@@ -105,8 +121,8 @@ async function startUnifiedServer() {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
       timeout: 60000, // 60 seconds
-      interval: 1000, // Check every second
-      window: 1000
+      interval: 2000, // Check every 2 seconds
+      window: 2000
     });
     console.log('✅ Frontend server is ready');
   } catch (error) {
