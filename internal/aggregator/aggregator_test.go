@@ -94,3 +94,41 @@ func TestGetServerInfoWalkErrorNilEntry(t *testing.T) {
 		t.Fatalf("expected walk error log, got %q", logStr)
 	}
 }
+
+// TestAggregatorMixedFiles verifies that unreadable stats files do not
+// prevent successful aggregation of the readable ones.
+func TestAggregatorMixedFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	writeStatsFile(t, dir, "stats_one.json", StatsFile{Goods: 1, Bads: 0, Errors: 1, Processed: 2})
+	writeStatsFile(t, dir, "stats_two.json", StatsFile{Goods: 2, Bads: 3, Errors: 0, Processed: 5})
+
+	// Create unreadable entry by pointing a symlink at a missing file.
+	missing := filepath.Join(dir, "missing.json")
+	if err := os.Symlink(missing, filepath.Join(dir, "stats_unreadable.json")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	var buf bytes.Buffer
+	oldOut := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(oldOut)
+
+	aggr := New(dir)
+	infos, err := aggr.GetServerInfo()
+	if err != nil {
+		t.Fatalf("GetServerInfo: %v", err)
+	}
+	if len(infos) != 1 {
+		t.Fatalf("expected 1 info, got %d", len(infos))
+	}
+	info := infos[0]
+	if info.Goods != 3 || info.Bads != 3 || info.Errors != 1 || info.Processed != 7 {
+		t.Fatalf("unexpected aggregated values: %+v", info)
+	}
+
+	logStr := buf.String()
+	if !strings.Contains(logStr, "stats read error") || !strings.Contains(logStr, "stats_unreadable.json") {
+		t.Fatalf("expected read error log for unreadable file, got %q", logStr)
+	}
+}
