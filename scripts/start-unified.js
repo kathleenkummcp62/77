@@ -69,9 +69,9 @@ async function startUnifiedServer() {
   
   console.log('⏳ Waiting for backend server to initialize...');
   
-  // Add a 10-second delay to allow the mock server to fully initialize
+  // Add a 15-second delay to allow the mock server to fully initialize
   console.log('⏳ Allowing mock server time to initialize...');
-  await delay(10000);
+  await delay(15000);
   
   // Wait for the backend to be ready with increased timeout and better error handling
   try {
