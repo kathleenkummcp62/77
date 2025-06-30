@@ -64,20 +64,34 @@ async function startUnifiedServer() {
   
   // Add delay to allow the mock API server to fully initialize
   console.log('⏳ Waiting for backend server to initialize...');
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise(resolve => setTimeout(resolve, 3000));
   
   // Wait for the backend to be ready
   try {
     await waitOn({
       resources: [`http://localhost:${BACKEND_PORT}/api/health`],
-      timeout: 30000, // 30 seconds timeout
-      interval: 1000,
+      timeout: 90000, // Increased to 90 seconds timeout
+      interval: 2000, // Check every 2 seconds instead of 1
+      delay: 1000, // Initial delay before first check
     });
     console.log('✅ Backend server is ready');
   } catch (error) {
     console.error('❌ Backend server failed to start:', error);
-    backendProcess.kill();
-    process.exit(1);
+    console.log('🔍 Attempting to check if server is running on different endpoint...');
+    
+    // Try alternative endpoints that might be available
+    try {
+      await waitOn({
+        resources: [`http://localhost:${BACKEND_PORT}/api`],
+        timeout: 30000,
+        interval: 2000,
+      });
+      console.log('✅ Backend server is responding on /api endpoint');
+    } catch (altError) {
+      console.error('❌ Backend server is not responding on any endpoint');
+      backendProcess.kill();
+      process.exit(1);
+    }
   }
   
   // Start the frontend
@@ -87,8 +101,9 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
-      timeout: 60000, // 60 seconds timeout
-      interval: 1000,
+      timeout: 90000, // Increased to 90 seconds timeout
+      interval: 2000, // Check every 2 seconds
+      delay: 1000, // Initial delay before first check
     });
     console.log('✅ Frontend server is ready');
   } catch (error) {
