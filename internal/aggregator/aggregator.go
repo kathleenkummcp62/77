@@ -15,6 +15,9 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+// walkDir is filepath.WalkDir by default but can be overridden in tests.
+var walkDir = filepath.WalkDir
+
 // StatsFile represents contents of stats_*.json written by workers.
 type StatsFile struct {
 	Goods     int64 `json:"goods"`
@@ -58,9 +61,15 @@ func New(dir string) *Aggregator {
 // GetServerInfo aggregates metrics from all stats_*.json files.
 func (a *Aggregator) GetServerInfo() ([]ServerInfo, error) {
 	var total StatsFile
-	err := filepath.WalkDir(a.dir, func(path string, d fs.DirEntry, walkErr error) error {
+	err := walkDir(a.dir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			if strings.HasPrefix(d.Name(), "stats_") && strings.HasSuffix(d.Name(), ".json") {
+			var name string
+			if d != nil {
+				name = d.Name()
+			} else {
+				name = filepath.Base(path)
+			}
+			if strings.HasPrefix(name, "stats_") && strings.HasSuffix(name, ".json") {
 				log.Printf("stats walk error for %s: %v", path, walkErr)
 				return nil
 			}
