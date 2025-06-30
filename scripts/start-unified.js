@@ -37,9 +37,6 @@ async function startBackend() {
     process.exit(1);
   });
   
-  // Give the server some time to initialize
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  
   return mockServer;
 }
 
@@ -60,47 +57,30 @@ function startFrontend() {
   return frontend;
 }
 
-// Simple function to check if a server is responding
-async function isServerResponding(url) {
-  try {
-    const response = await fetch(url);
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
-}
-
 // Start the unified server
 async function startUnifiedServer() {
   // Start the backend
   const backendProcess = await startBackend();
   
-  // Check if the backend is responding without using wait-on
-  let backendReady = false;
-  let attempts = 0;
-  const maxAttempts = 10;
+  console.log('⏳ Waiting for backend server to initialize...');
   
-  console.log('⏳ Checking backend health...');
-  
-  while (!backendReady && attempts < maxAttempts) {
-    attempts++;
-    try {
-      backendReady = await isServerResponding(`http://localhost:${BACKEND_PORT}/api/health`);
-      if (backendReady) {
-        console.log('✅ Backend server is ready');
-        break;
+  // Wait for the backend to be ready
+  try {
+    // Increase timeout and add retries for more reliability
+    await waitOn({
+      resources: [`http://localhost:${BACKEND_PORT}/api/health`],
+      timeout: 120000, // 2 minutes
+      interval: 1000,
+      retries: 120,
+      validateStatus: function(status) {
+        return status >= 200 && status < 300; // Only accept 2xx status codes
       }
-      console.log(`⏳ Waiting for backend server (attempt ${attempts}/${maxAttempts})...`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } catch (error) {
-      console.log(`⏳ Backend not ready yet, retrying... (${attempts}/${maxAttempts})`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  }
-  
-  if (!backendReady) {
-    console.log('⚠️ Backend health check timed out, but continuing anyway...');
-    console.log('ℹ️ The server might still be initializing in the background');
+    });
+    console.log('✅ Backend server is ready');
+  } catch (error) {
+    console.error('❌ Backend server failed to start:', error);
+    backendProcess.kill();
+    process.exit(1);
   }
   
   // Start the frontend
@@ -110,9 +90,9 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
-      timeout: 60000,
-      interval: 2000,
-      delay: 1000
+      timeout: 120000, // 2 minutes
+      interval: 1000,
+      retries: 120
     });
     console.log('✅ Frontend server is ready');
   } catch (error) {
@@ -129,9 +109,8 @@ async function startUnifiedServer() {
   app.use('/api', createProxyMiddleware({
     target: `http://localhost:${BACKEND_PORT}`,
     changeOrigin: true,
-    onError: (err, req, res) => {
-      console.log('⚠️ API proxy error:', err.message);
-      res.status(503).json({ error: 'Backend service unavailable' });
+    pathRewrite: {
+      '^/api': '/api'
     }
   }));
   
@@ -179,7 +158,7 @@ async function main() {
   console.log('=== VPN Bruteforce Dashboard ===');
   
   // Check if required packages are installed
-  if (!fs.existsSync(path.join(projectRoot, 'node_modules/http-proxy-middleware'))) {
+  if (!await fs.pathExists(path.join(projectRoot, 'node_modules/http-proxy-middleware'))) {
     console.log('📦 Installing required packages...');
     spawn.sync('npm', ['install', 'http-proxy-middleware', 'express', 'wait-on', 'cross-spawn'], {
       stdio: 'inherit'

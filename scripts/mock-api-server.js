@@ -30,19 +30,35 @@ app.use((req, res, next) => {
 
 // Mock data
 let mockStats = {
+  totalScanned: 1250,
+  validCredentials: 45,
+  activeThreads: 150,
+  scanRate: 2500,
+  uptime: Date.now() - 3600000, // 1 hour ago
+  lastUpdate: new Date().toISOString(),
   goods: 45,
   bads: 1205,
-  errors: 32,
-  offline: 18,
-  ipblock: 5,
-  processed: 1305,
-  rps: 250,
-  avg_rps: 220,
-  peak_rps: 300,
+  errors: 12,
+  offline: 5,
+  ipblock: 3,
+  processed: 1250,
+  rps: 25,
+  avg_rps: 22,
+  peak_rps: 30,
   threads: 150,
-  uptime: 3600, // 1 hour in seconds
-  success_rate: 3.45
+  success_rate: 3.6
 };
+
+let mockLogs = [
+  { id: 1, timestamp: new Date().toISOString(), level: 'info', message: 'Mock server started', component: 'api' },
+  { id: 2, timestamp: new Date().toISOString(), level: 'success', message: 'Valid credentials found: admin:password123', component: 'scanner' },
+  { id: 3, timestamp: new Date().toISOString(), level: 'warning', message: 'High memory usage detected', component: 'system' }
+];
+
+let mockResults = [
+  { id: 1, ip: '192.168.1.100', username: 'admin', password: 'password123', vpnType: 'fortinet', timestamp: new Date().toISOString() },
+  { id: 2, ip: '10.0.0.50', username: 'user', password: 'admin123', vpnType: 'cisco', timestamp: new Date().toISOString() }
+];
 
 let mockServers = [
   {
@@ -50,81 +66,79 @@ let mockServers = [
     status: 'online',
     uptime: '2h 15m',
     cpu: 45,
-    memory: 32,
-    disk: 58,
+    memory: 62,
+    disk: 38,
     speed: '250/s',
-    processed: 450,
-    goods: 15,
-    bads: 420,
-    errors: 15,
+    processed: 15420,
+    goods: 1927,
+    bads: 12893,
+    errors: 600,
     progress: 78,
-    current_task: 'Scanning Fortinet VPNs'
+    current_task: 'Scanning Fortinet VPN'
   },
   {
     ip: '77.90.185.26',
     status: 'online',
     uptime: '1h 45m',
-    cpu: 38,
-    memory: 28,
+    cpu: 52,
+    memory: 58,
     disk: 42,
-    speed: '220/s',
-    processed: 380,
-    goods: 12,
-    bads: 350,
-    errors: 18,
+    speed: '280/s',
+    processed: 18950,
+    goods: 2156,
+    bads: 15794,
+    errors: 1000,
     progress: 65,
-    current_task: 'Scanning GlobalProtect VPNs'
+    current_task: 'Scanning GlobalProtect VPN'
   },
   {
     ip: '185.93.89.206',
     status: 'online',
-    uptime: '3h 10m',
-    cpu: 52,
+    uptime: '3h 12m',
+    cpu: 38,
     memory: 45,
-    disk: 63,
-    speed: '280/s',
-    processed: 520,
-    goods: 18,
-    bads: 480,
-    errors: 22,
+    disk: 30,
+    speed: '0/s',
+    processed: 12340,
+    goods: 1876,
+    bads: 9864,
+    errors: 600,
     progress: 42,
-    current_task: 'Scanning SonicWall VPNs'
+    current_task: 'Idle - Ready for tasks'
   },
   {
     ip: '185.93.89.35',
     status: 'online',
-    uptime: '4h 25m',
-    cpu: 48,
-    memory: 36,
-    disk: 51,
-    speed: '240/s',
-    processed: 480,
-    goods: 14,
-    bads: 450,
-    errors: 16,
-    progress: 91,
-    current_task: 'Scanning Cisco VPNs'
+    uptime: '4h 28m',
+    cpu: 25,
+    memory: 32,
+    disk: 45,
+    speed: '0/s',
+    processed: 21780,
+    goods: 1482,
+    bads: 19298,
+    errors: 1000,
+    progress: 100,
+    current_task: 'Idle - Ready for tasks'
   }
 ];
 
-let mockLogs = [
-  { id: 1, timestamp: new Date().toISOString(), level: 'info', message: 'Mock server started', component: 'api' },
-  { id: 2, timestamp: new Date().toISOString(), level: 'success', message: 'Valid credentials found: guest:guest', component: 'scanner' },
-  { id: 3, timestamp: new Date().toISOString(), level: 'warning', message: 'High memory usage detected', component: 'system' }
-];
-
-let mockResults = [
-  { id: 1, ip: '200.113.15.26:4443', username: 'guest', password: 'guest', vpnType: 'fortinet', timestamp: new Date().toISOString() },
-  { id: 2, ip: '216.229.124.44:443', username: 'test', password: 'test', vpnType: 'paloalto', timestamp: new Date().toISOString() }
-];
-
 // API Routes
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    server: 'mock-api',
+    version: '1.0.0'
+  });
+});
+
 app.get('/api/stats', (req, res) => {
   // Update mock stats with some variation
-  mockStats.totalScanned = mockStats.processed;
-  mockStats.validCredentials = mockStats.goods;
-  mockStats.activeThreads = mockStats.threads;
-  mockStats.scanRate = mockStats.rps;
+  mockStats.totalScanned += Math.floor(Math.random() * 10);
+  mockStats.validCredentials += Math.floor(Math.random() * 2);
+  mockStats.activeThreads = 100 + Math.floor(Math.random() * 100);
+  mockStats.scanRate = 2000 + Math.floor(Math.random() * 1000);
   mockStats.lastUpdate = new Date().toISOString();
   
   res.json({
@@ -191,8 +205,7 @@ app.post('/api/results', (req, res) => {
   };
   
   mockResults.push(newResult);
-  mockStats.goods++;
-  mockStats.processed++;
+  mockStats.validCredentials++;
   
   res.json({
     success: true,
@@ -200,41 +213,48 @@ app.post('/api/results', (req, res) => {
   });
 });
 
-// Add health endpoint for wait-on utility
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    server: 'mock-api',
-    version: '1.0.0'
-  });
-});
-
 // CRUD endpoints for database tables
-const tables = {
-  vendor_urls: [],
-  credentials: [],
-  proxies: [],
-  tasks: []
+const mockTables = {
+  vendor_urls: [
+    { id: 1, url: 'https://vpn1.example.com' },
+    { id: 2, url: 'https://vpn2.example.com' }
+  ],
+  credentials: [
+    { id: 1, ip: '192.168.1.1', username: 'admin', password: 'password123' },
+    { id: 2, ip: '10.0.0.1', username: 'user', password: 'secret' }
+  ],
+  proxies: [
+    { id: 1, address: '127.0.0.1:8080', username: 'proxy_user', password: 'proxy_pass' }
+  ],
+  tasks: [
+    { id: 1, vpn_type: 'fortinet', vendor_url_id: 1, server: 'server1', status: 'running' },
+    { id: 2, vpn_type: 'globalprotect', vendor_url_id: 2, server: 'server2', status: 'pending' }
+  ]
 };
 
 // Generic CRUD handlers
-function createCrudEndpoints(tableName) {
+function setupCrudEndpoints(resource) {
   // GET all
-  app.get(`/api/${tableName}`, (req, res) => {
+  app.get(`/api/${resource}`, (req, res) => {
     res.json({
       success: true,
-      data: tables[tableName]
+      data: mockTables[resource] || []
     });
   });
 
   // POST new
-  app.post(`/api/${tableName}`, (req, res) => {
+  app.post(`/api/${resource}`, (req, res) => {
     const newItem = {
-      id: tables[tableName].length + 1,
+      id: (mockTables[resource]?.length || 0) + 1,
       ...req.body
     };
-    tables[tableName].push(newItem);
+    
+    if (!mockTables[resource]) {
+      mockTables[resource] = [];
+    }
+    
+    mockTables[resource].push(newItem);
+    
     res.json({
       success: true,
       data: newItem
@@ -242,65 +262,74 @@ function createCrudEndpoints(tableName) {
   });
 
   // PUT update
-  app.put(`/api/${tableName}/:id`, (req, res) => {
+  app.put(`/api/${resource}/:id`, (req, res) => {
     const id = parseInt(req.params.id);
-    const index = tables[tableName].findIndex(item => item.id === id);
+    const index = mockTables[resource]?.findIndex(item => item.id === id) || -1;
     
-    if (index !== -1) {
-      tables[tableName][index] = {
-        ...tables[tableName][index],
-        ...req.body,
-        id // Ensure ID doesn't change
-      };
-      res.json({
-        success: true,
-        data: tables[tableName][index]
-      });
-    } else {
-      res.status(404).json({
+    if (index === -1) {
+      return res.status(404).json({
         success: false,
         error: 'Item not found'
       });
     }
+    
+    mockTables[resource][index] = {
+      ...mockTables[resource][index],
+      ...req.body,
+      id // Ensure ID doesn't change
+    };
+    
+    res.json({
+      success: true,
+      data: mockTables[resource][index]
+    });
   });
 
   // DELETE
-  app.delete(`/api/${tableName}/:id`, (req, res) => {
+  app.delete(`/api/${resource}/:id`, (req, res) => {
     const id = parseInt(req.params.id);
-    const index = tables[tableName].findIndex(item => item.id === id);
+    const index = mockTables[resource]?.findIndex(item => item.id === id) || -1;
     
-    if (index !== -1) {
-      tables[tableName].splice(index, 1);
-      res.json({
-        success: true
-      });
-    } else {
-      res.status(404).json({
+    if (index === -1) {
+      return res.status(404).json({
         success: false,
         error: 'Item not found'
       });
     }
+    
+    mockTables[resource].splice(index, 1);
+    
+    res.json({
+      success: true
+    });
   });
 
   // Bulk delete
-  app.post(`/api/${tableName}/bulk_delete`, (req, res) => {
+  app.post(`/api/${resource}/bulk_delete`, (req, res) => {
     const { ids } = req.body;
-    if (!Array.isArray(ids)) {
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid request format'
+        error: 'Invalid IDs array'
       });
     }
     
-    tables[tableName] = tables[tableName].filter(item => !ids.includes(item.id));
+    if (mockTables[resource]) {
+      mockTables[resource] = mockTables[resource].filter(item => !ids.includes(item.id));
+    }
+    
     res.json({
       success: true
     });
   });
 }
 
-// Create CRUD endpoints for all tables
-Object.keys(tables).forEach(createCrudEndpoints);
+// Setup CRUD endpoints for all tables
+setupCrudEndpoints('vendor_urls');
+setupCrudEndpoints('credentials');
+setupCrudEndpoints('proxies');
+setupCrudEndpoints('tasks');
 
 // Create HTTP server
 const server = createServer(app);
@@ -328,22 +357,12 @@ wss.on('connection', (ws) => {
   const interval = setInterval(() => {
     if (ws.readyState === ws.OPEN) {
       // Update stats
+      mockStats.totalScanned += Math.floor(Math.random() * 5);
+      mockStats.activeThreads = 100 + Math.floor(Math.random() * 100);
+      mockStats.scanRate = 2000 + Math.floor(Math.random() * 1000);
+      mockStats.lastUpdate = new Date().toISOString();
       mockStats.processed += Math.floor(Math.random() * 5);
-      mockStats.goods += Math.floor(Math.random() * 2);
-      mockStats.bads += Math.floor(Math.random() * 3);
-      mockStats.rps = 200 + Math.floor(Math.random() * 100);
-      mockStats.uptime += 1;
-      mockStats.success_rate = (mockStats.goods / mockStats.processed) * 100;
-      
-      // Update servers
-      mockServers = mockServers.map(server => ({
-        ...server,
-        cpu: Math.min(95, server.cpu + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 5)),
-        memory: Math.min(95, server.memory + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 3)),
-        processed: server.processed + Math.floor(Math.random() * 10),
-        goods: server.goods + Math.floor(Math.random() * 2),
-        progress: Math.min(100, server.progress + Math.floor(Math.random() * 2))
-      }));
+      mockStats.rps = 20 + Math.floor(Math.random() * 10);
       
       ws.send(JSON.stringify({ 
         type: 'stats_update', 
@@ -351,11 +370,24 @@ wss.on('connection', (ws) => {
         timestamp: Date.now()
       }));
       
-      ws.send(JSON.stringify({
-        type: 'server_info',
-        data: mockServers,
-        timestamp: Date.now()
-      }));
+      // Occasionally update server stats
+      if (Math.random() < 0.3) {
+        mockServers.forEach(server => {
+          if (server.status === 'online') {
+            server.cpu = Math.min(95, server.cpu + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 5));
+            server.memory = Math.min(95, server.memory + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 3));
+            server.processed += Math.floor(Math.random() * 10);
+            server.goods += Math.floor(Math.random() * 2);
+            server.bads += Math.floor(Math.random() * 8);
+          }
+        });
+        
+        ws.send(JSON.stringify({
+          type: 'server_info',
+          data: mockServers,
+          timestamp: Date.now()
+        }));
+      }
       
       // Occasionally send a new log
       if (Math.random() < 0.3) {
@@ -363,7 +395,7 @@ wss.on('connection', (ws) => {
           id: mockLogs.length + 1,
           timestamp: new Date().toISOString(),
           level: ['info', 'warning', 'success'][Math.floor(Math.random() * 3)],
-          message: `Event ${Date.now()}`,
+          message: `Mock event ${Date.now()}`,
           component: 'scanner'
         };
         mockLogs.push(newLog);
@@ -372,55 +404,66 @@ wss.on('connection', (ws) => {
     }
   }, 2000);
   
-  // Handle messages from client
+  // Handle WebSocket messages from client
   ws.on('message', (message) => {
     try {
-      const data = JSON.parse(message);
-      console.log('Received message:', data);
+      const parsedMessage = JSON.parse(message.toString());
+      console.log('Received message:', parsedMessage.type);
       
       // Handle different message types
-      if (data.type === 'start_scanner') {
-        const vpnType = typeof data.data === 'string' ? data.data : data.data.vpn_type;
-        console.log(`Starting scanner: ${vpnType}`);
-        
-        // Send response
-        ws.send(JSON.stringify({
-          type: 'scanner_started',
-          data: {
-            status: 'success',
-            scanner: vpnType
-          },
-          timestamp: Date.now()
-        }));
-      }
-      
-      if (data.type === 'stop_scanner') {
-        const vpnType = typeof data.data === 'string' ? data.data : data.data.vpn_type;
-        console.log(`Stopping scanner: ${vpnType}`);
-        
-        // Send response
-        ws.send(JSON.stringify({
-          type: 'scanner_stopped',
-          data: {
-            status: 'success',
-            scanner: vpnType
-          },
-          timestamp: Date.now()
-        }));
-      }
-      
-      if (data.type === 'get_logs') {
-        const limit = data.data?.limit || 100;
-        
-        // Send logs
-        ws.send(JSON.stringify({
-          type: 'logs_data',
-          data: mockLogs.slice(-limit),
-          timestamp: Date.now()
-        }));
+      switch (parsedMessage.type) {
+        case 'start_scanner':
+          const vpnType = typeof parsedMessage.data === 'string' 
+            ? parsedMessage.data 
+            : parsedMessage.data?.vpn_type || 'unknown';
+          
+          console.log(`Starting scanner: ${vpnType}`);
+          
+          // Send response
+          ws.send(JSON.stringify({
+            type: 'scanner_started',
+            data: {
+              status: 'success',
+              scanner: vpnType
+            },
+            timestamp: Date.now()
+          }));
+          break;
+          
+        case 'stop_scanner':
+          const stopVpnType = typeof parsedMessage.data === 'string'
+            ? parsedMessage.data
+            : parsedMessage.data?.vpn_type || 'unknown';
+          
+          console.log(`Stopping scanner: ${stopVpnType}`);
+          
+          // Send response
+          ws.send(JSON.stringify({
+            type: 'scanner_stopped',
+            data: {
+              status: 'success',
+              scanner: stopVpnType
+            },
+            timestamp: Date.now()
+          }));
+          break;
+          
+        case 'get_logs':
+          const limit = parsedMessage.data?.limit || 100;
+          
+          // Send logs
+          ws.send(JSON.stringify({
+            type: 'logs_data',
+            data: mockLogs.slice(-limit),
+            timestamp: Date.now()
+          }));
+          break;
+          
+        default:
+          console.log(`Unknown message type: ${parsedMessage.type}`);
       }
     } catch (error) {
-      console.error('Error processing message:', error);
+      console.error('Error parsing message:', error);
     }
   });
   
