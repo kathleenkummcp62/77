@@ -38,8 +38,8 @@ async function startBackend() {
     process.exit(1);
   });
   
-  // Increase delay to allow the server to fully initialize
-  await new Promise(resolve => setTimeout(resolve, 8000));
+  // Increased delay to allow the server to fully initialize
+  await new Promise(resolve => setTimeout(resolve, 20000));
   
   return mockServer;
 }
