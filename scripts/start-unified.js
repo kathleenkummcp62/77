@@ -66,7 +66,7 @@ function startFrontend() {
 async function startUnifiedServer() {
   // Start the backend
   const backendProcess = await startBackend();
-  
+
   console.log('⏳ Waiting for backend server to initialize...');
   
   // Wait for the backend to be ready with increased timeout and better error handling

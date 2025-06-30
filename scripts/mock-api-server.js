@@ -1,3 +1,10 @@
+#!/usr/bin/env node
+
+/**
+ * WebSocket client for testing the WebSocket server
+ * This script connects to the WebSocket server and logs messages
+ */
+
 import express from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
