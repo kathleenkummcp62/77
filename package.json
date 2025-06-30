@@ -8,7 +8,8 @@
     "frontend": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "setup-env": "node scripts/setup-environment.js"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -22,7 +23,11 @@
     "cross-spawn": "^7.0.3",
     "cors": "^2.8.5",
     "ws": "^8.14.2",
-    "fs-extra": "^11.1.1"
+    "fs-extra": "^11.1.1",
+    "react-hot-toast": "^2.4.1",
+    "@supabase/supabase-js": "^2.39.0",
+    "https-proxy-agent": "^7.0.2",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

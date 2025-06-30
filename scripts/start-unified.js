@@ -68,8 +68,8 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${BACKEND_PORT}/api/health`],
-      timeout: 300000, // Increased to 5 minutes
-      interval: 2000, // Check every 2 seconds instead of 1
+      timeout: 300000, // 5 minutes
+      interval: 2000, // Check every 2 seconds
       window: 1000, // Wait 1 second after success before continuing
       validateStatus: function(status) {
         return status >= 200 && status < 300; // Only accept 2xx status codes
@@ -93,7 +93,7 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
-      timeout: 300000, // Increased to 5 minutes
+      timeout: 300000, // 5 minutes
       interval: 2000,
       window: 1000
     });

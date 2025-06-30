@@ -22,44 +22,123 @@ app.get('/api/health', (req, res) => {
 // Mock API endpoints
 app.get('/api/stats', (req, res) => {
   res.json({
-    totalScans: 1250,
-    successfulConnections: 89,
-    failedAttempts: 1161,
-    activeWorkers: 4,
-    uptime: '2h 15m'
+    success: true,
+    data: {
+      goods: 89,
+      bads: 1161,
+      errors: 23,
+      offline: 15,
+      ipblock: 5,
+      processed: 1250,
+      rps: 42,
+      avg_rps: 38,
+      peak_rps: 65,
+      threads: 100,
+      uptime: 1800,
+      success_rate: 7.12
+    }
   });
 });
 
 app.get('/api/servers', (req, res) => {
-  res.json([
-    { id: 1, ip: '192.168.1.100', status: 'active', type: 'cisco', lastSeen: '2024-01-15T10:30:00Z' },
-    { id: 2, ip: '10.0.0.50', status: 'inactive', type: 'fortinet', lastSeen: '2024-01-15T09:45:00Z' },
-    { id: 3, ip: '172.16.0.25', status: 'active', type: 'paloalto', lastSeen: '2024-01-15T10:28:00Z' }
-  ]);
+  res.json({
+    success: true,
+    data: [
+      { 
+        ip: '192.168.1.100', 
+        status: 'online', 
+        uptime: '2h 15m',
+        cpu: 45,
+        memory: 67,
+        disk: 32,
+        speed: '42/s',
+        processed: 450,
+        goods: 32,
+        bads: 398,
+        errors: 20,
+        progress: 65,
+        current_task: 'Scanning Fortinet VPN'
+      },
+      { 
+        ip: '10.0.0.50', 
+        status: 'online', 
+        uptime: '1h 30m',
+        cpu: 38,
+        memory: 52,
+        disk: 45,
+        speed: '38/s',
+        processed: 350,
+        goods: 25,
+        bads: 310,
+        errors: 15,
+        progress: 42,
+        current_task: 'Scanning GlobalProtect VPN'
+      },
+      { 
+        ip: '172.16.0.25', 
+        status: 'online', 
+        uptime: '3h 10m',
+        cpu: 62,
+        memory: 78,
+        disk: 55,
+        speed: '45/s',
+        processed: 650,
+        goods: 42,
+        bads: 580,
+        errors: 28,
+        progress: 78,
+        current_task: 'Scanning SonicWall VPN'
+      }
+    ]
+  });
 });
 
-app.get('/api/results', (req, res) => {
-  res.json([
-    { id: 1, ip: '192.168.1.100', username: 'admin', password: 'password123', vpnType: 'cisco', timestamp: '2024-01-15T10:30:00Z', status: 'success' },
-    { id: 2, ip: '10.0.0.50', username: 'user1', password: 'test123', vpnType: 'fortinet', timestamp: '2024-01-15T10:25:00Z', status: 'success' }
-  ]);
+app.get('/api/credentials', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, ip: '192.168.1.100', username: 'admin', password: 'password123' },
+      { id: 2, ip: '10.0.0.50', username: 'user1', password: 'test123' }
+    ]
+  });
 });
 
-app.post('/api/tasks', (req, res) => {
-  const task = {
-    id: Date.now(),
-    ...req.body,
-    status: 'queued',
-    createdAt: new Date().toISOString()
-  };
-  res.status(201).json(task);
+app.get('/api/proxies', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, address: '127.0.0.1:8080', username: 'proxy_user', password: 'proxy_pass' }
+    ]
+  });
 });
 
 app.get('/api/tasks', (req, res) => {
-  res.json([
-    { id: 1, name: 'Cisco VPN Scan', status: 'running', progress: 65, createdAt: '2024-01-15T10:00:00Z' },
-    { id: 2, name: 'Fortinet Scan', status: 'completed', progress: 100, createdAt: '2024-01-15T09:30:00Z' }
-  ]);
+  res.json({
+    success: true,
+    data: [
+      { id: 1, vpn_type: 'fortinet', server: 'server1.example.com', status: 'running' },
+      { id: 2, vpn_type: 'globalprotect', server: 'server2.example.com', status: 'pending' }
+    ]
+  });
+});
+
+app.get('/api/vendor_urls', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, url: 'https://vpn.example.com' }
+    ]
+  });
+});
+
+app.get('/api/logs', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { timestamp: new Date().toISOString(), level: 'info', message: 'System started', source: 'system' },
+      { timestamp: new Date().toISOString(), level: 'info', message: 'Database connected', source: 'database' }
+    ]
+  });
 });
 
 // Create HTTP server
@@ -71,20 +150,141 @@ const wss = new WebSocketServer({ server });
 wss.on('connection', (ws) => {
   console.log('WebSocket client connected');
   
+  // Send initial data
+  ws.send(JSON.stringify({
+    type: 'initial_stats',
+    data: {
+      goods: 89,
+      bads: 1161,
+      errors: 23,
+      offline: 15,
+      ipblock: 5,
+      processed: 1250,
+      rps: 42,
+      avg_rps: 38,
+      peak_rps: 65,
+      threads: 100,
+      uptime: 1800,
+      success_rate: 7.12
+    },
+    timestamp: Date.now()
+  }));
+  
+  ws.send(JSON.stringify({
+    type: 'server_info',
+    data: [
+      { 
+        ip: '192.168.1.100', 
+        status: 'online', 
+        uptime: '2h 15m',
+        cpu: 45,
+        memory: 67,
+        disk: 32,
+        speed: '42/s',
+        processed: 450,
+        goods: 32,
+        bads: 398,
+        errors: 20,
+        progress: 65,
+        current_task: 'Scanning Fortinet VPN'
+      },
+      { 
+        ip: '10.0.0.50', 
+        status: 'online', 
+        uptime: '1h 30m',
+        cpu: 38,
+        memory: 52,
+        disk: 45,
+        speed: '38/s',
+        processed: 350,
+        goods: 25,
+        bads: 310,
+        errors: 15,
+        progress: 42,
+        current_task: 'Scanning GlobalProtect VPN'
+      },
+      { 
+        ip: '172.16.0.25', 
+        status: 'online', 
+        uptime: '3h 10m',
+        cpu: 62,
+        memory: 78,
+        disk: 55,
+        speed: '45/s',
+        processed: 650,
+        goods: 42,
+        bads: 580,
+        errors: 28,
+        progress: 78,
+        current_task: 'Scanning SonicWall VPN'
+      }
+    ],
+    timestamp: Date.now()
+  }));
+  
   // Send periodic updates
   const interval = setInterval(() => {
     if (ws.readyState === ws.OPEN) {
       ws.send(JSON.stringify({
         type: 'stats_update',
         data: {
-          totalScans: Math.floor(Math.random() * 2000) + 1000,
-          successfulConnections: Math.floor(Math.random() * 100) + 50,
-          activeWorkers: Math.floor(Math.random() * 8) + 2,
-          timestamp: new Date().toISOString()
-        }
+          goods: Math.floor(Math.random() * 100) + 50,
+          bads: Math.floor(Math.random() * 1200) + 800,
+          errors: Math.floor(Math.random() * 30) + 10,
+          offline: Math.floor(Math.random() * 20) + 5,
+          ipblock: Math.floor(Math.random() * 10) + 1,
+          processed: Math.floor(Math.random() * 2000) + 1000,
+          rps: Math.floor(Math.random() * 50) + 30,
+          avg_rps: Math.floor(Math.random() * 45) + 25,
+          peak_rps: Math.floor(Math.random() * 30) + 60,
+          threads: 100,
+          uptime: Math.floor(Date.now() / 1000) % 86400,
+          success_rate: (Math.random() * 10).toFixed(2)
+        },
+        timestamp: Date.now()
       }));
     }
   }, 5000);
+  
+  // Handle messages from clients
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message.toString());
+      console.log('Received message:', data);
+      
+      // Handle different message types
+      if (data.type === 'start_scanner') {
+        const vpnType = typeof data.data === 'string' ? data.data : data.data.vpn_type;
+        ws.send(JSON.stringify({
+          type: 'scanner_started',
+          data: { status: 'success', scanner: vpnType },
+          timestamp: Date.now()
+        }));
+      } else if (data.type === 'stop_scanner') {
+        const vpnType = typeof data.data === 'string' ? data.data : data.data.vpn_type;
+        ws.send(JSON.stringify({
+          type: 'scanner_stopped',
+          data: { status: 'success', scanner: vpnType },
+          timestamp: Date.now()
+        }));
+      } else if (data.type === 'get_logs') {
+        const limit = data.data?.limit || 100;
+        const logs = Array.from({ length: limit }, (_, i) => ({
+          timestamp: new Date(Date.now() - i * 60000).toISOString(),
+          level: ['info', 'warning', 'error'][Math.floor(Math.random() * 3)],
+          message: `Log message ${i + 1}`,
+          source: ['system', 'scanner', 'database'][Math.floor(Math.random() * 3)]
+        }));
+        ws.send(JSON.stringify({
+          type: 'logs_data',
+          data: logs,
+          timestamp: Date.now()
+        }));
+      }
+    } catch (error) {
+      console.error('Error processing message:', error);
+    }
+  });
   
   ws.on('close', () => {
     console.log('WebSocket client disconnected');
