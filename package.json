@@ -14,7 +14,7 @@
     "collect-results": "node scripts/collect-results.js",
     "start-scanners": "node scripts/start-scanners.js --vpn-type fortinet",
     "setup": "node scripts/setup-environment.js",
-    "backend": "go run cmd/dashboard/main.go -port=8080",
+    "backend": "node scripts/mock-api-server.js",
     "frontend": "cross-env VITE_WS_PORT=8080 vite",
     "start": "node scripts/start-unified.js"
   },
@@ -36,7 +36,8 @@
     "react-hot-toast": "^2.5.2",
     "react-query": "^3.39.3",
     "recharts": "^2.8.0",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -44,6 +45,7 @@
     "@types/node": "^20.19.2",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@types/ws": "^8.5.13",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "@vitejs/plugin-react": "^4.0.3",

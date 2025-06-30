@@ -2,7 +2,7 @@
 
 /**
  * Unified starter script for VPN Bruteforce Dashboard
- * This script starts both the Go backend and React frontend in a single process
+ * This script starts both the mock backend and React frontend in a single process
  */
 
 import { spawn } from 'cross-spawn';
@@ -21,69 +21,23 @@ const projectRoot = path.resolve(__dirname, '..');
 const BACKEND_PORT = 8080;
 const FRONTEND_PORT = 5173;
 const UNIFIED_PORT = 3000;
-const USE_MOCK_SERVER = process.env.USE_MOCK_SERVER === 'true';
 
-// Check if Go is installed
-async function checkGoInstalled() {
-  try {
-    const child = spawn('go', ['version']);
-    return new Promise((resolve) => {
-      child.on('close', (code) => {
-        resolve(code === 0);
-      });
-    });
-  } catch (error) {
-    return false;
-  }
-}
-
-// Start the backend server
+// Start the mock backend server (Go is not available in WebContainer)
 async function startBackend() {
-  console.log('🚀 Starting backend server...');
+  console.log('🚀 Starting mock backend server...');
+  console.log('ℹ️  Using mock API server (Go not available in WebContainer)');
   
-  if (USE_MOCK_SERVER) {
-    console.log('🔄 Using mock API server instead of Go backend');
-    const mockServer = spawn('node', ['scripts/mock-api-server.js'], {
-      stdio: 'inherit',
-      env: { ...process.env, PORT: BACKEND_PORT.toString() }
-    });
-    
-    mockServer.on('error', (err) => {
-      console.error('❌ Failed to start mock server:', err);
-      process.exit(1);
-    });
-    
-    return mockServer;
-  }
-  
-  const goInstalled = await checkGoInstalled();
-  if (!goInstalled) {
-    console.error('❌ Go is not installed. Please install Go to run the backend server.');
-    console.log('🔄 Falling back to mock API server...');
-    
-    const mockServer = spawn('node', ['scripts/mock-api-server.js'], {
-      stdio: 'inherit',
-      env: { ...process.env, PORT: BACKEND_PORT.toString() }
-    });
-    
-    mockServer.on('error', (err) => {
-      console.error('❌ Failed to start mock server:', err);
-      process.exit(1);
-    });
-    
-    return mockServer;
-  }
-  
-  const backend = spawn('go', ['run', 'cmd/dashboard/main.go', `-port=${BACKEND_PORT}`], {
-    stdio: 'inherit'
+  const mockServer = spawn('node', ['scripts/mock-api-server.js'], {
+    stdio: 'inherit',
+    env: { ...process.env, PORT: BACKEND_PORT.toString() }
   });
   
-  backend.on('error', (err) => {
-    console.error('❌ Failed to start backend server:', err);
+  mockServer.on('error', (err) => {
+    console.error('❌ Failed to start mock server:', err);
     process.exit(1);
   });
   
-  return backend;
+  return mockServer;
 }
 
 // Start the frontend server
@@ -166,6 +120,7 @@ async function startUnifiedServer() {
   // Start the proxy server
   const server = app.listen(UNIFIED_PORT, () => {
     console.log(`\n🚀 VPN Bruteforce Dashboard is running at http://localhost:${UNIFIED_PORT}`);
+    console.log('ℹ️  Running with mock backend (Go not available in WebContainer)');
     console.log('Press Ctrl+C to stop');
   });
   
