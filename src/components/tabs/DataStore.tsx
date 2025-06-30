@@ -5,7 +5,7 @@ import { VendorURL, CredentialPair, ProxySetting, Task } from "../../types";
 import toast from "react-hot-toast";
 import { Link } from "lucide-react";
 
-type Selectable<T> = T & { selected?: boolean };
+type Selectable<T> = T & { selected?: boolean }
 
 async function fetchJSON(path: string, options?: RequestInit) {
   const res = await fetch(path, {
