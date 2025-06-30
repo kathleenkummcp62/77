@@ -1,5 +1,12 @@
+#!/usr/bin/env node
+
+/**
+ * Mock API server for VPN Bruteforce Dashboard
+ * This server provides mock API endpoints and WebSocket for testing
+ */
+
 import express from 'express';
-import cors from 'express';
+import cors from 'cors';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import fs from 'fs-extra';
