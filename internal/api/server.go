@@ -29,6 +29,14 @@ type Server struct {
 	router   *mux.Router
 	port     int
 
+	// allowedOrigins contains the list of origins permitted for CORS. When
+	// empty, any origin is allowed which matches the previous behaviour.
+	allowedOrigins map[string]bool
+
+	// authToken is compared against the Bearer token in the Authorization
+	// header. If empty, authentication checks are skipped.
+	authToken string
+
 	// useVendorTasks indicates that the tasks table stores a vendor_url_id
 	// reference instead of a vpn_type column. The handlers adapt their SQL
 	// queries based on this flag so the API works with both schemas.
@@ -80,6 +88,20 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 		router:   mux.NewRouter(),
 		port:     port,
 	}
+
+	// Load allowed origins and auth token from the environment. These are
+	// optional so the zero value preserves the previous open behaviour when
+	// unset.
+	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
+		s.allowedOrigins = make(map[string]bool)
+		for _, o := range strings.Split(origins, ",") {
+			o = strings.TrimSpace(o)
+			if o != "" {
+				s.allowedOrigins[o] = true
+			}
+		}
+	}
+	s.authToken = os.Getenv("API_AUTH_TOKEN")
 
 	if s.db == nil {
 		cfg := config.Default()
@@ -137,11 +159,30 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if len(s.allowedOrigins) > 0 {
+			if origin != "" {
+				if s.allowedOrigins[origin] {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+				} else {
+					// Explicit origin provided but not allowed.
+					http.Error(w, "forbidden", http.StatusForbidden)
+					return
+				}
+			}
+		} else {
+			// fallback to permissive behaviour when no origins configured
+			if origin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Token")
 
-		if r.Method == "OPTIONS" {
+		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -188,6 +229,27 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		msg := fmt.Sprintf("%s %s %d %v", r.Method, r.URL.Path, rec.status, time.Since(start).Truncate(time.Millisecond))
 		s.InsertLog("info", msg, "api")
 	})
+}
+
+// checkAuth enforces token based authentication when an auth token is
+// configured. It expects a Bearer token in the Authorization header. When no
+// auth token is set the request is allowed.
+func (s *Server) checkAuth(w http.ResponseWriter, r *http.Request) bool {
+	if s.authToken == "" {
+		return true
+	}
+	const prefix = "Bearer "
+	header := r.Header.Get("Authorization")
+	if !strings.HasPrefix(header, prefix) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+	token := strings.TrimPrefix(header, prefix)
+	if token != s.authToken {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+	return true
 }
 
 func (s *Server) Start() error {
@@ -532,6 +594,9 @@ func (s *Server) handleVendorURLsBulkDelete(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
+	if !s.checkAuth(w, r) {
+		return
+	}
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
@@ -574,6 +639,9 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
+	if !s.checkAuth(w, r) {
+		return
+	}
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
@@ -605,6 +673,9 @@ func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCredentialsBulkDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.checkAuth(w, r) {
+		return
+	}
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
@@ -726,6 +797,9 @@ func (s *Server) handleProxiesBulkDelete(w http.ResponseWriter, r *http.Request)
 // handleTasks processes GET and POST requests for the /api/tasks endpoint.
 // It mirrors the behaviour of handleCredentials but targets the tasks table.
 func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
+	if !s.checkAuth(w, r) {
+		return
+	}
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
@@ -846,6 +920,9 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 
 // handleTask updates or deletes a single task entry by ID.
 func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
+	if !s.checkAuth(w, r) {
+		return
+	}
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
@@ -904,6 +981,9 @@ func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 
 // handleTasksBulkDelete removes multiple tasks at once using their IDs.
 func (s *Server) handleTasksBulkDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.checkAuth(w, r) {
+		return
+	}
 	if s.db == nil {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
