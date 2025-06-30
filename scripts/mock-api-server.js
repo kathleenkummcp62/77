@@ -141,6 +141,56 @@ app.get('/api/logs', (req, res) => {
   });
 });
 
+// POST endpoints
+app.post('/api/credentials', (req, res) => {
+  res.json({
+    success: true,
+    data: { id: 3, ...req.body }
+  });
+});
+
+app.post('/api/proxies', (req, res) => {
+  res.json({
+    success: true,
+    data: { id: 2, ...req.body }
+  });
+});
+
+app.post('/api/tasks', (req, res) => {
+  res.json({
+    success: true,
+    data: { id: 3, ...req.body }
+  });
+});
+
+app.post('/api/vendor_urls', (req, res) => {
+  res.json({
+    success: true,
+    data: { id: 2, ...req.body }
+  });
+});
+
+app.post('/api/start', (req, res) => {
+  res.json({
+    success: true,
+    data: { status: 'started', vpn_type: req.body.vpn_type || 'unknown' }
+  });
+});
+
+app.post('/api/stop', (req, res) => {
+  res.json({
+    success: true,
+    data: { status: 'stopped', vpn_type: req.body.vpn_type || 'unknown' }
+  });
+});
+
+app.post('/api/config', (req, res) => {
+  res.json({
+    success: true,
+    data: { status: 'updated' }
+  });
+});
+
 // Create HTTP server
 const server = createServer(app);
 
