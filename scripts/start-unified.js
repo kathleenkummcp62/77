@@ -22,6 +22,11 @@ const BACKEND_PORT = 8080;
 const FRONTEND_PORT = 5173;
 const UNIFIED_PORT = 3000;
 
+// Helper function to add delay
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Start the mock backend server (Go is not available in WebContainer)
 async function startBackend() {
   console.log('🚀 Starting mock backend server...');
@@ -63,6 +68,10 @@ async function startUnifiedServer() {
   const backendProcess = await startBackend();
   
   console.log('⏳ Waiting for backend server to initialize...');
+  
+  // Add a 5-second delay to allow the mock server to fully initialize
+  console.log('⏳ Allowing mock server time to initialize...');
+  await delay(5000);
   
   // Wait for the backend to be ready with increased timeout and better error handling
   try {
