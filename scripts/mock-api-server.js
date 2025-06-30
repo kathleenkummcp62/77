@@ -371,8 +371,8 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Start server
-server.listen(PORT, () => {
+// Start server - bind to 0.0.0.0 to ensure accessibility from all interfaces
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Mock API server running on port ${PORT}`);
   console.log(`📊 API endpoints available at http://localhost:${PORT}/api/`);
   console.log(`🔌 WebSocket server running for real-time updates`);
