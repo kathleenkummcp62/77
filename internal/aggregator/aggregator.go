@@ -58,9 +58,13 @@ func New(dir string) *Aggregator {
 // GetServerInfo aggregates metrics from all stats_*.json files.
 func (a *Aggregator) GetServerInfo() ([]ServerInfo, error) {
 	var total StatsFile
-	err := filepath.WalkDir(a.dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	err := filepath.WalkDir(a.dir, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			if strings.HasPrefix(d.Name(), "stats_") && strings.HasSuffix(d.Name(), ".json") {
+				log.Printf("stats walk error for %s: %v", path, walkErr)
+				return nil
+			}
+			return walkErr
 		}
 		if d.IsDir() {
 			return nil
@@ -69,17 +73,20 @@ func (a *Aggregator) GetServerInfo() ([]ServerInfo, error) {
 		if strings.HasPrefix(name, "stats_") && strings.HasSuffix(name, ".json") {
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return err
+				log.Printf("stats read error for %s: %v", path, err)
+				return nil
 			}
 			var s StatsFile
-			if json.Unmarshal(data, &s) == nil {
-				total.Goods += s.Goods
-				total.Bads += s.Bads
-				total.Errors += s.Errors
-				total.Offline += s.Offline
-				total.IPBlock += s.IPBlock
-				total.Processed += s.Processed
+			if err := json.Unmarshal(data, &s); err != nil {
+				log.Printf("stats parse error for %s: %v", path, err)
+				return nil
 			}
+			total.Goods += s.Goods
+			total.Bads += s.Bads
+			total.Errors += s.Errors
+			total.Offline += s.Offline
+			total.IPBlock += s.IPBlock
+			total.Processed += s.Processed
 		}
 		return nil
 	})
