@@ -5,7 +5,7 @@ import { VendorURL, CredentialPair, ProxySetting, Task } from "../../types";
 import toast from "react-hot-toast";
 import { Link } from "lucide-react";
 
-type Selectable<T extends { id: number }> = T & {
+type Selectable<T> = T & {
   selected?: boolean;
 };
 
