@@ -19,35 +19,35 @@ type Config struct {
 	RateLimit  int           `yaml:"rate_limit"`
 	Verbose    bool          `yaml:"verbose"`
 
-	// Ultra-performance settings
+	// Ultra-performance settings.
 	MaxIdleConns        int           `yaml:"max_idle_conns"`
 	MaxConnsPerHost     int           `yaml:"max_conns_per_host"`
 	IdleConnTimeout     time.Duration `yaml:"idle_conn_timeout"`
 	TLSHandshakeTimeout time.Duration `yaml:"tls_handshake_timeout"`
 
-	// Advanced features
+	// Advanced features.
 	ProxyEnabled  bool     `yaml:"proxy_enabled"`
 	ProxyType     string   `yaml:"proxy_type"`
 	ProxyList     []string `yaml:"proxy_list"`
 	ProxyRotation bool     `yaml:"proxy_rotation"`
 
-	// Smart scaling
+	// Smart scaling.
 	AutoScale      bool    `yaml:"auto_scale"`
 	MinThreads     int     `yaml:"min_threads"`
 	MaxThreads     int     `yaml:"max_threads"`
 	ScaleThreshold float64 `yaml:"scale_threshold"`
 
-	// Advanced error handling
+	// Advanced error handling.
 	RetryDelay    time.Duration `yaml:"retry_delay"`
 	BackoffFactor float64       `yaml:"backoff_factor"`
 	MaxBackoff    time.Duration `yaml:"max_backoff"`
 
-	// Memory optimization
+	// Memory optimization.
 	BufferSize    int  `yaml:"buffer_size"`
 	PoolSize      int  `yaml:"pool_size"`
 	StreamingMode bool `yaml:"streaming_mode"`
 
-	// Database settings
+	// Database settings.
 	DatabaseDSN string `yaml:"database_dsn"`
 	DBUser      string `yaml:"db_user"`
 	DBPassword  string `yaml:"db_password"`
@@ -83,33 +83,33 @@ func Default() *Config {
 		RateLimit:  5000,
 		Verbose:    false,
 
-		// Ultra-performance defaults
+		// Ultra-performance defaults.
 		MaxIdleConns:        500,
 		MaxConnsPerHost:     200,
 		IdleConnTimeout:     15 * time.Second,
 		TLSHandshakeTimeout: 3 * time.Second,
 
-		// Smart scaling defaults
+		// Smart scaling defaults.
 		AutoScale:      true,
 		MinThreads:     runtime.NumCPU() * 50,
 		MaxThreads:     runtime.NumCPU() * 300,
 		ScaleThreshold: 0.8,
 
-		// Advanced error handling
+		// Advanced error handling.
 		RetryDelay:    100 * time.Millisecond,
 		BackoffFactor: 1.5,
 		MaxBackoff:    5 * time.Second,
 
-		// Memory optimization
+		// Memory optimization.
 		BufferSize:    8192,
 		PoolSize:      1000,
 		StreamingMode: true,
 
-		// Proxy defaults
+		// Proxy defaults.
 		ProxyEnabled:  false,
 		ProxyRotation: true,
 
-		// Database defaults (can be overridden by YAML)
+		// Database defaults (can be overridden by YAML).
 		DatabaseDSN: "",
 		DBUser:      "postgres",
 		DBPassword:  "postgres",
@@ -123,7 +123,7 @@ func Default() *Config {
 
 // applyDefaults fills in zero or inconsistent fields with sensible values.
 func (c *Config) applyDefaults() {
-	// Threading defaults
+	// Threading defaults.
 	if c.Threads <= 0 {
 		c.Threads = runtime.NumCPU() * 100
 	}
@@ -135,7 +135,7 @@ func (c *Config) applyDefaults() {
 		c.MinThreads = runtime.NumCPU() * 50
 	}
 
-	// Keep invariants Threads ∈ [MinThreads, MaxThreads]
+	// Keep invariants Threads ∈ [MinThreads, MaxThreads].
 	if c.MinThreads > c.MaxThreads {
 		c.MinThreads = c.MaxThreads
 	}
@@ -146,12 +146,12 @@ func (c *Config) applyDefaults() {
 		c.Threads = c.MaxThreads
 	}
 
-	// Rate limiting
+	// Rate limiting.
 	if c.RateLimit <= 0 {
 		c.RateLimit = 5000
 	}
 
-	// Buffers & pools
+	// Buffers & pools.
 	if c.BufferSize <= 0 {
 		c.BufferSize = 8192
 	}
@@ -159,7 +159,7 @@ func (c *Config) applyDefaults() {
 		c.PoolSize = 1000
 	}
 
-	// Database sane defaults
+	// Database sane defaults.
 	if c.DBName == "" {
 		c.DBName = "vpn_data"
 	}
