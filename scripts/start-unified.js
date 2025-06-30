@@ -64,20 +64,24 @@ async function startUnifiedServer() {
   
   console.log('⏳ Waiting for backend server to initialize...');
   
-  // Wait for the backend to be ready
+  // Wait for the backend to be ready with increased timeout and better error handling
   try {
-    // Increase timeout and add retries for more reliability
     await waitOn({
       resources: [`http://localhost:${BACKEND_PORT}/api/health`],
-      timeout: 120000, // 2 minutes
-      interval: 1000,
+      timeout: 300000, // Increased to 5 minutes
+      interval: 2000, // Check every 2 seconds instead of 1
+      window: 1000, // Wait 1 second after success before continuing
       validateStatus: function(status) {
         return status >= 200 && status < 300; // Only accept 2xx status codes
+      },
+      headers: {
+        'Accept': 'application/json'
       }
     });
     console.log('✅ Backend server is ready');
   } catch (error) {
     console.error('❌ Backend server failed to start:', error);
+    console.error('💡 Try checking if port 8080 is available or restart the application');
     backendProcess.kill();
     process.exit(1);
   }
@@ -89,12 +93,14 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://localhost:${FRONTEND_PORT}`],
-      timeout: 120000, // 2 minutes
-      interval: 1000
+      timeout: 300000, // Increased to 5 minutes
+      interval: 2000,
+      window: 1000
     });
     console.log('✅ Frontend server is ready');
   } catch (error) {
     console.error('❌ Frontend server failed to start:', error);
+    console.error('💡 Try checking if port 5173 is available or restart the application');
     backendProcess.kill();
     frontendProcess.kill();
     process.exit(1);
@@ -109,6 +115,10 @@ async function startUnifiedServer() {
     changeOrigin: true,
     pathRewrite: {
       '^/api': '/api'
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error for API:', err);
+      res.status(500).json({ error: 'Backend service unavailable' });
     }
   }));
   
@@ -116,14 +126,20 @@ async function startUnifiedServer() {
   app.use('/ws', createProxyMiddleware({
     target: `http://localhost:${BACKEND_PORT}`,
     ws: true,
-    changeOrigin: true
+    changeOrigin: true,
+    onError: (err, req, res) => {
+      console.error('Proxy error for WebSocket:', err);
+    }
   }));
   
   // Proxy all other requests to the frontend
   app.use('/', createProxyMiddleware({
     target: `http://localhost:${FRONTEND_PORT}`,
     changeOrigin: true,
-    ws: true
+    ws: true,
+    onError: (err, req, res) => {
+      console.error('Proxy error for frontend:', err);
+    }
   }));
   
   // Start the proxy server
@@ -156,11 +172,20 @@ async function main() {
   console.log('=== VPN Bruteforce Dashboard ===');
   
   // Check if required packages are installed
-  if (!await fs.pathExists(path.join(projectRoot, 'node_modules/http-proxy-middleware'))) {
-    console.log('📦 Installing required packages...');
-    spawn.sync('npm', ['install', 'http-proxy-middleware', 'express', 'wait-on', 'cross-spawn'], {
-      stdio: 'inherit'
-    });
+  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'cross-spawn', 'cors', 'ws'];
+  const packageJsonPath = path.join(projectRoot, 'package.json');
+  
+  if (await fs.pathExists(packageJsonPath)) {
+    const packageJson = await fs.readJson(packageJsonPath);
+    const installedDeps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+    const missingPackages = requiredPackages.filter(pkg => !installedDeps[pkg]);
+    
+    if (missingPackages.length > 0) {
+      console.log(`📦 Installing missing packages: ${missingPackages.join(', ')}...`);
+      spawn.sync('npm', ['install', ...missingPackages], {
+        stdio: 'inherit'
+      });
+    }
   }
   
   // Start the unified server
