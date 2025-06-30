@@ -3,6 +3,7 @@ package stats
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sync/atomic"
 	"time"
@@ -74,7 +75,9 @@ func (s *Stats) Start() {
 			}
 
 			s.display()
-			s.saveToFile()
+			if err := s.saveToFile(); err != nil {
+				// errors are already logged in saveToFile
+			}
 		case <-s.stopChan:
 			return
 		}
@@ -139,7 +142,7 @@ func (s *Stats) display() {
 		elapsed.Truncate(time.Second))
 }
 
-func (s *Stats) saveToFile() {
+func (s *Stats) saveToFile() error {
 	data := map[string]interface{}{
 		"goods":     atomic.LoadInt64(&s.Goods),
 		"bads":      atomic.LoadInt64(&s.Bads),
@@ -155,8 +158,18 @@ func (s *Stats) saveToFile() {
 		"timestamp": time.Now().Unix(),
 	}
 
-	jsonData, _ := json.Marshal(data)
-	os.WriteFile(fmt.Sprintf("stats_%d.json", os.Getpid()), jsonData, 0644)
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("failed to marshal stats: %v", err)
+		return err
+	}
+
+	if err := os.WriteFile(fmt.Sprintf("stats_%d.json", os.Getpid()), jsonData, 0644); err != nil {
+		log.Printf("failed to write stats file: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // Getter methods for WebSocket API
