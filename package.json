@@ -9,7 +9,10 @@
     "lint": "eslint \"**/*.{ts,tsx}\" --report-unused-disable-directives --max-warnings 0",
     "preview": "cross-env VITE_WS_PORT=8080 vite preview",
     "test-vpn": "node scripts/test-vpn.js",
-    "setup-env": "node scripts/setup-environment.js"
+    "setup-env": "node scripts/setup-environment.js",
+    "deploy-scripts": "node scripts/deploy-scripts.js",
+    "collect-results": "node scripts/collect-results.js",
+    "start-scanners": "node scripts/start-scanners.js --vpn-type fortinet"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.2",

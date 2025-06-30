@@ -1,74 +1,99 @@
 # VPN Bruteforce Dashboard
 
-This project provides a small dashboard UI for controlling the Go based VPN bruteforce scanner.
+A comprehensive dashboard for managing and monitoring VPN scanning operations.
 
-## Environment variables
+## Features
 
-- `VITE_WS_PORT` - Port number used by the frontend when connecting to the WebSocket API. If not provided the port of the current page (`window.location.port`) is used. Development and build scripts set this to `8080` by default.
-- `HOST` - Address to bind the server to. Defaults to `0.0.0.0` for webcontainer compatibility.
+- Real-time monitoring of scanning operations
+- Support for multiple VPN types (Fortinet, GlobalProtect, SonicWall, etc.)
+- Worker server management
+- Credential generation and distribution
+- Results collection and analysis
+- Database integration with Supabase
 
-This project includes a Go backend with a React/Vite frontend. The dashboard stores data in an embedded PostgreSQL database and exposes a web interface for monitoring brute-force tasks.
+## Getting Started
 
-## Requirements
+### Prerequisites
 
-- **Go**: version 1.23 or newer
-- **Node.js**: version 20 or newer
+- Node.js 20 or newer
+- npm 9 or newer
 
-## Initial Setup
+### Installation
 
-**IMPORTANT**: Run the dashboard setup once to download dependencies and initialize the embedded database:
-
-```bash
-go run cmd/dashboard/main.go --setup
-```
-
-This command executes `go mod download`, `npm install` and
-`python3 -m pip install -r requirements.txt` before creating the database.
-
-## Running the Development Environment
-
-Use the provided development script which handles both backend and frontend:
+1. Clone the repository
+2. Install dependencies:
 
 ```bash
-./scripts/dev.sh
+npm install
 ```
 
-This script will:
-- Build the frontend if needed
-- Start the Go backend server on `0.0.0.0:8080`
-- Start the Vite development server
-
-Alternatively, to serve the built frontend instead of using the dev server:
+3. Set up the environment:
 
 ```bash
-./scripts/dev.sh --serve
+npm run setup-env
 ```
 
-## Manual Backend Setup
+### Running the Dashboard
 
-The dashboard server listens on `localhost:8080` by default. Set the `HOST` environment variable if you want to bind to a specific address (for example when running inside a VM or container):
+Start the development server:
 
 ```bash
-export HOST=0.0.0.0
-# optional: change the port with -port
-go run cmd/dashboard/main.go
+npm run dev
 ```
 
-## Manual Frontend Setup
+The dashboard will be available at http://localhost:5173
 
-Use the Vite dev server for frontend development. Pass the `--host` flag so the UI can be opened from other machines and make sure the `HOST` variable matches the backend address:
+### Testing VPN Credentials
+
+Test VPN credentials with the built-in test script:
 
 ```bash
-npm run dev -- --host
+npm run test-vpn
 ```
 
-The frontend will be available on the address set in `HOST` using the default port from Vite (usually `5173`).
+You can specify a VPN type:
 
-## Troubleshooting
+```bash
+npm run test-vpn -- --vpn-type fortinet
+```
 
-If you encounter WebSocket connection errors:
+### Working with Remote Servers
 
-1. Ensure you've run the initial setup: `go run cmd/dashboard/main.go --setup`
-2. Make sure the `HOST` environment variable is set to `0.0.0.0`
-3. Check that the Go server is running and accessible on port 8080
-4. Verify there are no firewall or network issues blocking the connection
+Deploy scripts to worker servers:
+
+```bash
+npm run deploy-scripts
+```
+
+Start scanners on worker servers:
+
+```bash
+npm run start-scanners -- --vpn-type fortinet
+```
+
+Collect results from worker servers:
+
+```bash
+npm run collect-results
+```
+
+## Project Structure
+
+- `/src` - Frontend React application
+- `/scripts` - Node.js scripts for various operations
+- `/creds` - VPN credential files for testing
+- `/Generated` - Generated credential combinations
+- `/Valid` - Valid credential results
+
+## Supported VPN Types
+
+- Fortinet
+- Palo Alto GlobalProtect
+- SonicWall
+- Sophos
+- WatchGuard
+- Cisco ASA
+
+## License
+
+MIT
