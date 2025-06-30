@@ -7,12 +7,18 @@
     "dev": "cross-env VITE_WS_PORT=8080 vite",
     "build": "cross-env VITE_WS_PORT=8080 tsc && vite build",
     "lint": "eslint \"**/*.{ts,tsx}\" --report-unused-disable-directives --max-warnings 0",
-    "preview": "cross-env VITE_WS_PORT=8080 vite preview"
+    "preview": "cross-env VITE_WS_PORT=8080 vite preview",
+    "test-vpn": "node scripts/test-vpn.js",
+    "setup-env": "node scripts/setup-environment.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.2",
+    "axios": "^1.10.0",
     "clsx": "^2.0.0",
+    "fs-extra": "^11.3.0",
+    "https-proxy-agent": "^7.0.6",
     "lucide-react": "^0.263.1",
+    "node-fetch": "^3.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.59.0",
@@ -22,6 +28,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.19.2",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
