@@ -26,6 +26,7 @@ import {
   Play
 } from 'lucide-react';
 import { getSupabase, getSupabaseSafe, initializeSupabase, isSupabaseConfigured, clearSupabaseConfig } from '../../lib/supabase';
+import { checkLocalPostgresStatus, startLocalPostgres, createDatabaseSchema, getTablesList, exportTableData } from '../../lib/postgres';
 import toast from 'react-hot-toast';
 
 interface DatabaseTable {
@@ -103,39 +104,16 @@ export function Database() {
     }
     
     // Проверяем статус локального PostgreSQL
-    checkLocalPostgresStatus();
+    checkLocalPostgresStatus().then(status => {
+      setLocalPostgresRunning(status);
+    });
   }, [isConfigured]);
 
-  const checkLocalPostgresStatus = async () => {
-    try {
-      const response = await fetch('/api/stats');
-      if (response.ok) {
-        setLocalPostgresRunning(true);
-      }
-    } catch (error) {
-      setLocalPostgresRunning(false);
-    }
-  };
-
-  const startLocalPostgres = async () => {
+  const startLocalPostgresDB = async () => {
     setLocalPostgresStarting(true);
     try {
-      // Запускаем локальный PostgreSQL через Go сервер
-      const response = await fetch('/api/config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          database_dsn: '',
-          db_user: 'postgres',
-          db_password: 'postgres',
-          db_name: 'vpn_data',
-          db_port: 5432
-        })
-      });
-
-      if (response.ok) {
+      const success = await startLocalPostgres();
+      if (success) {
         toast.success('Локальный PostgreSQL запущен');
         setLocalPostgresRunning(true);
         
@@ -310,22 +288,10 @@ export function Database() {
     try {
       if (localPostgresRunning) {
         // Для локального PostgreSQL используем API сервера
-        const response = await fetch('/api/config', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            action: 'create_schema'
-          })
-        });
-        
-        if (response.ok) {
+        const success = await createDatabaseSchema();
+        if (success) {
           toast.success('Database schema created successfully!');
           await loadTables();
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create schema');
         }
       } else {
         const supabase = getSupabase();
@@ -447,22 +413,10 @@ export function Database() {
     try {
       if (localPostgresRunning) {
         // Для локального PostgreSQL используем API сервера
-        const response = await fetch(`/api/${tableName}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch data from ${tableName}`);
+        const success = await exportTableData(tableName);
+        if (success) {
+          toast.success(`${tableName} exported successfully!`);
         }
-        
-        const data = await response.json();
-        
-        const blob = new Blob([JSON.stringify(data.data || [], null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${tableName}_export_${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        toast.success(`${tableName} exported successfully!`);
       } else {
         const supabase = getSupabase();
         const { data, error } = await supabase
@@ -507,7 +461,7 @@ export function Database() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div 
               className="p-6 border-2 border-primary-500 rounded-lg cursor-pointer hover:bg-primary-50 transition-colors"
-              onClick={startLocalPostgres}
+              onClick={startLocalPostgresDB}
             >
               <Server className="h-12 w-12 text-primary-600 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-center mb-2">Local PostgreSQL</h3>
@@ -517,7 +471,7 @@ export function Database() {
               <Button 
                 variant="primary" 
                 className="w-full mt-4"
-                onClick={startLocalPostgres}
+                onClick={startLocalPostgresDB}
                 loading={localPostgresStarting}
               >
                 <Play className="h-4 w-4 mr-2" />
@@ -616,7 +570,7 @@ export function Database() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="database">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -820,7 +774,7 @@ export function Database() {
                 size="sm" 
                 variant="primary" 
                 className="w-full justify-start"
-                onClick={startLocalPostgres}
+                onClick={startLocalPostgresDB}
                 loading={localPostgresStarting}
               >
                 <Play className="h-4 w-4 mr-2" />

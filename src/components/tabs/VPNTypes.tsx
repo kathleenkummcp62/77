@@ -34,7 +34,11 @@ const vpnTypes = [
       'dashboard',
       'welcome.html'
     ],
-    realCredentials: sampleCredentials
+    realCredentials: [
+      'https://200.113.15.26:4443;guest;guest',
+      'https://195.150.192.5:443;guest;guest',
+      'https://88.117.174.186:443;guest;guest'
+    ]
   },
   {
     id: 'globalprotect',
@@ -54,7 +58,11 @@ const vpnTypes = [
       'clientDownload',
       'portal-userauthcookie'
     ],
-    realCredentials: sampleCredentials
+    realCredentials: [
+      'https://216.229.124.44:443;test;test',
+      'https://72.26.131.86:443;test;test',
+      'https://216.247.223.23:443;test;test'
+    ]
   },
   {
     id: 'sonicwall',
@@ -74,7 +82,11 @@ const vpnTypes = [
       'portal.html',
       'welcome'
     ],
-    realCredentials: sampleCredentials
+    realCredentials: [
+      'https://69.21.239.19:4433;test;test;LocalDomain',
+      'https://68.189.7.50:4433;test;test;hudmech.local',
+      'https://74.92.44.25:4433;test;test;microgroup.local'
+    ]
   },
   {
     id: 'sophos',
@@ -94,7 +106,11 @@ const vpnTypes = [
       'welcome',
       'logout'
     ],
-    realCredentials: sampleCredentials
+    realCredentials: [
+      'https://213.139.132.204:6443;test;test;intern.gutenberg-shop.de',
+      'https://124.254.117.194:8443;test;test;fcc.wa.edu.au',
+      'https://80.151.100.43:4433;test;test;bilstein.local'
+    ]
   },
   {
     id: 'watchguard',
@@ -114,7 +130,11 @@ const vpnTypes = [
       'AuthPoint',
       'welcome'
     ],
-    realCredentials: sampleCredentials
+    realCredentials: [
+      'https://96.92.230.186:443:Firebox-DB:mpbchicago.masterpaperbox.com:printer:P@55w0rd',
+      'https://75.146.37.105:444:Firebox-DB:comercial:P@ssw0rd123',
+      'https://50.86.120.107:443:Firebox-DB:comercial:P@ssw0rd123'
+    ]
   },
   {
     id: 'cisco',
@@ -134,7 +154,11 @@ const vpnTypes = [
       'ANYCONNECT',
       'remote_access'
     ],
-    realCredentials: sampleCredentials
+    realCredentials: [
+      'https://74.209.225.52:443:test:test:remote_access',
+      'https://67.202.240.148:443:test:test:ANYCONNECT',
+      'https://72.23.123.187:443:test:test:AnyConnect_HVAC'
+    ]
   }
 ];
 

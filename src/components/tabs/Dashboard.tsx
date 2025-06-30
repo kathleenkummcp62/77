@@ -20,7 +20,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // ✅ РЕАЛЬНЫЕ СЕРВЕРЫ (БЕЗ ВЫДУМАННЫХ ДАННЫХ)
 const realServers = [
   {
-    ip: 'server1.example.com',
+    ip: '194.0.234.203',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -35,7 +35,7 @@ const realServers = [
     current_task: 'Idle - Ready for tasks'
   },
   {
-    ip: 'server2.example.com',
+    ip: '77.90.185.26',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -50,7 +50,7 @@ const realServers = [
     current_task: 'Idle - Ready for tasks'
   },
   {
-    ip: 'server3.example.com',
+    ip: '185.93.89.206',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
@@ -65,7 +65,7 @@ const realServers = [
     current_task: 'Idle - Ready for tasks'
   },
   {
-    ip: 'server4.example.com',
+    ip: '185.93.89.35',
     status: 'online',
     uptime: '0h 0m',
     cpu: 0,
