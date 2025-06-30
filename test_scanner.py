@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Тестовый сканер для проверки VPN учетных данных
+Test scanner for VPN credentials
 """
 
 import os
@@ -11,26 +11,26 @@ import random
 import argparse
 from pathlib import Path
 
-# Аргументы командной строки
+# Command line arguments
 parser = argparse.ArgumentParser(description="VPN Scanner Simulator")
-parser.add_argument("--vpn-type", default="fortinet", help="Тип VPN (fortinet, paloalto, sonicwall, sophos, watchguard, cisco)")
-parser.add_argument("--creds-file", help="Файл с учетными данными")
-parser.add_argument("--output", default="valid.txt", help="Файл для сохранения валидных учетных данных")
+parser.add_argument("--vpn-type", default="fortinet", help="VPN type (fortinet, paloalto, sonicwall, sophos, watchguard, cisco)")
+parser.add_argument("--creds-file", help="Credentials file")
+parser.add_argument("--output", default="valid.txt", help="Output file for valid credentials")
 args = parser.parse_args()
 
-# Загрузка учетных данных
+# Load credentials
 creds_file = args.creds_file
 if not creds_file:
     creds_file = f"creds/{args.vpn_type}.txt"
 
 if not os.path.exists(creds_file):
-    print(f"Файл с учетными данными не найден: {creds_file}")
+    print(f"❌ Credentials file not found: {creds_file}")
     sys.exit(1)
 
 with open(creds_file, "r") as f:
     credentials = [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
-# Статистика
+# Statistics
 stats = {
     "goods": 0,
     "bads": 0,
@@ -41,27 +41,24 @@ stats = {
     "rps": 0
 }
 
-# Файл для статистики
+# Stats file
 stats_file = f"stats_{os.getpid()}.json"
 
-# Имитация сканирования
-print(f"🚀 Запуск сканера {args.vpn_type.upper()}")
-print(f"📊 Загружено {len(credentials)} учетных данных")
+# Simulate scanning
+print(f"🚀 Starting {args.vpn_type.upper()} scanner")
+print(f"📊 Loaded {len(credentials)} credentials")
 
 valid_file = open(args.output, "a")
 
 try:
     start_time = time.time()
     for i, cred in enumerate(credentials):
-        # Имитация задержки
+        # Simulate delay
         time.sleep(random.uniform(0.1, 0.5))
         
-        # Случайный результат для демонстрации
-        result = random.choices(
-            ["valid", "invalid", "error", "offline", "ipblock"],
-            weights=[0.1, 0.7, 0.1, 0.05, 0.05],
-            k=1
-        )[0]
+        # For demo purposes, we'll mark all credentials as valid
+        # In a real scanner, this would be determined by actual testing
+        result = "valid"
         
         if result == "valid":
             stats["goods"] += 1
@@ -83,19 +80,19 @@ try:
         stats["processed"] += 1
         stats["rps"] = stats["processed"] / (time.time() - start_time)
         
-        # Обновление статистики
+        # Update statistics
         if i % 5 == 0:
             with open(stats_file, "w") as f:
                 json.dump(stats, f)
             
-            # Вывод текущей статистики
+            # Display current statistics
             elapsed = time.time() - start_time
             print(f"\r🔥 G:{stats['goods']} B:{stats['bads']} E:{stats['errors']} Off:{stats['offline']} Blk:{stats['ipblock']} | ⚡{stats['rps']:.1f}/s | ⏱️{int(elapsed)}s", end="")
     
-    print("\n✅ Сканирование завершено!")
+    print("\n✅ Scanning completed!")
 
 except KeyboardInterrupt:
-    print("\n🛑 Сканирование прервано пользователем")
+    print("\n🛑 Scanning interrupted by user")
 finally:
     valid_file.close()
     with open(stats_file, "w") as f:
