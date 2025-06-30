@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * WebSocket client for testing the WebSocket server
- * This script connects to the WebSocket server and logs messages
+ * Mock API server for VPN Bruteforce Dashboard
+ * This script provides a mock backend for development
  */
 
 import express from 'express';
