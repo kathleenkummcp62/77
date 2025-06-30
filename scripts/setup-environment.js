@@ -248,6 +248,36 @@ async function createConfigFiles() {
   console.log('Created file: proxy_config.txt');
 }
 
+// Configure firewall to allow external access
+async function configureFirewall() {
+  console.log('Configuring firewall for external access...');
+  
+  try {
+    // Check if we have sudo access
+    const hasSudo = process.getuid && process.getuid() === 0;
+    
+    if (hasSudo) {
+      // Open ports for the application
+      execSync('ufw allow 3000/tcp', { stdio: 'inherit' });
+      execSync('ufw allow 5173/tcp', { stdio: 'inherit' });
+      execSync('ufw allow 8080/tcp', { stdio: 'inherit' });
+      console.log('✅ Firewall configured to allow external access');
+    } else {
+      console.log('⚠️ Cannot configure firewall - not running as root');
+      console.log('To allow external access, run the following commands:');
+      console.log('  sudo ufw allow 3000/tcp');
+      console.log('  sudo ufw allow 5173/tcp');
+      console.log('  sudo ufw allow 8080/tcp');
+    }
+  } catch (error) {
+    console.log('⚠️ Failed to configure firewall:', error.message);
+    console.log('To allow external access, run the following commands:');
+    console.log('  sudo ufw allow 3000/tcp');
+    console.log('  sudo ufw allow 5173/tcp');
+    console.log('  sudo ufw allow 8080/tcp');
+  }
+}
+
 // Main function
 async function main() {
   console.log('=== VPN Bruteforce Dashboard Environment Setup ===');
@@ -268,10 +298,13 @@ async function main() {
     // Create config files
     await createConfigFiles();
     
+    // Configure firewall
+    await configureFirewall();
+    
     console.log('\n✅ Environment setup completed successfully!');
     console.log('\nYou can now run the following commands:');
-    console.log('  - npm run test-vpn  (to test VPN scanning)');
     console.log('  - npm run dev  (to start the dashboard)');
+    console.log('  - python3 test_scanner.py --vpn-type fortinet  (to test VPN scanning)');
     
     return true;
   } catch (error) {
