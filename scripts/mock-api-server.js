@@ -14,7 +14,6 @@ const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(express.json());
-app.use(express.static('public'));
 
 // CORS middleware
 app.use((req, res, next) => {
