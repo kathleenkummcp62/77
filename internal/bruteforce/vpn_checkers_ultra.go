@@ -8,20 +8,16 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"unsafe"
 )
 
 // Ultra-fast string to bytes conversion without allocation
 func stringToBytes(s string) []byte {
-	return *(*[]byte)(unsafe.Pointer(&struct {
-		string
-		Cap int
-	}{s, len(s)}))
+	return []byte(s)
 }
 
 // Ultra-fast bytes to string conversion without allocation
 func bytesToString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return string(b)
 }
 
 // ✅ ИСПРАВЛЕННАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ РЕЗУЛЬТАТОВ ДЛЯ FORTINET
