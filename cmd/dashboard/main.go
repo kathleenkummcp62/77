@@ -29,7 +29,7 @@ func runSetup(cfgPath string) error {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("%s %v failed: %w", c.name, c.args, err)
+			return fmt.Errorf("command %s %v failed: %w", c.name, c.args, err)
 		}
 	}
 
