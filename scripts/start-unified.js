@@ -22,6 +22,7 @@ import { createServer } from 'http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import { networkInterfaces } from 'os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -220,7 +221,6 @@ async function startUnifiedServer() {
 
 // Helper function to get server IP
 function getServerIP() {
-  const { networkInterfaces } = require('os');
   const nets = networkInterfaces();
   
   for (const name of Object.keys(nets)) {
