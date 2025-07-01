@@ -208,7 +208,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		// Skip authentication for health check and login endpoints
 		if r.URL.Path == "/api/health" || r.URL.Path == "/api/login" {
 			next.ServeHTTP(w, r)
-			return
+			return;
 		}
 		
 		t := r.Header.Get("X-API-Token")
@@ -303,7 +303,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Password string
 		Role     string
 	}{
-		"admin":  {"admin123", "admin"},
+		"admin":  {"admin", "admin"},
 		"user":   {"user123", "user"},
 		"viewer": {"viewer123", "viewer"},
 	}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -16,8 +16,13 @@ import {
   Lock,
   Globe,
   Database,
-  AlertTriangle
+  AlertTriangle,
+  User,
+  Key
 } from 'lucide-react';
+import { useAppSelector } from '../../store';
+import { getUsers, updateUserPassword, getCurrentUser } from '../../lib/auth';
+import toast from 'react-hot-toast';
 
 interface ConfigSection {
   id: string;
@@ -27,8 +32,9 @@ interface ConfigSection {
 }
 
 export function Settings() {
-  const [activeSection, setActiveSection] = useState('performance');
+  const [activeSection, setActiveSection] = useState('security');
   const [hasChanges, setHasChanges] = useState(false);
+  const currentUser = useAppSelector(state => state.auth.user);
 
   const [config, setConfig] = useState({
     // Performance Settings
@@ -76,18 +82,26 @@ export function Settings() {
     experimentalFeatures: false
   });
 
+  // Password change state
+  const [passwordChange, setPasswordChange] = useState({
+    username: currentUser?.username || '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
   const sections: ConfigSection[] = [
+    {
+      id: 'security',
+      title: 'Security',
+      icon: Shield,
+      description: 'Authentication, passwords, and security settings'
+    },
     {
       id: 'performance',
       title: 'Performance',
       icon: Zap,
       description: 'Threading, rate limiting, and optimization settings'
-    },
-    {
-      id: 'security',
-      title: 'Security',
-      icon: Shield,
-      description: 'SSL, proxy, and security configuration'
     },
     {
       id: 'notifications',
@@ -120,15 +134,61 @@ export function Settings() {
     setHasChanges(true);
   };
 
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate inputs
+    if (!passwordChange.currentPassword) {
+      toast.error('Current password is required');
+      return;
+    }
+    
+    if (!passwordChange.newPassword) {
+      toast.error('New password is required');
+      return;
+    }
+    
+    if (passwordChange.newPassword !== passwordChange.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    
+    // Verify current password
+    const users = getUsers();
+    const user = users[passwordChange.username];
+    
+    if (!user || user.password !== passwordChange.currentPassword) {
+      toast.error('Current password is incorrect');
+      return;
+    }
+    
+    // Update password
+    const success = updateUserPassword(passwordChange.username, passwordChange.newPassword);
+    
+    if (success) {
+      toast.success('Password updated successfully');
+      setPasswordChange({
+        ...passwordChange,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } else {
+      toast.error('Failed to update password');
+    }
+  };
+
   const handleSave = () => {
     // Save configuration
     console.log('Saving configuration:', config);
     setHasChanges(false);
+    toast.success('Settings saved successfully');
   };
 
   const handleReset = () => {
     // Reset to defaults
     setHasChanges(false);
+    toast.success('Settings reset to defaults');
   };
 
   const handleExport = () => {
@@ -141,6 +201,155 @@ export function Settings() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const renderSecuritySettings = () => (
+    <div className="space-y-6">
+      {/* Password Change Section */}
+      <div className="border border-gray-200 rounded-lg p-4">
+        <h4 className="font-medium text-gray-900 mb-4 flex items-center">
+          <Key className="h-5 w-5 mr-2 text-primary-600" />
+          Change Password
+        </h4>
+        
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Username
+            </label>
+            <input
+              type="text"
+              value={passwordChange.username}
+              readOnly
+              className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Current Password
+            </label>
+            <input
+              type="password"
+              value={passwordChange.currentPassword}
+              onChange={(e) => setPasswordChange(prev => ({ ...prev, currentPassword: e.target.value }))}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              New Password
+            </label>
+            <input
+              type="password"
+              value={passwordChange.newPassword}
+              onChange={(e) => setPasswordChange(prev => ({ ...prev, newPassword: e.target.value }))}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Confirm New Password
+            </label>
+            <input
+              type="password"
+              value={passwordChange.confirmPassword}
+              onChange={(e) => setPasswordChange(prev => ({ ...prev, confirmPassword: e.target.value }))}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              required
+            />
+          </div>
+          
+          <Button type="submit" variant="primary">
+            <Save className="h-4 w-4 mr-2" />
+            Update Password
+          </Button>
+        </form>
+      </div>
+      
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">SSL Verification</h4>
+            <p className="text-sm text-gray-600">Verify SSL certificates (may reduce speed)</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.sslVerification}
+              onChange={(e) => handleConfigChange('sslVerification', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Proxy Support</h4>
+            <p className="text-sm text-gray-600">Route traffic through proxy servers</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.proxyEnabled}
+              onChange={(e) => handleConfigChange('proxyEnabled', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">User-Agent Rotation</h4>
+            <p className="text-sm text-gray-600">Rotate browser user-agent strings</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.userAgentRotation}
+              onChange={(e) => handleConfigChange('userAgentRotation', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Rate Limit Bypass</h4>
+            <p className="text-sm text-gray-600">Attempt to bypass rate limiting</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.rateLimitBypass}
+              onChange={(e) => handleConfigChange('rateLimitBypass', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+      </div>
+
+      <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg">
+        <div className="flex items-start space-x-3">
+          <AlertTriangle className="h-5 w-5 text-warning-600 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-warning-800">Security Notice</h4>
+            <p className="text-sm text-warning-700 mt-1">
+              These settings are for authorized testing only. Ensure you have proper permission 
+              before testing any systems. Misuse may violate terms of service or local laws.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderPerformanceSettings = () => (
     <div className="space-y-6">
@@ -253,89 +462,6 @@ export function Settings() {
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-
-  const renderSecuritySettings = () => (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">SSL Verification</h4>
-            <p className="text-sm text-gray-600">Verify SSL certificates (may reduce speed)</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.sslVerification}
-              onChange={(e) => handleConfigChange('sslVerification', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Proxy Support</h4>
-            <p className="text-sm text-gray-600">Route traffic through proxy servers</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.proxyEnabled}
-              onChange={(e) => handleConfigChange('proxyEnabled', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">User-Agent Rotation</h4>
-            <p className="text-sm text-gray-600">Rotate browser user-agent strings</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.userAgentRotation}
-              onChange={(e) => handleConfigChange('userAgentRotation', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Rate Limit Bypass</h4>
-            <p className="text-sm text-gray-600">Attempt to bypass rate limiting</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.rateLimitBypass}
-              onChange={(e) => handleConfigChange('rateLimitBypass', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-      </div>
-
-      <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg">
-        <div className="flex items-start space-x-3">
-          <AlertTriangle className="h-5 w-5 text-warning-600 mt-0.5" />
-          <div>
-            <h4 className="font-medium text-warning-800">Security Notice</h4>
-            <p className="text-sm text-warning-700 mt-1">
-              These settings are for authorized testing only. Ensure you have proper permission 
-              before testing any systems. Misuse may violate terms of service or local laws.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -669,8 +795,8 @@ export function Settings() {
   );
 
   const renderContentMap: Record<string, () => JSX.Element> = {
-    performance: renderPerformanceSettings,
     security: renderSecuritySettings,
+    performance: renderPerformanceSettings,
     notifications: renderNotificationSettings,
     display: renderDisplaySettings,
     servers: renderServerSettings,

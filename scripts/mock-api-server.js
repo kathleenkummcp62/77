@@ -93,7 +93,7 @@ app.post('/api/login', (req, res) => {
   
   // Mock user authentication
   const users = {
-    admin: { password: 'admin123', role: 'admin' },
+    admin: { password: 'admin', role: 'admin' },
     user: { password: 'user123', role: 'user' },
     viewer: { password: 'viewer123', role: 'viewer' }
   };

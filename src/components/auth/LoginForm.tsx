@@ -12,8 +12,8 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -125,11 +125,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       </form>
       
       <div className="mt-6 text-center text-sm text-gray-600">
-        <p>Demo accounts:</p>
+        <p>Default credentials:</p>
         <div className="grid grid-cols-3 gap-2 mt-2">
           <div className="p-2 bg-gray-50 rounded border border-gray-200">
             <p className="font-medium">admin</p>
-            <p className="text-xs text-gray-500">admin123</p>
+            <p className="text-xs text-gray-500">admin</p>
           </div>
           <div className="p-2 bg-gray-50 rounded border border-gray-200">
             <p className="font-medium">user</p>

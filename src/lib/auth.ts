@@ -23,22 +23,52 @@ export interface LoginCredentials {
   password: string;
 }
 
-// Mock users for demonstration
-// In production, these would be stored in a database
-const MOCK_USERS: Record<string, { password: string; user: User }> = {
-  admin: {
-    password: 'admin123',
-    user: { id: '1', username: 'admin', role: 'admin' }
-  },
-  user: {
-    password: 'user123',
-    user: { id: '2', username: 'user', role: 'user' }
-  },
-  viewer: {
-    password: 'viewer123',
-    user: { id: '3', username: 'viewer', role: 'viewer' }
+// Get users from localStorage or use defaults
+export function getUsers(): Record<string, { password: string; user: User }> {
+  const storedUsers = localStorage.getItem('auth_users');
+  
+  if (storedUsers) {
+    try {
+      return JSON.parse(storedUsers);
+    } catch (error) {
+      console.error('Error parsing stored users:', error);
+    }
   }
-};
+  
+  // Default users
+  return {
+    admin: {
+      password: 'admin',
+      user: { id: '1', username: 'admin', role: 'admin' }
+    },
+    user: {
+      password: 'user123',
+      user: { id: '2', username: 'user', role: 'user' }
+    },
+    viewer: {
+      password: 'viewer123',
+      user: { id: '3', username: 'viewer', role: 'viewer' }
+    }
+  };
+}
+
+// Save users to localStorage
+export function saveUsers(users: Record<string, { password: string; user: User }>): void {
+  localStorage.setItem('auth_users', JSON.stringify(users));
+}
+
+// Update user password
+export function updateUserPassword(username: string, newPassword: string): boolean {
+  const users = getUsers();
+  
+  if (!users[username]) {
+    return false;
+  }
+  
+  users[username].password = newPassword;
+  saveUsers(users);
+  return true;
+}
 
 /**
  * Generate a JWT token for a user
@@ -78,7 +108,9 @@ export async function login(credentials: LoginCredentials): Promise<{ token: str
   const { username, password } = credentials;
   
   // Check if user exists and password matches
-  const userRecord = MOCK_USERS[username];
+  const users = getUsers();
+  const userRecord = users[username];
+  
   if (!userRecord || userRecord.password !== password) {
     return null;
   }
