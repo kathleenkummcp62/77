@@ -42,7 +42,8 @@ func ConnectFromApp(c config.Config) (*DB, error) {
 // DB wraps the SQL database with optional embedded instance.
 type DB struct {
 	*sql.DB
-	embedded *embeddedpostgres.EmbeddedPostgres
+	embedded       *embeddedpostgres.EmbeddedPostgres
+	useVendorTasks bool
 }
 
 // Connect tries to connect to the provided DSN. If it fails,
@@ -62,6 +63,7 @@ func Connect(cfg Config) (*DB, error) {
 				d.Close()
 				return nil, err
 			}
+			d.detectSchema()
 			return d, nil
 		}
 		db.Close()
@@ -105,7 +107,7 @@ func Connect(cfg Config) (*DB, error) {
 		d.Close()
 		return nil, err
 	}
-
+	d.detectSchema()
 	return d, nil
 }
 
@@ -118,4 +120,18 @@ func (d *DB) Close() error {
 		return d.DB.Close()
 	}
 	return nil
+}
+
+// detectSchema checks if the tasks table contains the vendor_url_id column and
+// toggles useVendorTasks accordingly. Errors are ignored so that callers can
+// continue working with older schemas.
+func (d *DB) detectSchema() {
+	if d == nil || d.DB == nil {
+		return
+	}
+	var exists bool
+	err := d.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tasks' AND column_name='vendor_url_id')`).Scan(&exists)
+	if err == nil && exists {
+		d.useVendorTasks = true
+	}
 }

@@ -1,4 +1,4 @@
-package api
+package crypto
 
 import (
 	"crypto/aes"
@@ -10,8 +10,6 @@ import (
 	"os"
 )
 
-// getKey возвращает ключ шифрования из переменной окружения или использует
-// значение по умолчанию. Ключ всегда приводится к 32 байтам для AES-256.
 func getKey() []byte {
 	key := os.Getenv("ENC_KEY")
 	if key == "" {
@@ -28,9 +26,8 @@ func getKey() []byte {
 	return b
 }
 
-// encryptString шифрует строку с использованием AES-GCM и возвращает
-// base64-кодированную строку.
-func encryptString(s string) (string, error) {
+// EncryptString encrypts a string using AES-GCM and returns base64 encoded result.
+func EncryptString(s string) (string, error) {
 	key := getKey()
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -48,9 +45,8 @@ func encryptString(s string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// decryptString расшифровывает base64-кодированную строку, зашифрованную
-// с помощью encryptString.
-func decryptString(s string) (string, error) {
+// DecryptString decrypts a base64 encoded string that was encrypted with EncryptString.
+func DecryptString(s string) (string, error) {
 	key := getKey()
 	data, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {

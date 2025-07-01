@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
+
+	"vpn-bruteforce-client/internal/crypto"
 )
 
 // QueryWithPagination executes a query with pagination
@@ -61,9 +62,9 @@ func (d *DB) GetCredentialsWithPagination(page, pageSize int) ([]map[string]inte
 		}
 
 		// Decrypt sensitive data
-		decryptedIP, _ := decryptString(ip)
-		decryptedUsername, _ := decryptString(username)
-		decryptedPassword, _ := decryptString(password)
+		decryptedIP, _ := crypto.DecryptString(ip)
+		decryptedUsername, _ := crypto.DecryptString(username)
+		decryptedPassword, _ := crypto.DecryptString(password)
 
 		credentials = append(credentials, map[string]interface{}{
 			"id":       id,
@@ -98,9 +99,9 @@ func (d *DB) GetProxiesWithPagination(page, pageSize int) ([]map[string]interfac
 		}
 
 		// Decrypt sensitive data
-		decryptedAddress, _ := decryptString(address)
-		decryptedUsername, _ := decryptString(username)
-		decryptedPassword, _ := decryptString(password)
+		decryptedAddress, _ := crypto.DecryptString(address)
+		decryptedUsername, _ := crypto.DecryptString(username)
+		decryptedPassword, _ := crypto.DecryptString(password)
 
 		proxies = append(proxies, map[string]interface{}{
 			"id":       id,
@@ -301,9 +302,9 @@ func (d *DB) GetCredentialsByVPNType(vpnType string, page, pageSize int) ([]map[
 		}
 
 		// Decrypt sensitive data
-		decryptedIP, _ := decryptString(ip)
-		decryptedUsername, _ := decryptString(username)
-		decryptedPassword, _ := decryptString(password)
+		decryptedIP, _ := crypto.DecryptString(ip)
+		decryptedUsername, _ := crypto.DecryptString(username)
+		decryptedPassword, _ := crypto.DecryptString(password)
 
 		credentials = append(credentials, map[string]interface{}{
 			"id":       id,
@@ -524,9 +525,9 @@ func (d *DB) GetProxiesByType(proxyType string, page, pageSize int) ([]map[strin
 		}
 
 		// Decrypt sensitive data
-		decryptedAddress, _ := decryptString(address)
-		decryptedUsername, _ := decryptString(username)
-		decryptedPassword, _ := decryptString(password)
+		decryptedAddress, _ := crypto.DecryptString(address)
+		decryptedUsername, _ := crypto.DecryptString(username)
+		decryptedPassword, _ := crypto.DecryptString(password)
 
 		proxies = append(proxies, map[string]interface{}{
 			"id":       id,
@@ -605,9 +606,9 @@ func (d *DB) GetCredentialsWithSearch(search string, page, pageSize int) ([]map[
 		}
 
 		// Decrypt sensitive data
-		decryptedIP, _ := decryptString(ip)
-		decryptedUsername, _ := decryptString(username)
-		decryptedPassword, _ := decryptString(password)
+		decryptedIP, _ := crypto.DecryptString(ip)
+		decryptedUsername, _ := crypto.DecryptString(username)
+		decryptedPassword, _ := crypto.DecryptString(password)
 
 		credentials = append(credentials, map[string]interface{}{
 			"id":       id,
@@ -796,9 +797,9 @@ func (d *DB) GetProxiesWithSearch(search string, page, pageSize int) ([]map[stri
 		}
 
 		// Decrypt sensitive data
-		decryptedAddress, _ := decryptString(address)
-		decryptedUsername, _ := decryptString(username)
-		decryptedPassword, _ := decryptString(password)
+		decryptedAddress, _ := crypto.DecryptString(address)
+		decryptedUsername, _ := crypto.DecryptString(username)
+		decryptedPassword, _ := crypto.DecryptString(password)
 
 		proxies = append(proxies, map[string]interface{}{
 			"id":       id,
@@ -851,13 +852,22 @@ func (d *DB) GetTasksWithFilters(filters map[string]interface{}, page, pageSize 
 		return nil, 0, fmt.Errorf("database not initialized")
 	}
 
-	// Build query with filters
-	query := `
-		SELECT t.id, t.vpn_type, t.vendor_url_id, COALESCE(v.url, ''), t.server, COALESCE(t.status, '')
-		FROM tasks t
-		LEFT JOIN vendor_urls v ON v.id = t.vendor_url_id
-		WHERE 1=1
-	`
+	var query string
+	if d.useVendorTasks {
+		// Build query with filters for the new schema
+		query = `
+                        SELECT t.id, t.vpn_type, t.vendor_url_id, COALESCE(v.url, ''), t.server, COALESCE(t.status, '')
+                        FROM tasks t
+                        LEFT JOIN vendor_urls v ON v.id = t.vendor_url_id
+                        WHERE 1=1
+                `
+	} else {
+		query = `
+                        SELECT id, vendor, url, login, password, proxy
+                        FROM tasks
+                        WHERE 1=1
+                `
+	}
 	var args []interface{}
 	argIndex := 1
 
@@ -878,26 +888,44 @@ func (d *DB) GetTasksWithFilters(filters map[string]interface{}, page, pageSize 
 	defer rows.Close()
 
 	var tasks []map[string]interface{}
-	for rows.Next() {
-		var (
-			id       int
-			vpnType  sql.NullString
-			vendorID sql.NullInt64
-			url      sql.NullString
-			server   sql.NullString
-			status   sql.NullString
-		)
-		if err := rows.Scan(&id, &vpnType, &vendorID, &url, &server, &status); err != nil {
-			continue
+	if d.useVendorTasks {
+		for rows.Next() {
+			var (
+				id       int
+				vpnType  sql.NullString
+				vendorID sql.NullInt64
+				url      sql.NullString
+				server   sql.NullString
+				status   sql.NullString
+			)
+			if err := rows.Scan(&id, &vpnType, &vendorID, &url, &server, &status); err != nil {
+				continue
+			}
+			tasks = append(tasks, map[string]interface{}{
+				"id":            id,
+				"vpn_type":      vpnType.String,
+				"vendor_url_id": vendorID.Int64,
+				"url":           url.String,
+				"server":        server.String,
+				"status":        status.String,
+			})
 		}
-		tasks = append(tasks, map[string]interface{}{
-			"id":            id,
-			"vpn_type":      vpnType.String,
-			"vendor_url_id": vendorID.Int64,
-			"url":           url.String,
-			"server":        server.String,
-			"status":        status.String,
-		})
+	} else {
+		for rows.Next() {
+			var id int
+			var vendor, url, login, password, proxy sql.NullString
+			if err := rows.Scan(&id, &vendor, &url, &login, &password, &proxy); err != nil {
+				continue
+			}
+			tasks = append(tasks, map[string]interface{}{
+				"id":       id,
+				"vendor":   vendor.String,
+				"url":      url.String,
+				"login":    login.String,
+				"password": password.String,
+				"proxy":    proxy.String,
+			})
+		}
 	}
 
 	return tasks, total, nil
@@ -995,9 +1023,9 @@ func (d *DB) GetCredentialsWithFilters(filters map[string]interface{}, page, pag
 		}
 
 		// Decrypt sensitive data
-		decryptedIP, _ := decryptString(ip)
-		decryptedUsername, _ := decryptString(username)
-		decryptedPassword, _ := decryptString(password)
+		decryptedIP, _ := crypto.DecryptString(ip)
+		decryptedUsername, _ := crypto.DecryptString(username)
+		decryptedPassword, _ := crypto.DecryptString(password)
 
 		credentials = append(credentials, map[string]interface{}{
 			"id":       id,
@@ -1050,9 +1078,9 @@ func (d *DB) GetProxiesWithFilters(filters map[string]interface{}, page, pageSiz
 		}
 
 		// Decrypt sensitive data
-		decryptedAddress, _ := decryptString(address)
-		decryptedUsername, _ := decryptString(username)
-		decryptedPassword, _ := decryptString(password)
+		decryptedAddress, _ := crypto.DecryptString(address)
+		decryptedUsername, _ := crypto.DecryptString(username)
+		decryptedPassword, _ := crypto.DecryptString(password)
 
 		proxies = append(proxies, map[string]interface{}{
 			"id":       id,
