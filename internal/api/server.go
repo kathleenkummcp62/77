@@ -272,6 +272,21 @@ func (s *Server) Start() error {
 	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), s.router)
 }
 
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{
+		"status":    "ok",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"service":   "vpn-bruteforce-dashboard",
+	}})
+}
+
+func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("write JSON error: %v", err)
+	}
+}
+
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	stats := map[string]interface{}{
 		"goods":        s.stats.GetGoods(),
@@ -491,21 +506,6 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
 			"status": "updated",
 		}})
-	}
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{
-		"status":    "ok",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"service":   "vpn-bruteforce-dashboard",
-	}})
-}
-
-func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("write JSON error: %v", err)
 	}
 }
 
