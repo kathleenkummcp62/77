@@ -29,17 +29,17 @@ type Server struct {
 	router   *mux.Router
 	port     int
 
-	// allowedOrigins contains the list of origins permitted for CORS. When
-	// empty, any origin is allowed which matches the previous behaviour.
+	// allowedOrigins содержит список разрешенных источников для CORS. Когда
+	// пуст, разрешены любые источники, что соответствует предыдущему поведению.
 	allowedOrigins map[string]bool
 
-	// authToken is compared against the Bearer token in the Authorization
-	// header. If empty, authentication checks are skipped.
+	// authToken сравнивается с Bearer токеном в заголовке Authorization.
+	// Если пуст, проверки аутентификации пропускаются.
 	authToken string
 
-	// useVendorTasks indicates that the tasks table stores a vendor_url_id
-	// reference instead of a vpn_type column. The handlers adapt their SQL
-	// queries based on this flag so the API works with both schemas.
+	// useVendorTasks указывает, что таблица tasks хранит vendor_url_id
+	// ссылку вместо столбца vpn_type. Обработчики адаптируют свои SQL
+	// запросы на основе этого флага, чтобы API работал с обеими схемами.
 	useVendorTasks bool
 }
 
@@ -49,8 +49,8 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
-// InsertLog stores a log entry in the database when available or appends
-// it to the fallback log file. Errors are logged but ignored.
+// InsertLog сохраняет запись лога в базе данных, если она доступна, или добавляет
+// ее в резервный лог-файл. Ошибки логируются, но игнорируются.
 func (s *Server) InsertLog(level, message, source string) {
 	if s == nil {
 		return
@@ -93,9 +93,9 @@ func NewServer(stats *stats.Stats, port int, database *db.DB) *Server {
 		port:     port,
 	}
 
-	// Load allowed origins and auth token from the environment. These are
-	// optional so the zero value preserves the previous open behaviour when
-	// unset.
+	// Загружаем разрешенные источники и токен аутентификации из окружения. Они
+	// опциональны, поэтому нулевое значение сохраняет предыдущее открытое поведение
+	// при отсутствии настроек.
 	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
 		s.allowedOrigins = make(map[string]bool)
 		for _, o := range strings.Split(origins, ",") {
@@ -150,6 +150,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/tasks", s.handleTasks).Methods("GET", "POST")
 	api.HandleFunc("/tasks/{id}", s.handleTask).Methods("PUT", "DELETE")
 	api.HandleFunc("/tasks/bulk_delete", s.handleTasksBulkDelete).Methods("POST")
+	api.HandleFunc("/health", s.handleHealth).Methods("GET")
 
 	// WebSocket endpoint
 	s.router.HandleFunc("/ws", s.wsServer.HandleWebSocket)
@@ -491,6 +492,14 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"status": "updated",
 		}})
 	}
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{
+		"status":    "ok",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"service":   "vpn-bruteforce-dashboard",
+	}})
 }
 
 func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
