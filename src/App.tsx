@@ -18,6 +18,9 @@ import { TestSuite } from "./components/testing/TestSuite";
 import { SecurityAudit } from "./components/testing/SecurityAudit";
 import { ScanResultsReport } from "./components/reports/ScanResultsReport";
 import { TaskScheduler } from "./components/scheduling/TaskScheduler";
+import { VPNImport } from "./components/tabs/VPNImport";
+import { TaskCreator } from "./components/tabs/TaskCreator";
+import { ResultsViewer } from "./components/tabs/ResultsViewer";
 import { useAppSelector, useAppDispatch } from "./store";
 import { setActiveTab } from "./store/slices/uiSlice";
 import { AuthGuard } from "./components/auth/AuthGuard";
@@ -64,6 +67,12 @@ function App() {
         return <ScanResultsReport />;
       case "scheduler":
         return <TaskScheduler />;
+      case "vpn-import":
+        return <VPNImport />;
+      case "task-creator":
+        return <TaskCreator />;
+      case "results-viewer":
+        return <ResultsViewer />;
       default:
         return <Dashboard />;
     }

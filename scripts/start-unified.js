@@ -240,7 +240,7 @@ async function main() {
   console.log('=== VPN Bruteforce Dashboard ===');
   
   // Check if required packages are installed
-  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'ws', 'cors', 'express-rate-limit', 'bcryptjs'];
+  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'ws', 'cors', 'express-rate-limit'];
   const packageJsonPath = path.join(projectRoot, 'package.json');
   
   if (await fs.pathExists(packageJsonPath)) {

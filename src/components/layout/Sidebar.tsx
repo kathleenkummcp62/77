@@ -17,7 +17,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
-  Bell
+  Bell,
+  Import,
+  FileInput,
+  ListTodo,
+  FolderSearch
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAppSelector, useAppDispatch } from "../../store";
@@ -40,6 +44,9 @@ const menuItems = [
   { id: "monitoring", label: "Monitoring", icon: Activity, role: "viewer" },
   { id: "reports", label: "Reports", icon: PieChart, role: "viewer" },
   { id: "scheduler", label: "Task Scheduler", icon: Calendar, role: "user" },
+  { id: "vpn-import", label: "Import/Export", icon: FileInput, role: "user" },
+  { id: "task-creator", label: "Task Creator", icon: ListTodo, role: "user" },
+  { id: "results-viewer", label: "Results Viewer", icon: FolderSearch, role: "viewer" },
   { id: "data", label: "Data Store", icon: FileText, role: "user" },
   { id: "database", label: "Database", icon: Database, role: "admin" },
   { id: "terminal", label: "Terminal", icon: Terminal, role: "admin" },
