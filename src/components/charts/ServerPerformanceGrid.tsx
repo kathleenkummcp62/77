@@ -27,7 +27,7 @@ export function ServerPerformanceGrid() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {servers?.map((server) => (
+        {servers && servers.length > 0 ? servers.map((server) => (
           <div key={server.ip} className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
@@ -99,7 +99,7 @@ export function ServerPerformanceGrid() {
               </div>
             </div>
           </div>
-        )) || (
+        )) : (
           <div className="col-span-2 text-center text-gray-500 py-8">
             No server data available
           </div>

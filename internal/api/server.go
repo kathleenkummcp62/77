@@ -1576,7 +1576,7 @@ func (s *Server) handleTasksBulkDelete(w http.ResponseWriter, r *http.Request) {
 	s.sendJSON(w, APIResponse{Success: true})
 }
 
-// handleScheduledTasks handles scheduled tasks endpoints
+// handleScheduledTasks handles GET and POST requests for scheduled tasks
 func (s *Server) handleScheduledTasks(w http.ResponseWriter, r *http.Request) {
 	if !s.checkAuth(w, r) {
 		return
@@ -1602,7 +1602,6 @@ func (s *Server) handleScheduledTasks(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		
-		// Get scheduled tasks with pagination
 		tasks, total, err := s.db.GetScheduledTasksWithPagination(page, pageSize)
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
@@ -1660,10 +1659,13 @@ func (s *Server) handleScheduledTasks(w http.ResponseWriter, r *http.Request) {
 		var id int
 		err := s.db.QueryRow(`
 			INSERT INTO scheduled_tasks(
-				title, description, task_type, vpn_type, scheduled_at, repeat, servers, active, executed, created_at
-			) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-			RETURNING id
-		`, task.Title, task.Description, task.TaskType, task.VPNType, task.ScheduledDateTime, task.Repeat, serversStr, task.Active, task.Executed).Scan(&id)
+				title, description, task_type, vpn_type, scheduled_at, 
+				repeat, servers, active, executed, created_at
+			) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()) 
+			RETURNING id`,
+			task.Title, task.Description, task.TaskType, task.VPNType,
+			task.ScheduledDateTime, task.Repeat, serversStr, task.Active, task.Executed,
+		).Scan(&id)
 		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
@@ -1677,7 +1679,7 @@ func (s *Server) handleScheduledTasks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleScheduledTask handles operations on a single scheduled task
+// handleScheduledTask handles PUT and DELETE requests for a single scheduled task
 func (s *Server) handleScheduledTask(w http.ResponseWriter, r *http.Request) {
 	if !s.checkAuth(w, r) {
 		return
@@ -1693,15 +1695,15 @@ func (s *Server) handleScheduledTask(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPut:
 		var task struct {
-			Title            string   `json:"title"`
-			Description      string   `json:"description"`
-			TaskType         string   `json:"taskType"`
-			VPNType          string   `json:"vpnType"`
+			Title             string   `json:"title"`
+			Description       string   `json:"description"`
+			TaskType          string   `json:"taskType"`
+			VPNType           string   `json:"vpnType"`
 			ScheduledDateTime string   `json:"scheduledDateTime"`
-			Repeat           string   `json:"repeat"`
-			Servers          []string `json:"servers"`
-			Active           bool     `json:"active"`
-			Executed         bool     `json:"executed"`
+			Repeat            string   `json:"repeat"`
+			Servers           []string `json:"servers"`
+			Active            bool     `json:"active"`
+			Executed          bool     `json:"executed"`
 		}
 		
 		if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
@@ -1714,17 +1716,12 @@ func (s *Server) handleScheduledTask(w http.ResponseWriter, r *http.Request) {
 		
 		_, err := s.db.Exec(`
 			UPDATE scheduled_tasks SET
-				title = $1,
-				description = $2,
-				task_type = $3,
-				vpn_type = $4,
-				scheduled_at = $5,
-				repeat = $6,
-				servers = $7,
-				active = $8,
-				executed = $9
-			WHERE id = $10
-		`, task.Title, task.Description, task.TaskType, task.VPNType, task.ScheduledDateTime, task.Repeat, serversStr, task.Active, task.Executed, id)
+				title = $1, description = $2, task_type = $3, vpn_type = $4,
+				scheduled_at = $5, repeat = $6, servers = $7, active = $8, executed = $9
+			WHERE id = $10`,
+			task.Title, task.Description, task.TaskType, task.VPNType,
+			task.ScheduledDateTime, task.Repeat, serversStr, task.Active, task.Executed, id,
+		)
 		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
@@ -1794,15 +1791,4 @@ func calculateCacheSize() int {
 		size += len(item.data)
 	}
 	return size
-}
-
-// logEvent inserts a log entry into the database if available. On error it logs
-// to the standard logger.
-func (s *Server) logEvent(level, msg, src string) {
-	if s == nil || s.db == nil {
-		return
-	}
-	if err := s.db.InsertLog(level, msg, src); err != nil {
-		log.Printf("log event error: %v", err)
-	}
 }
