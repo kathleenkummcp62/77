@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"strings"
 	"time"
 )
 
@@ -120,7 +120,7 @@ func (d *DB) GetTasksWithPagination(page, pageSize int) ([]map[string]interface{
 	}
 
 	var query string
-	if d.useVendorTasks {
+	if d.UseVendorTasks {
 		query = `
 			SELECT t.id, t.vpn_type, t.vendor_url_id, COALESCE(v.url, ''), t.server, COALESCE(t.status, '')
 			FROM tasks t
@@ -137,7 +137,7 @@ func (d *DB) GetTasksWithPagination(page, pageSize int) ([]map[string]interface{
 	defer rows.Close()
 
 	var tasks []map[string]interface{}
-	if d.useVendorTasks {
+	if d.UseVendorTasks {
 		for rows.Next() {
 			var (
 				id       int
@@ -240,6 +240,55 @@ func (d *DB) GetVendorURLsWithPagination(page, pageSize int) ([]map[string]inter
 	return vendorURLs, total, nil
 }
 
+// GetScheduledTasksWithPagination retrieves scheduled tasks with pagination
+func (d *DB) GetScheduledTasksWithPagination(page, pageSize int) ([]map[string]interface{}, int, error) {
+	if d == nil || d.DB == nil {
+		return nil, 0, fmt.Errorf("database not initialized")
+	}
+
+	query := `SELECT id, title, description, task_type, vpn_type, scheduled_at, repeat, servers, active, executed, created_at FROM scheduled_tasks`
+	rows, total, err := d.QueryWithPagination(query, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var tasks []map[string]interface{}
+	for rows.Next() {
+		var (
+			id          int
+			title       string
+			description sql.NullString
+			taskType    string
+			vpnType     sql.NullString
+			scheduledAt time.Time
+			repeat      string
+			servers     sql.NullString
+			active      sql.NullBool
+			executed    sql.NullBool
+			createdAt   time.Time
+		)
+		if err := rows.Scan(&id, &title, &description, &taskType, &vpnType, &scheduledAt, &repeat, &servers, &active, &executed, &createdAt); err != nil {
+			continue
+		}
+		tasks = append(tasks, map[string]interface{}{
+			"id":                id,
+			"title":             title,
+			"description":       description.String,
+			"taskType":          taskType,
+			"vpnType":           vpnType.String,
+			"scheduledDateTime": scheduledAt.Format(time.RFC3339),
+			"repeat":            repeat,
+			"servers":           strings.Split(servers.String, ","),
+			"active":            active.Bool,
+			"executed":          executed.Bool,
+			"createdAt":         createdAt.Format(time.RFC3339),
+		})
+	}
+
+	return tasks, total, nil
+}
+
 // GetServerStatsWithPagination retrieves server stats with pagination
 func (d *DB) GetServerStatsWithPagination(page, pageSize int) ([]map[string]interface{}, int, error) {
 	if d == nil || d.DB == nil {
@@ -323,7 +372,7 @@ func (d *DB) GetTasksByStatus(status string, page, pageSize int) ([]map[string]i
 	}
 
 	var query string
-	if d.useVendorTasks {
+	if d.UseVendorTasks {
 		query = `
 			SELECT t.id, t.vpn_type, t.vendor_url_id, COALESCE(v.url, ''), t.server, COALESCE(t.status, '')
 			FROM tasks t
@@ -345,7 +394,7 @@ func (d *DB) GetTasksByStatus(status string, page, pageSize int) ([]map[string]i
 	defer rows.Close()
 
 	var tasks []map[string]interface{}
-	if d.useVendorTasks {
+	if d.UseVendorTasks {
 		for rows.Next() {
 			var (
 				id       int
@@ -664,7 +713,7 @@ func (d *DB) GetTasksWithSearch(search string, page, pageSize int) ([]map[string
 	}
 
 	var query string
-	if d.useVendorTasks {
+	if d.UseVendorTasks {
 		query = `
 			SELECT t.id, t.vpn_type, t.vendor_url_id, COALESCE(v.url, ''), t.server, COALESCE(t.status, '')
 			FROM tasks t
@@ -687,7 +736,7 @@ func (d *DB) GetTasksWithSearch(search string, page, pageSize int) ([]map[string
 	defer rows.Close()
 
 	var tasks []map[string]interface{}
-	if d.useVendorTasks {
+	if d.UseVendorTasks {
 		for rows.Next() {
 			var (
 				id       int

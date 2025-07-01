@@ -1,28 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { 
-  Calendar, 
-  Clock, 
-  Plus, 
-  Trash2, 
+import React, { useState, useEffect } from "react";
+import { Card } from "../ui/Card";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
+import {
+  Calendar,
+  Clock,
+  Plus,
+  Trash2,
   Play,
   Pause,
   Edit,
   Save,
   X,
-  AlertCircle
-} from 'lucide-react';
-import { format, addDays, isAfter, parseISO } from 'date-fns';
-import toast from 'react-hot-toast';
-import { useAppDispatch, useAppSelector } from '../../store';
-import { 
-  addScheduledTask, 
-  updateScheduledTask, 
-  removeScheduledTask,
-  toggleTaskActive
-} from '../../store/slices/schedulerSlice';
+  AlertCircle,
+} from "lucide-react";
+import { format, addDays, isAfter, parseISO } from "date-fns";
+import toast from "react-hot-toast";
+import { useAppDispatch, useAppSelector } from "../../store";
+import {
+  fetchScheduledTasks,
+  createScheduledTask,
+  updateScheduledTaskApi,
+  deleteScheduledTask,
+  toggleTaskLocal,
+} from "../../store/slices/schedulerSlice";
 
 interface ScheduleFormProps {
   onSubmit: (task: any) => void;
@@ -31,85 +32,96 @@ interface ScheduleFormProps {
   isEdit?: boolean;
 }
 
-function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: ScheduleFormProps) {
+function ScheduleForm({
+  onSubmit,
+  onCancel,
+  initialValues,
+  isEdit = false,
+}: ScheduleFormProps) {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    taskType: 'scan',
-    vpnType: 'fortinet',
-    scheduledDate: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
-    scheduledTime: '12:00',
-    repeat: 'once',
+    title: "",
+    description: "",
+    taskType: "scan",
+    vpnType: "fortinet",
+    scheduledDate: format(addDays(new Date(), 1), "yyyy-MM-dd"),
+    scheduledTime: "12:00",
+    repeat: "once",
     servers: [] as string[],
-    ...initialValues
+    ...initialValues,
   });
 
-  const { servers } = useAppSelector(state => state.servers);
-  
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const { servers } = useAppSelector((state) => state.servers);
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
-  
+
   const handleServerToggle = (ip: string) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const servers = [...prev.servers];
       if (servers.includes(ip)) {
-        return { ...prev, servers: servers.filter(s => s !== ip) };
+        return { ...prev, servers: servers.filter((s) => s !== ip) };
       } else {
         return { ...prev, servers: [...servers, ip] };
       }
     });
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form
     if (!formData.title) {
-      toast.error('Title is required');
+      toast.error("Title is required");
       return;
     }
-    
+
     if (!formData.scheduledDate || !formData.scheduledTime) {
-      toast.error('Schedule date and time are required');
+      toast.error("Schedule date and time are required");
       return;
     }
-    
+
     if (formData.servers.length === 0) {
-      toast.error('Select at least one server');
+      toast.error("Select at least one server");
       return;
     }
-    
+
     // Create scheduled date
-    const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
-    
+    const scheduledDateTime = new Date(
+      `${formData.scheduledDate}T${formData.scheduledTime}`,
+    );
+
     // Check if date is in the future
     if (!isAfter(scheduledDateTime, new Date())) {
-      toast.error('Schedule time must be in the future');
+      toast.error("Schedule time must be in the future");
       return;
     }
-    
+
     onSubmit({
       ...formData,
-      scheduledDateTime: scheduledDateTime.toISOString()
+      scheduledDateTime: scheduledDateTime.toISOString(),
     });
   };
-  
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">
-          {isEdit ? 'Edit Scheduled Task' : 'Schedule New Task'}
+          {isEdit ? "Edit Scheduled Task" : "Schedule New Task"}
         </h3>
-        <button 
+        <button
           onClick={onCancel}
           className="text-gray-400 hover:text-gray-500"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -125,7 +137,7 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
             required
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Description
@@ -139,7 +151,7 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
             rows={2}
           />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -157,8 +169,8 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
               <option value="report">Generate Report</option>
             </select>
           </div>
-          
-          {formData.taskType === 'scan' && (
+
+          {formData.taskType === "scan" && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 VPN Type
@@ -179,7 +191,7 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
             </div>
           )}
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -193,12 +205,12 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
                 value={formData.scheduledDate}
                 onChange={handleChange}
                 className="pl-10 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                min={format(new Date(), 'yyyy-MM-dd')}
+                min={format(new Date(), "yyyy-MM-dd")}
                 required
               />
             </div>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Time
@@ -216,7 +228,7 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
             </div>
           </div>
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Repeat
@@ -233,14 +245,14 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
             <option value="monthly">Monthly</option>
           </select>
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Select Servers
           </label>
           <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
             {servers.length > 0 ? (
-              servers.map(server => (
+              servers.map((server) => (
                 <div key={server.ip} className="flex items-center mb-2">
                   <input
                     type="checkbox"
@@ -249,8 +261,14 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
                     onChange={() => handleServerToggle(server.ip)}
                     className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <label htmlFor={`server-${server.ip}`} className="ml-2 text-sm text-gray-700">
-                    {server.ip} {server.status === 'online' && <span className="text-success-600">(Online)</span>}
+                  <label
+                    htmlFor={`server-${server.ip}`}
+                    className="ml-2 text-sm text-gray-700"
+                  >
+                    {server.ip}{" "}
+                    {server.status === "online" && (
+                      <span className="text-success-600">(Online)</span>
+                    )}
                   </label>
                 </div>
               ))
@@ -259,7 +277,7 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
             )}
           </div>
         </div>
-        
+
         <div className="flex justify-end space-x-3 pt-4">
           <Button variant="ghost" onClick={onCancel}>
             Cancel
@@ -286,143 +304,165 @@ function ScheduleForm({ onSubmit, onCancel, initialValues, isEdit = false }: Sch
 export function TaskScheduler() {
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
-  
+
   const dispatch = useAppDispatch();
-  const { scheduledTasks } = useAppSelector(state => state.scheduler);
-  
+  const { scheduledTasks } = useAppSelector((state) => state.scheduler);
+
+  useEffect(() => {
+    dispatch(fetchScheduledTasks());
+  }, [dispatch]);
+
   // Check for tasks that need to be executed
   useEffect(() => {
     const checkScheduledTasks = () => {
       const now = new Date();
-      
-      scheduledTasks.forEach(task => {
+
+      scheduledTasks.forEach((task) => {
         if (task.active && !task.executed) {
           const scheduledTime = new Date(task.scheduledDateTime);
-          
+
           if (isAfter(now, scheduledTime)) {
             // Execute task
             executeTask(task);
-            
+
             // Handle repeating tasks
-            if (task.repeat !== 'once') {
+            if (task.repeat !== "once") {
               // Calculate next execution time based on repeat pattern
               let nextDate = new Date(task.scheduledDateTime);
-              
+
               switch (task.repeat) {
-                case 'daily':
+                case "daily":
                   nextDate = addDays(nextDate, 1);
                   break;
-                case 'weekly':
+                case "weekly":
                   nextDate = addDays(nextDate, 7);
                   break;
-                case 'monthly':
-                  nextDate = new Date(nextDate.setMonth(nextDate.getMonth() + 1));
+                case "monthly":
+                  nextDate = new Date(
+                    nextDate.setMonth(nextDate.getMonth() + 1),
+                  );
                   break;
               }
-              
+
               // Update task with new scheduled time
-              dispatch(updateScheduledTask({
-                ...task,
-                scheduledDateTime: nextDate.toISOString(),
-                executed: false
-              }));
+              dispatch(
+                updateScheduledTaskApi({
+                  ...task,
+                  scheduledDateTime: nextDate.toISOString(),
+                  executed: false,
+                }),
+              );
             } else {
               // Mark one-time task as executed
-              dispatch(updateScheduledTask({
-                ...task,
-                executed: true
-              }));
+              dispatch(
+                updateScheduledTaskApi({
+                  ...task,
+                  executed: true,
+                }),
+              );
             }
           }
         }
       });
     };
-    
+
     // Check every minute
     const interval = setInterval(checkScheduledTasks, 60000);
-    
+
     // Initial check
     checkScheduledTasks();
-    
+
     return () => clearInterval(interval);
   }, [dispatch, scheduledTasks]);
-  
+
   const executeTask = (task: any) => {
     // In a real implementation, this would trigger the actual task execution
     // For now, we'll just show a toast notification
     toast.success(`Executing task: ${task.title}`);
-    
+
     // Simulate task execution based on type
     switch (task.taskType) {
-      case 'scan':
-        toast(`Starting ${task.vpnType} scan on ${task.servers.length} servers`);
+      case "scan":
+        toast(
+          `Starting ${task.vpnType} scan on ${task.servers.length} servers`,
+        );
         break;
-      case 'collect':
-        toast('Collecting results from servers');
+      case "collect":
+        toast("Collecting results from servers");
         break;
-      case 'deploy':
+      case "deploy":
         toast(`Deploying scripts to ${task.servers.length} servers`);
         break;
-      case 'report':
-        toast('Generating report');
+      case "report":
+        toast("Generating report");
         break;
     }
   };
-  
+
   const handleAddTask = (task: any) => {
-    dispatch(addScheduledTask({
-      id: Date.now().toString(),
-      ...task,
-      active: true,
-      executed: false,
-      createdAt: new Date().toISOString()
-    }));
-    
+    dispatch(
+      createScheduledTask({
+        ...task,
+        active: true,
+        executed: false,
+      } as any),
+    );
     setShowForm(false);
-    toast.success('Task scheduled successfully');
+    toast.success("Task scheduled successfully");
   };
-  
+
   const handleUpdateTask = (task: any) => {
-    dispatch(updateScheduledTask(task));
+    dispatch(updateScheduledTaskApi(task));
     setEditingTask(null);
-    toast.success('Task updated successfully');
+    toast.success("Task updated successfully");
   };
-  
+
   const handleRemoveTask = (id: string) => {
-    if (confirm('Are you sure you want to remove this scheduled task?')) {
-      dispatch(removeScheduledTask(id));
-      toast.success('Task removed');
+    if (confirm("Are you sure you want to remove this scheduled task?")) {
+      dispatch(deleteScheduledTask(Number(id)));
+      toast.success("Task removed");
     }
   };
-  
+
   const handleToggleActive = (id: string) => {
-    dispatch(toggleTaskActive(id));
+    dispatch(toggleTaskLocal(Number(id)));
+    const t = scheduledTasks.find((t) => t.id === Number(id));
+    if (t) {
+      dispatch(updateScheduledTaskApi({ ...t }));
+    }
   };
-  
+
   const handleEditTask = (task: any) => {
     setEditingTask(task);
   };
-  
+
   const getTaskTypeIcon = (type: string) => {
     switch (type) {
-      case 'scan': return Play;
-      case 'collect': return Download;
-      case 'deploy': return Upload;
-      case 'report': return FileText;
-      default: return Calendar;
+      case "scan":
+        return Play;
+      case "collect":
+        return Download;
+      case "deploy":
+        return Upload;
+      case "report":
+        return FileText;
+      default:
+        return Calendar;
     }
   };
-  
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Task Scheduler</h2>
-          <p className="text-gray-600 mt-1">Schedule and manage automated tasks</p>
+          <p className="text-gray-600 mt-1">
+            Schedule and manage automated tasks
+          </p>
         </div>
-        <Button 
-          variant="primary" 
+        <Button
+          variant="primary"
           onClick={() => setShowForm(true)}
           disabled={showForm || editingTask !== null}
         >
@@ -430,85 +470,103 @@ export function TaskScheduler() {
           Schedule New Task
         </Button>
       </div>
-      
+
       {/* Form */}
       {showForm && (
-        <ScheduleForm 
-          onSubmit={handleAddTask} 
-          onCancel={() => setShowForm(false)} 
+        <ScheduleForm
+          onSubmit={handleAddTask}
+          onCancel={() => setShowForm(false)}
         />
       )}
-      
+
       {editingTask && (
-        <ScheduleForm 
-          onSubmit={handleUpdateTask} 
-          onCancel={() => setEditingTask(null)} 
+        <ScheduleForm
+          onSubmit={handleUpdateTask}
+          onCancel={() => setEditingTask(null)}
           initialValues={editingTask}
           isEdit
         />
       )}
-      
+
       {/* No tasks message */}
       {scheduledTasks.length === 0 && !showForm && (
         <Card className="p-8 text-center">
           <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No scheduled tasks</h3>
-          <p className="text-gray-600 mb-6">Schedule tasks to automate scanning, result collection, and reporting</p>
-          <Button 
-            variant="primary" 
-            onClick={() => setShowForm(true)}
-          >
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No scheduled tasks
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Schedule tasks to automate scanning, result collection, and
+            reporting
+          </p>
+          <Button variant="primary" onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Schedule Your First Task
           </Button>
         </Card>
       )}
-      
+
       {/* Task list */}
       {scheduledTasks.length > 0 && (
         <div className="space-y-4">
-          {scheduledTasks.map(task => {
+          {scheduledTasks.map((task) => {
             const TaskTypeIcon = getTaskTypeIcon(task.taskType);
             const scheduledDate = new Date(task.scheduledDateTime);
             const isPast = isAfter(new Date(), scheduledDate);
-            
+
             return (
               <Card key={task.id} className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-4">
-                    <div className={`p-3 rounded-lg ${task.active ? 'bg-primary-100' : 'bg-gray-100'}`}>
-                      <TaskTypeIcon className={`h-6 w-6 ${task.active ? 'text-primary-600' : 'text-gray-400'}`} />
+                    <div
+                      className={`p-3 rounded-lg ${task.active ? "bg-primary-100" : "bg-gray-100"}`}
+                    >
+                      <TaskTypeIcon
+                        className={`h-6 w-6 ${task.active ? "text-primary-600" : "text-gray-400"}`}
+                      />
                     </div>
-                    
+
                     <div>
                       <div className="flex items-center space-x-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
-                        <Badge variant={task.active ? (isPast && task.executed ? 'success' : 'primary') : 'gray'}>
-                          {task.active 
-                            ? (isPast 
-                              ? (task.executed ? 'Executed' : 'Pending') 
-                              : 'Scheduled') 
-                            : 'Inactive'}
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {task.title}
+                        </h3>
+                        <Badge
+                          variant={
+                            task.active
+                              ? isPast && task.executed
+                                ? "success"
+                                : "primary"
+                              : "gray"
+                          }
+                        >
+                          {task.active
+                            ? isPast
+                              ? task.executed
+                                ? "Executed"
+                                : "Pending"
+                              : "Scheduled"
+                            : "Inactive"}
                         </Badge>
-                        {task.repeat !== 'once' && (
-                          <Badge variant="warning">
-                            Repeats {task.repeat}
-                          </Badge>
+                        {task.repeat !== "once" && (
+                          <Badge variant="warning">Repeats {task.repeat}</Badge>
                         )}
                       </div>
-                      
-                      <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                      
+
+                      <p className="text-sm text-gray-600 mt-1">
+                        {task.description}
+                      </p>
+
                       <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-1" />
-                          <span>{format(scheduledDate, 'MMM d, yyyy')}</span>
+                          <span>{format(scheduledDate, "MMM d, yyyy")}</span>
                         </div>
                         <div className="flex items-center">
                           <Clock className="h-4 w-4 mr-1" />
-                          <span>{format(scheduledDate, 'h:mm a')}</span>
+                          <span>{format(scheduledDate, "h:mm a")}</span>
                         </div>
-                        {task.taskType === 'scan' && (
+                        {task.taskType === "scan" && (
                           <div className="flex items-center">
                             <Shield className="h-4 w-4 mr-1" />
                             <span>{task.vpnType}</span>
@@ -521,10 +579,10 @@ export function TaskScheduler() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex space-x-2">
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="ghost"
                       onClick={() => handleToggleActive(task.id)}
                     >
@@ -533,20 +591,20 @@ export function TaskScheduler() {
                       ) : (
                         <Play className="h-4 w-4 mr-1" />
                       )}
-                      {task.active ? 'Disable' : 'Enable'}
+                      {task.active ? "Disable" : "Enable"}
                     </Button>
-                    
-                    <Button 
-                      size="sm" 
+
+                    <Button
+                      size="sm"
                       variant="ghost"
                       onClick={() => handleEditTask(task)}
                     >
                       <Edit className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
-                    
-                    <Button 
-                      size="sm" 
+
+                    <Button
+                      size="sm"
                       variant="ghost"
                       onClick={() => handleRemoveTask(task.id)}
                     >
@@ -555,12 +613,13 @@ export function TaskScheduler() {
                     </Button>
                   </div>
                 </div>
-                
+
                 {isPast && !task.executed && task.active && (
                   <div className="mt-3 p-2 bg-warning-50 border border-warning-200 rounded-lg flex items-center space-x-2">
                     <AlertCircle className="h-4 w-4 text-warning-600" />
                     <span className="text-sm text-warning-700">
-                      This task is scheduled to run soon. Make sure all selected servers are online.
+                      This task is scheduled to run soon. Make sure all selected
+                      servers are online.
                     </span>
                   </div>
                 )}
@@ -569,7 +628,7 @@ export function TaskScheduler() {
           })}
         </div>
       )}
-      
+
       {/* Help text */}
       <Card className="p-4 bg-blue-50 border border-blue-200">
         <div className="flex items-start space-x-3">
@@ -581,8 +640,12 @@ export function TaskScheduler() {
             <ul className="mt-2 text-sm text-blue-700 space-y-1">
               <li>• Tasks will execute automatically at the scheduled time</li>
               <li>• Repeating tasks will be rescheduled after execution</li>
-              <li>• Make sure servers are online when tasks are scheduled to run</li>
-              <li>• The dashboard must be running for scheduled tasks to execute</li>
+              <li>
+                • Make sure servers are online when tasks are scheduled to run
+              </li>
+              <li>
+                • The dashboard must be running for scheduled tasks to execute
+              </li>
             </ul>
           </div>
         </div>

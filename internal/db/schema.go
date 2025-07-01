@@ -36,6 +36,19 @@ func initSchema(d *DB) error {
                         username TEXT,
                         password TEXT
                 )`,
+		`CREATE TABLE IF NOT EXISTS scheduled_tasks (
+                        id SERIAL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        description TEXT,
+                        task_type TEXT NOT NULL,
+                        vpn_type TEXT,
+                        scheduled_at TIMESTAMPTZ NOT NULL,
+                        repeat TEXT NOT NULL,
+                        servers TEXT,
+                        active BOOLEAN DEFAULT TRUE,
+                        executed BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )`,
 		`CREATE TABLE IF NOT EXISTS tasks (
                         id SERIAL PRIMARY KEY,
                         vendor TEXT,
