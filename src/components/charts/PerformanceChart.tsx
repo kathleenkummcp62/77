@@ -38,7 +38,12 @@ export function PerformanceChart({ title, metric, height = 300, showLegend = tru
   const serverPerformanceData = useMemo(() => {
     const result: Record<string, any>[] = [];
     
-    // Получаем все временные метки из всех серверов
+    // If serverHistory is empty, return empty array
+    if (!serverHistory || Object.keys(serverHistory).length === 0) {
+      return [];
+    }
+    
+    // Get all timestamps from all servers
     const allTimestamps = new Set<number>();
     Object.values(serverHistory).forEach(history => {
       history.forEach(point => {
@@ -46,19 +51,19 @@ export function PerformanceChart({ title, metric, height = 300, showLegend = tru
       });
     });
     
-    // Сортируем временные метки
+    // Sort timestamps
     const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
     
-    // Создаем точки данных для каждой временной метки
+    // Create data points for each timestamp
     sortedTimestamps.forEach(timestamp => {
       const dataPoint: Record<string, any> = {
         timestamp,
         time: format(new Date(timestamp), 'HH:mm'),
       };
       
-      // Добавляем данные для каждого сервера
+      // Add data for each server
       Object.entries(serverHistory).forEach(([ip, history]) => {
-        // Находим ближайшую точку данных для этой временной метки
+        // Find the closest point for this timestamp
         const point = history.find(p => p.timestamp === timestamp);
         if (point) {
           dataPoint[`${ip}_cpu`] = point.cpu;
@@ -115,7 +120,7 @@ export function PerformanceChart({ title, metric, height = 300, showLegend = tru
           <YAxis />
           <Tooltip />
           {showLegend && <Legend />}
-          {Object.keys(serverHistory).map((ip, index) => (
+          {Object.keys(serverHistory || {}).map((ip, index) => (
             <Line
               key={ip}
               type="monotone"

@@ -29,6 +29,7 @@ interface ResultsChartProps {
 export function ResultsChart({ type, title, height = 300, showLegend = true }: ResultsChartProps) {
   const { scanHistory } = useAppSelector(state => state.scanner);
   const { statistics } = useAppSelector(state => state.results);
+  const isConnected = useAppSelector(state => state.scanner.isConnected);
   
   const timeSeriesData = useMemo(() => {
     return scanHistory.map(point => ({
@@ -155,7 +156,9 @@ export function ResultsChart({ type, title, height = 300, showLegend = true }: R
     <Card>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <Badge variant="primary">Live Data</Badge>
+        <Badge variant={isConnected ? "success" : "gray"}>
+          {isConnected ? "Live Data" : "Offline"}
+        </Badge>
       </div>
       {renderChart()}
     </Card>

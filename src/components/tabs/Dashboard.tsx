@@ -30,7 +30,7 @@ export function Dashboard() {
   
   const websocket = useWebSocket();
 
-  // Реальные данные статистики (начинаем с нуля)
+  // Real statistics data (starting with zeros)
   const realStats = stats || {
     goods: 0,
     bads: 0,
