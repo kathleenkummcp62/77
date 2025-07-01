@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
-import { Database as DatabaseIcon, Plus, Trash2, RefreshCw, Settings, Download, Upload, AlertTriangle, CheckCircle, Server, Table, Key, Users, Activity, BarChart3, Eye, Edit, Copy, ExternalLink, Play, FolderSync as Sync } from 'lucide-react';
+import { Database as DatabaseIcon, Plus, Trash2, RefreshCw, Settings, Download, Upload, AlertTriangle, CheckCircle, Server, Table, Key, Users, Activity, BarChart3, Eye, Edit, Copy, ExternalLink, Play, FolderSync as Sync, X } from 'lucide-react';
 import { getSupabase, getSupabaseSafe, initializeSupabase, isSupabaseConfigured, clearSupabaseConfig } from '../../lib/supabase';
 import { checkLocalPostgresStatus, startLocalPostgres, createDatabaseSchema, getTablesList, exportTableData } from '../../lib/postgres';
 import { 
@@ -53,7 +53,7 @@ export function Database() {
   const [localPostgresStarting, setLocalPostgresStarting] = useState(false);
   const [databaseType, setDatabaseTypeState] = useState<'local' | 'supabase' | 'both'>(getDatabaseType());
   const [replicationStatus, setReplicationStatus] = useState(getReplicationStatus());
-  const [cacheStats, setCacheStats] = useState(getCacheStats());
+  const [cacheStats, setCacheStats] = useState({ keys: 0, hits: 0, misses: 0, ksize: 0, vsize: 0 });
   const [showIndexDialog, setShowIndexDialog] = useState(false);
   const [indexForm, setIndexForm] = useState({
     table: '',
@@ -117,14 +117,27 @@ export function Database() {
       setLocalPostgresRunning(status);
     });
     
+    // Load cache stats
+    loadCacheStats();
+    
     // Обновляем статус репликации каждые 5 секунд
     const interval = setInterval(() => {
       setReplicationStatus(getReplicationStatus());
-      setCacheStats(getCacheStats());
+      loadCacheStats();
     }, 5000);
     
     return () => clearInterval(interval);
   }, [isConfigured, databaseType]);
+
+  const loadCacheStats = async () => {
+    try {
+      const stats = await getCacheStats();
+      setCacheStats(stats);
+    } catch (error) {
+      console.error('Failed to load cache stats:', error);
+      // Keep existing stats on error
+    }
+  };
 
   const startLocalPostgresDB = async () => {
     setLocalPostgresStarting(true);
@@ -531,10 +544,15 @@ export function Database() {
     }
   };
 
-  const handleClearCache = () => {
-    clearCache();
-    setCacheStats(getCacheStats());
-    toast.success('Cache cleared');
+  const handleClearCache = async () => {
+    try {
+      await clearCache();
+      await loadCacheStats();
+      toast.success('Cache cleared');
+    } catch (error: any) {
+      console.error('Clear cache error:', error);
+      toast.error(`Failed to clear cache: ${error.message}`);
+    }
   };
 
   const handleAddIndex = async (e: React.FormEvent) => {
