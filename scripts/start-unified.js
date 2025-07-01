@@ -101,7 +101,7 @@ async function startUnifiedServer() {
   try {
     await waitOn({
       resources: [`http://127.0.0.1:${FRONTEND_PORT}`],
-      timeout: 60000, // 60 seconds
+      timeout: 120000, // 120 seconds (increased from 60 seconds)
       interval: 2000, // Check every 2 seconds
       window: 2000
     });
