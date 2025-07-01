@@ -97,6 +97,9 @@ Run Python unit tests:
 pytest
 ```
 
+> **Note**: Some Go tests use an embedded Postgres instance that cannot run as
+> the root user. Run the test suite under a regular account.
+
 Run frontend tests with Vitest:
 
 ```bash
