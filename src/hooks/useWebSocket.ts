@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { useAppDispatch } from '../store';
+import { useAppDispatch, useAppSelector } from '../store';
 import { setStats, setConnected, setError } from '../store/slices/scannerSlice';
 import { setServers } from '../store/slices/serversSlice';
 import { StatsData, ServerInfo } from '../types';
