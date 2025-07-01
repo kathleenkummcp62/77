@@ -6,18 +6,32 @@ import { configDefaults } from 'vitest/config'
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: 'dist'
+    outDir: 'dist',
+    // Disable dependency optimization during build to avoid issues
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
   },
   server: {
     host: '0.0.0.0', // Allow connections from any IP address
     port: 5173,
-    strictPort: false // Allow fallback to another port if 5173 is in use
+    strictPort: false, // Allow fallback to another port if 5173 is in use
   },
   test: {
     environment: 'jsdom',
-    exclude: [...configDefaults.exclude, 'dist']
+    exclude: [...configDefaults.exclude, 'dist'],
+    deps: {
+      // Disable dependency optimization for tests
+      optimizer: {
+        web: {
+          enabled: false
+        }
+      }
+    }
   },
   optimizeDeps: {
+    // Disable dependency optimization during dev to avoid cache issues
+    disabled: process.env.NODE_ENV === 'test',
     include: ['@supabase/supabase-js']
   },
   resolve: {
