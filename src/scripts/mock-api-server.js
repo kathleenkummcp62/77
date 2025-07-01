@@ -457,7 +457,7 @@ app.post('/api/config', (req, res) => {
 const server = createServer(app);
 
 // WebSocket server
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, path: '/ws' });
 
 // WebSocket authentication middleware
 const authenticateWebSocket = (ws, request) => {
@@ -675,7 +675,7 @@ wss.on('connection', (ws, request) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Mock API server running on port ${PORT}`);
   console.log(`📊 API endpoints available at http://localhost:${PORT}/api/`);
-  console.log(`🔌 WebSocket server running for real-time updates`);
+  console.log(`🔌 WebSocket server running for real-time updates at ws://localhost:${PORT}/ws`);
 });
 
 // Graceful shutdown

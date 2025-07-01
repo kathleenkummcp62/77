@@ -78,7 +78,7 @@ export function Dashboard() {
               <h4 className="font-medium text-error-800">Connection Error</h4>
               <p className="text-sm text-error-600">{error}</p>
               <p className="text-xs text-error-500 mt-1">
-                Make sure the Go server is running: <code>go run main.go -dashboard-port=8080</code>
+                Make sure the mock server is running: <code>npm run mock-server</code>
               </p>
             </div>
           </div>

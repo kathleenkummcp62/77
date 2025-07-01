@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "frontend": "vite",
+    "mock-server": "node src/scripts/mock-api-server.js"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -28,7 +30,14 @@
     "file-saver": "^2.0.5",
     "xlsx": "^0.18.5",
     "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2"
+    "jspdf-autotable": "^3.8.2",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "ws": "^8.14.2",
+    "jsonwebtoken": "^9.0.2",
+    "express-rate-limit": "^7.1.5",
+    "http-proxy-middleware": "^2.0.6",
+    "wait-on": "^7.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
@@ -46,6 +55,10 @@
     "vite": "^4.4.5",
     "vitest": "^0.34.6",
     "@types/bcryptjs": "^2.4.6",
-    "@types/file-saver": "^2.0.7"
+    "@types/file-saver": "^2.0.7",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/ws": "^8.5.10",
+    "@types/jsonwebtoken": "^9.0.5"
   }
 }
