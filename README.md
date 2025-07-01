@@ -23,13 +23,18 @@ A comprehensive dashboard for managing and monitoring VPN scanning operations.
 ### Installation
 
 1. Clone the repository
-2. Install dependencies:
+2. Install Node dependencies:
 
 ```bash
 npm install
 ```
 
-3. Set up the environment:
+3. Install Python dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Set up the environment:
 
 ```bash
 npm run setup
