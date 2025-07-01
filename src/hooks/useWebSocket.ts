@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { useAppDispatch } from '../store';
+import { setStats, setConnected, setError } from '../store/slices/scannerSlice';
+import { setServers } from '../store/slices/serversSlice';
+import { StatsData, ServerInfo } from '../types';
 
 interface WebSocketMessage {
   type: string;
@@ -7,43 +11,9 @@ interface WebSocketMessage {
   timestamp: number;
 }
 
-interface StatsData {
-  goods: number;
-  bads: number;
-  errors: number;
-  offline: number;
-  ipblock: number;
-  processed: number;
-  rps: number;
-  avg_rps: number;
-  peak_rps: number;
-  threads: number;
-  uptime: number;
-  success_rate: number;
-}
-
-interface ServerInfo {
-  ip: string;
-  status: string;
-  uptime: string;
-  cpu: number;
-  memory: number;
-  disk: number;
-  speed: string;
-  processed: number;
-  goods: number;
-  bads: number;
-  errors: number;
-  progress: number;
-  current_task: string;
-}
-
 export function useWebSocket(url?: string) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [stats, setStats] = useState<StatsData | null>(null);
-  const [servers, setServers] = useState<ServerInfo[]>([]);
+  const dispatch = useAppDispatch();
   const [logs, setLogs] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
@@ -87,8 +57,8 @@ export function useWebSocket(url?: string) {
       wsRef.current = new WebSocket(wsUrl);
       
       wsRef.current.onopen = () => {
-        setIsConnected(true);
-        setError(null);
+        dispatch(setConnected(true));
+        dispatch(setError(null));
         reconnectAttempts.current = 0;
         isConnecting.current = false;
         console.log('🔌 WebSocket connected successfully');
@@ -109,13 +79,13 @@ export function useWebSocket(url?: string) {
       };
       
       wsRef.current.onclose = (event) => {
-        setIsConnected(false);
+        dispatch(setConnected(false));
         isConnecting.current = false;
         console.log('🔌 WebSocket disconnected:', event.code, event.reason);
         
         // Don't show error on first connection attempt
         if (reconnectAttempts.current > 0) {
-          setError('Connection lost');
+          dispatch(setError('Connection lost'));
         }
         
         // Auto-reconnect only if not intentionally closed
@@ -128,7 +98,7 @@ export function useWebSocket(url?: string) {
             connect();
           }, delay);
         } else if (reconnectAttempts.current >= maxReconnectAttempts) {
-          setError('Failed to connect to server. Please check if the Go server is running on port 8080.');
+          dispatch(setError('Failed to connect to server. Please check if the Go server is running on port 8080.'));
         }
       };
       
@@ -138,28 +108,28 @@ export function useWebSocket(url?: string) {
         
         // Set error only if not first connection attempt
         if (reconnectAttempts.current > 0) {
-          setError('Connection error. Please check if the server is running.');
+          dispatch(setError('Connection error. Please check if the server is running.'));
         } else {
-          setError('Server not available. Make sure the Go server is running.');
+          dispatch(setError('Server not available. Make sure the Go server is running.'));
         }
       };
     } catch (err) {
       isConnecting.current = false;
       console.error('🔌 WebSocket creation error:', err);
-      setError('Failed to create WebSocket connection');
+      dispatch(setError('Failed to create WebSocket connection'));
     }
-  }, [getWebSocketUrl]);
+  }, [dispatch, getWebSocketUrl]);
 
   const handleMessage = (message: WebSocketMessage) => {
     try {
       switch (message.type) {
         case 'initial_stats':
         case 'stats_update':
-          setStats(message.data as StatsData);
+          dispatch(setStats(message.data as StatsData));
           break;
           
         case 'server_info':
-          setServers(message.data as ServerInfo[]);
+          dispatch(setServers(message.data as ServerInfo[]));
           break;
           
         case 'logs_data':
@@ -250,11 +220,7 @@ export function useWebSocket(url?: string) {
   }, [sendMessage]);
 
   return {
-    isConnected,
-    stats,
-    servers,
     logs,
-    error,
     sendMessage,
     startScanner,
     stopScanner,

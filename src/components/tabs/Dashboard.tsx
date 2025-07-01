@@ -15,77 +15,20 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-
-// ✅ РЕАЛЬНЫЕ СЕРВЕРЫ (БЕЗ ВЫДУМАННЫХ ДАННЫХ)
-const realServers = [
-  {
-    ip: '194.0.234.203',
-    status: 'online',
-    uptime: '0h 0m',
-    cpu: 0,
-    memory: 0,
-    disk: 0,
-    speed: '0/s',
-    processed: 0,
-    goods: 0,
-    bads: 0,
-    errors: 0,
-    progress: 0,
-    current_task: 'Idle - Ready for tasks'
-  },
-  {
-    ip: '77.90.185.26',
-    status: 'online',
-    uptime: '0h 0m',
-    cpu: 0,
-    memory: 0,
-    disk: 0,
-    speed: '0/s',
-    processed: 0,
-    goods: 0,
-    bads: 0,
-    errors: 0,
-    progress: 0,
-    current_task: 'Idle - Ready for tasks'
-  },
-  {
-    ip: '185.93.89.206',
-    status: 'online',
-    uptime: '0h 0m',
-    cpu: 0,
-    memory: 0,
-    disk: 0,
-    speed: '0/s',
-    processed: 0,
-    goods: 0,
-    bads: 0,
-    errors: 0,
-    progress: 0,
-    current_task: 'Idle - Ready for tasks'
-  },
-  {
-    ip: '185.93.89.35',
-    status: 'online',
-    uptime: '0h 0m',
-    cpu: 0,
-    memory: 0,
-    disk: 0,
-    speed: '0/s',
-    processed: 0,
-    goods: 0,
-    bads: 0,
-    errors: 0,
-    progress: 0,
-    current_task: 'Idle - Ready for tasks'
-  }
-];
+import { useAppSelector } from '../../store';
+import { ResultsChart } from '../charts/ResultsChart';
+import { PerformanceChart } from '../charts/PerformanceChart';
+import { ServerPerformanceGrid } from '../charts/ServerPerformanceGrid';
 
 export function Dashboard() {
-  const { isConnected, stats, servers, error } = useWebSocket();
-
-  // Используем реальные серверы, если WebSocket не подключен
-  const displayServers = servers && servers.length > 0 ? servers : realServers;
+  const { isConnected, stats, servers, error } = useAppSelector(state => ({
+    isConnected: state.scanner.isConnected,
+    stats: state.scanner.stats,
+    servers: state.servers.servers,
+    error: state.scanner.error
+  }));
+  
+  const websocket = useWebSocket();
 
   // Реальные данные статистики (начинаем с нуля)
   const realStats = stats || {
@@ -102,15 +45,6 @@ export function Dashboard() {
     uptime: 0,
     success_rate: 0
   };
-
-  // Данные для графиков (начинаем с нулевых значений)
-  const chartData = [
-    { time: '00:00', goods: 0, bads: 0, errors: 0, rps: 0 },
-    { time: '00:15', goods: realStats.goods, bads: realStats.bads, errors: realStats.errors, rps: realStats.rps },
-    { time: '00:30', goods: realStats.goods, bads: realStats.bads, errors: realStats.errors, rps: realStats.rps },
-    { time: '00:45', goods: realStats.goods, bads: realStats.bads, errors: realStats.errors, rps: realStats.rps },
-    { time: '01:00', goods: realStats.goods, bads: realStats.bads, errors: realStats.errors, rps: realStats.rps },
-  ];
 
   return (
     <div className="space-y-6" data-testid="dashboard">
@@ -201,7 +135,7 @@ export function Dashboard() {
             <div>
               <p className="text-sm font-medium text-gray-600">Active Servers</p>
               <p className="text-3xl font-bold text-primary-600">
-                {displayServers.filter(s => s.status === 'online').length}/{displayServers.length}
+                {servers.filter(s => s.status === 'online').length}/{servers.length}
               </p>
               <p className="text-sm text-success-600 mt-1">All systems ready</p>
             </div>
@@ -231,85 +165,12 @@ export function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Success Rate Trend</h3>
-            <Badge variant={isConnected ? "success" : "gray"}>
-              {isConnected ? "Live" : "Offline"}
-            </Badge>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" />
-              <YAxis />
-              <Tooltip />
-              <Area type="monotone" dataKey="goods" stroke="#22c55e" fill="#22c55e" fillOpacity={0.3} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Performance Metrics</h3>
-            <Badge variant="primary">Real-time</Badge>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="rps" stroke="#0ea5e9" strokeWidth={2} name="RPS" />
-              <Line type="monotone" dataKey="bads" stroke="#ef4444" strokeWidth={2} name="Failed" />
-              <Line type="monotone" dataKey="errors" stroke="#f59e0b" strokeWidth={2} name="Errors" />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
+        <ResultsChart type="area" title="Success Rate Trend" />
+        <PerformanceChart title="Performance Metrics" metric="rps" />
       </div>
 
       {/* Server Status */}
-      <Card>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Worker Servers Status</h3>
-          <div className="flex space-x-2">
-            <Badge variant="success">{displayServers.filter(s => s.status === 'online').length} Online</Badge>
-            <Badge variant="gray">{displayServers.filter(s => s.status !== 'online').length} Offline</Badge>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {displayServers.map((server, index) => (
-            <div key={server.ip} className="p-4 border border-gray-200 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-medium text-gray-900">{server.ip}</span>
-                <Badge variant={server.status === 'online' ? 'success' : 'error'}>
-                  {server.status}
-                </Badge>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Progress</span>
-                  <span className="font-medium">{server.progress}%</span>
-                </div>
-                <ProgressBar value={server.progress} color="primary" size="sm" />
-                
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mt-3">
-                  <div>Speed: {server.speed}</div>
-                  <div>Uptime: {server.uptime}</div>
-                  <div>Goods: {server.goods}</div>
-                  <div>Errors: {server.errors}</div>
-                </div>
-                
-                <div className="text-xs text-gray-500 mt-2 truncate">
-                  {server.current_task}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <ServerPerformanceGrid />
 
       {/* Performance Metrics */}
       <Card>

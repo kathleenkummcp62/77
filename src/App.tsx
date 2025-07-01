@@ -15,9 +15,17 @@ import { Terminal } from "./components/tabs/Terminal";
 import { Settings } from "./components/tabs/Settings";
 import { TestSuite } from "./components/testing/TestSuite";
 import { SecurityAudit } from "./components/testing/SecurityAudit";
+import { ScanResultsReport } from "./components/reports/ScanResultsReport";
+import { useAppSelector, useAppDispatch } from "./store";
+import { setActiveTab } from "./store/slices/uiSlice";
 
 function App() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const activeTab = useAppSelector(state => state.ui.activeTab);
+  const dispatch = useAppDispatch();
+
+  const handleTabChange = (tab: string) => {
+    dispatch(setActiveTab(tab));
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -49,6 +57,8 @@ function App() {
         return <TestSuite />;
       case "security":
         return <SecurityAudit />;
+      case "reports":
+        return <ScanResultsReport />;
       default:
         return <Dashboard />;
     }
@@ -56,7 +66,7 @@ function App() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
       <main className="flex-1 overflow-auto">
         <div className="p-8">{renderContent()}</div>
       </main>

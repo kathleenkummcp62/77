@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -14,86 +14,31 @@ import {
   CheckCircle,
   AlertTriangle,
   Calendar,
-  Server
+  Server,
+  PieChart
 } from 'lucide-react';
-
-interface ResultFile {
-  id: string;
-  name: string;
-  type: 'valid' | 'invalid' | 'errors' | 'logs';
-  server: string;
-  vpnType: string;
-  size: string;
-  count: number;
-  created: string;
-  lastModified: string;
-}
+import { useAppDispatch, useAppSelector } from '../../store';
+import { 
+  fetchResults, 
+  downloadFile, 
+  toggleFileSelection, 
+  clearFileSelection, 
+  selectAllFiles 
+} from '../../store/slices/resultsSlice';
+import { ScanResultsOverview } from '../charts/ScanResultsOverview';
 
 export function Results() {
+  const dispatch = useAppDispatch();
+  const { files, selectedFiles, loading } = useAppSelector(state => state.results);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'valid' | 'invalid' | 'errors' | 'logs'>('all');
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
-  const resultFiles: ResultFile[] = [
-    {
-      id: '1',
-      name: 'valid_fortinet_192.0.2.10.txt',
-      type: 'valid',
-      server: '192.0.2.10',
-      vpnType: 'Fortinet',
-      size: '2.3 MB',
-      count: 1927,
-      created: '2024-01-15 10:30:00',
-      lastModified: '2024-01-15 12:45:00'
-    },
-    {
-      id: '2',
-      name: 'valid_globalprotect_192.0.2.11.txt',
-      type: 'valid',
-      server: '192.0.2.11',
-      vpnType: 'GlobalProtect',
-      size: '3.1 MB',
-      count: 2156,
-      created: '2024-01-15 09:15:00',
-      lastModified: '2024-01-15 12:30:00'
-    },
-    {
-      id: '3',
-      name: 'valid_sonicwall_192.0.2.12.txt',
-      type: 'valid',
-      server: '192.0.2.12',
-      vpnType: 'SonicWall',
-      size: '1.8 MB',
-      count: 1876,
-      created: '2024-01-15 08:45:00',
-      lastModified: '2024-01-15 11:20:00'
-    },
-    {
-      id: '4',
-      name: 'errors_cisco_192.0.2.13.txt',
-      type: 'errors',
-      server: '192.0.2.13',
-      vpnType: 'Cisco',
-      size: '856 KB',
-      count: 1000,
-      created: '2024-01-15 07:30:00',
-      lastModified: '2024-01-15 11:45:00'
-    },
-    {
-      id: '5',
-      name: 'logs_system_192.0.2.10.txt',
-      type: 'logs',
-      server: '192.0.2.10',
-      vpnType: 'System',
-      size: '4.2 MB',
-      count: 15420,
-      created: '2024-01-15 06:00:00',
-      lastModified: '2024-01-15 12:50:00'
-    }
-  ];
+  useEffect(() => {
+    dispatch(fetchResults());
+  }, [dispatch]);
 
-  const filteredFiles = resultFiles.filter(file => {
+  const filteredFiles = files.filter(file => {
     const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          file.server.includes(searchTerm) ||
                          file.vpnType.toLowerCase().includes(searchTerm.toLowerCase());
@@ -122,28 +67,28 @@ export function Results() {
   };
 
   const handleDownload = (fileId: string) => {
-    const file = resultFiles.find(f => f.id === fileId);
-    if (file) {
-      // Simulate download
-      console.log(`Downloading ${file.name}`);
-    }
+    dispatch(downloadFile(fileId));
   };
 
   const handleBulkAction = (action: string) => {
-    console.log(`Performing ${action} on files:`, selectedFiles);
-  };
-
-  const handlePreview = (fileId: string) => {
-    const file = resultFiles.find(f => f.id === fileId);
-    if (file) {
-      // Open preview modal
-      console.log(`Previewing ${file.name}`);
+    if (selectedFiles.length === 0) {
+      return;
+    }
+    
+    if (action === 'download') {
+      selectedFiles.forEach(fileId => {
+        dispatch(downloadFile(fileId));
+      });
     }
   };
 
+  const handlePreview = (fileId: string) => {
+    // Реализация предпросмотра файла
+  };
+
   const totalStats = {
-    validCredentials: resultFiles.filter(f => f.type === 'valid').reduce((sum, f) => sum + f.count, 0),
-    totalFiles: resultFiles.length,
+    validCredentials: files.filter(f => f.type === 'valid').reduce((sum, f) => sum + f.count, 0),
+    totalFiles: files.length,
     totalSize: '12.1 MB',
     lastUpdate: '2 minutes ago'
   };
@@ -161,9 +106,20 @@ export function Results() {
             <Archive className="h-4 w-4 mr-2" />
             Archive Old
           </Button>
-          <Button variant="primary">
+          <Button 
+            variant="primary"
+            onClick={() => handleBulkAction('download')}
+            disabled={files.length === 0}
+          >
             <Download className="h-4 w-4 mr-2" />
             Download All
+          </Button>
+          <Button 
+            variant="secondary"
+            onClick={() => window.location.hash = '#reports'}
+          >
+            <PieChart className="h-4 w-4 mr-2" />
+            View Reports
           </Button>
         </div>
       </div>
@@ -241,6 +197,24 @@ export function Results() {
 
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600">{filteredFiles.length} files</span>
+            <div className="flex space-x-2">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => dispatch(selectAllFiles())}
+                disabled={files.length === 0}
+              >
+                Select All
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => dispatch(clearFileSelection())}
+                disabled={selectedFiles.length === 0}
+              >
+                Clear Selection
+              </Button>
+            </div>
           </div>
         </div>
       </Card>
@@ -280,13 +254,7 @@ export function Results() {
                 <input
                   type="checkbox"
                   checked={selectedFiles.includes(file.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedFiles(prev => [...prev, file.id]);
-                    } else {
-                      setSelectedFiles(prev => prev.filter(id => id !== file.id));
-                    }
-                  }}
+                  onChange={() => dispatch(toggleFileSelection(file.id))}
                   className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
 
@@ -344,6 +312,9 @@ export function Results() {
           </div>
         )}
       </Card>
+
+      {/* Results Overview */}
+      <ScanResultsOverview />
 
       {/* Quick Actions */}
       <Card>
