@@ -1,5 +1,6 @@
 import { jwtVerify, SignJWT } from 'jose';
 import toast from 'react-hot-toast';
+import bcrypt from 'bcryptjs';
 
 // Secret key for JWT signing and verification
 // In production, this should be stored in environment variables
@@ -31,8 +32,28 @@ export interface LoginCredentials {
 export interface RegistrationCredentials {
   username: string;
   password: string;
+  confirmPassword?: string;
   role: 'admin' | 'user' | 'viewer';
   token: string;
+}
+
+// Initialize default admin account
+export function initializeDefaultAdmin() {
+  const users = getUsers();
+  
+  // Check if admin account already exists
+  if (!users['admin']) {
+    // Create admin account with default credentials
+    const hashedPassword = bcrypt.hashSync('admin', 10);
+    users['admin'] = {
+      password: hashedPassword,
+      user: { id: '1', username: 'admin', role: 'admin' }
+    };
+    
+    // Save users
+    saveUsers(users);
+    console.log('Default admin account created');
+  }
 }
 
 // Get users from localStorage
@@ -63,56 +84,90 @@ export function validateToken(token: string): boolean {
 
 // Register a new user
 export async function registerUser(credentials: RegistrationCredentials): Promise<{ token: string; user: User } | null> {
-  // Validate token
-  if (!validateToken(credentials.token)) {
+  try {
+    // Validate token
+    if (!validateToken(credentials.token)) {
+      console.error('Invalid token during registration');
+      return null;
+    }
+    
+    const { username, password, role } = credentials;
+    
+    // Validate username (alphanumeric, 3-20 chars)
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      console.error('Invalid username format');
+      return null;
+    }
+    
+    // Validate password (at least 6 chars)
+    if (password.length < 6) {
+      console.error('Password too short');
+      return null;
+    }
+    
+    // Check if username already exists
+    const users = getUsers();
+    if (users[username]) {
+      console.error('Username already exists');
+      return null;
+    }
+    
+    // Hash password
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    
+    // Create new user
+    const newUser: User = {
+      id: Date.now().toString(),
+      username,
+      role
+    };
+    
+    // Save user
+    users[username] = {
+      password: hashedPassword,
+      user: newUser
+    };
+    
+    saveUsers(users);
+    console.log(`User ${username} registered successfully with role ${role}`);
+    
+    // Generate token
+    const token = await generateToken(newUser);
+    
+    return { token, user: newUser };
+  } catch (error) {
+    console.error('Error during registration:', error);
     return null;
   }
-  
-  const { username, password, role } = credentials;
-  
-  // Check if username already exists
-  const users = getUsers();
-  if (users[username]) {
-    return null;
-  }
-  
-  // Create new user
-  const newUser: User = {
-    id: Date.now().toString(),
-    username,
-    role
-  };
-  
-  // Save user
-  users[username] = {
-    password,
-    user: newUser
-  };
-  
-  saveUsers(users);
-  
-  // Generate token
-  const token = await generateToken(newUser);
-  
-  return { token, user: newUser };
 }
 
 // Update user password
-export function updateUserPassword(username: string, newPassword: string, token: string): boolean {
-  // Validate token
-  if (!validateToken(token)) {
+export function updateUserPassword(username: string, currentPassword: string, newPassword: string): boolean {
+  try {
+    const users = getUsers();
+    
+    if (!users[username]) {
+      console.error('User not found');
+      return false;
+    }
+    
+    // Verify current password
+    if (!bcrypt.compareSync(currentPassword, users[username].password)) {
+      console.error('Current password is incorrect');
+      return false;
+    }
+    
+    // Hash new password
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    users[username].password = hashedPassword;
+    
+    saveUsers(users);
+    console.log(`Password updated for user ${username}`);
+    return true;
+  } catch (error) {
+    console.error('Error updating password:', error);
     return false;
   }
-  
-  const users = getUsers();
-  
-  if (!users[username]) {
-    return false;
-  }
-  
-  users[username].password = newPassword;
-  saveUsers(users);
-  return true;
 }
 
 /**
@@ -150,20 +205,39 @@ export async function verifyToken(token: string): Promise<User | null> {
  * Login a user with username and password
  */
 export async function login(credentials: LoginCredentials): Promise<{ token: string; user: User } | null> {
-  const { username, password } = credentials;
-  
-  // Check if user exists and password matches
-  const users = getUsers();
-  const userRecord = users[username];
-  
-  if (!userRecord || userRecord.password !== password) {
+  try {
+    const { username, password, token } = credentials;
+    
+    // If token is provided, validate it
+    if (token && !validateToken(token)) {
+      console.error('Invalid token during login');
+      return null;
+    }
+    
+    // Check if user exists
+    const users = getUsers();
+    const userRecord = users[username];
+    
+    if (!userRecord) {
+      console.error('User not found');
+      return null;
+    }
+    
+    // Verify password
+    if (!bcrypt.compareSync(password, userRecord.password)) {
+      console.error('Invalid password');
+      return null;
+    }
+    
+    // Generate token
+    const authToken = await generateToken(userRecord.user);
+    
+    console.log(`User ${username} logged in successfully`);
+    return { token: authToken, user: userRecord.user };
+  } catch (error) {
+    console.error('Login error:', error);
     return null;
   }
-  
-  // Generate token
-  const token = await generateToken(userRecord.user);
-  
-  return { token, user: userRecord.user };
 }
 
 /**

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { login, setAuthData } from '../../lib/auth';
@@ -18,19 +18,55 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTokenField, setShowTokenField] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState(0);
   
   const dispatch = useAppDispatch();
+
+  // Reset login attempts after 5 minutes
+  useEffect(() => {
+    if (loginAttempts > 0) {
+      const timer = setTimeout(() => {
+        setLoginAttempts(0);
+      }, 5 * 60 * 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loginAttempts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    // Validate inputs
+    if (!username.trim()) {
+      setError('Username is required');
+      return;
+    }
+    
+    if (!password.trim()) {
+      setError('Password is required');
+      return;
+    }
+    
+    // Check login attempts
+    if (loginAttempts >= 5) {
+      setError('Too many login attempts. Please try again later.');
+      return;
+    }
+    
     setLoading(true);
     
     try {
-      const result = await login({ username, password, token });
+      console.log('Attempting login with:', { username, password, token: token || undefined });
+      const result = await login({ 
+        username, 
+        password,
+        token: token || undefined
+      });
       
       if (!result) {
-        setError('Invalid username or password');
+        setLoginAttempts(prev => prev + 1);
+        setError(`Invalid username or password. Attempts: ${loginAttempts + 1}/5`);
         setLoading(false);
         return;
       }
@@ -43,7 +79,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       // Update Redux state
       dispatch(setUser(user));
       
+      // Reset login attempts
+      setLoginAttempts(0);
+      
       toast.success(`Welcome, ${user.username}!`);
+      console.log('Login successful:', user);
       
       // Call success callback
       if (onSuccess) {
@@ -51,7 +91,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError('An error occurred during login');
+      setError('An error occurred during login. Please try again.');
       setLoading(false);
     }
   };
@@ -156,12 +196,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600">
-          Don't have an account? <button 
-            onClick={() => window.location.href = '/register'} 
-            className="text-primary-600 hover:text-primary-500"
-          >
-            Register
-          </button>
+          Default admin account: <span className="font-medium">admin / admin</span>
         </p>
       </div>
     </Card>

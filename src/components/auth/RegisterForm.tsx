@@ -19,37 +19,66 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   const [role, setRole] = useState<'admin' | 'user' | 'viewer'>('user');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   const dispatch = useAppDispatch();
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    // Username validation (alphanumeric, 3-20 chars)
+    if (!username) {
+      errors.username = 'Username is required';
+    } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      errors.username = 'Username must be 3-20 characters and contain only letters, numbers, and underscores';
+    }
+    
+    // Password validation (at least 6 chars)
+    if (!password) {
+      errors.password = 'Password is required';
+    } else if (password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    // Confirm password validation
+    if (password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    // Token validation
+    if (!token) {
+      errors.token = 'Authentication token is required';
+    } else if (!validateToken(token)) {
+      errors.token = 'Invalid authentication token';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     
     // Validate form
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-    
-    // Validate token
-    if (!validateToken(token)) {
-      setError('Invalid authentication token');
+    if (!validateForm()) {
       return;
     }
     
     setLoading(true);
     
     try {
+      console.log('Attempting registration with:', { username, password, role, token });
       const result = await registerUser({
         username,
         password,
+        confirmPassword,
         role,
         token
       });
       
       if (!result) {
-        setError('Registration failed. Username may already exist.');
+        setError('Registration failed. Username may already exist or token is invalid.');
         setLoading(false);
         return;
       }
@@ -63,6 +92,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       dispatch(setUser(user));
       
       toast.success(`Account created successfully! Welcome, ${user.username}!`);
+      console.log('Registration successful:', user);
       
       // Call success callback
       if (onSuccess) {
@@ -70,7 +100,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setError('An error occurred during registration');
+      setError('An error occurred during registration. Please try again.');
       setLoading(false);
     }
   };
@@ -106,11 +136,16 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+              className={`pl-10 block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2 ${
+                validationErrors.username ? 'border-error-300' : 'border-gray-300'
+              }`}
               placeholder="Choose a username"
               required
             />
           </div>
+          {validationErrors.username && (
+            <p className="mt-1 text-xs text-error-600">{validationErrors.username}</p>
+          )}
         </div>
         
         <div>
@@ -126,11 +161,16 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+              className={`pl-10 block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2 ${
+                validationErrors.password ? 'border-error-300' : 'border-gray-300'
+              }`}
               placeholder="Create a password"
               required
             />
           </div>
+          {validationErrors.password && (
+            <p className="mt-1 text-xs text-error-600">{validationErrors.password}</p>
+          )}
         </div>
         
         <div>
@@ -146,11 +186,16 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+              className={`pl-10 block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2 ${
+                validationErrors.confirmPassword ? 'border-error-300' : 'border-gray-300'
+              }`}
               placeholder="Confirm your password"
               required
             />
           </div>
+          {validationErrors.confirmPassword && (
+            <p className="mt-1 text-xs text-error-600">{validationErrors.confirmPassword}</p>
+          )}
         </div>
         
         <div>
@@ -188,11 +233,16 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               type="password"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+              className={`pl-10 block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2 ${
+                validationErrors.token ? 'border-error-300' : 'border-gray-300'
+              }`}
               placeholder="Enter authentication token"
               required
             />
           </div>
+          {validationErrors.token && (
+            <p className="mt-1 text-xs text-error-600">{validationErrors.token}</p>
+          )}
         </div>
         
         <Button

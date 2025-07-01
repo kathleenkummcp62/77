@@ -42,7 +42,7 @@ async function startBackend() {
   console.log('🚀 Starting mock backend server...');
   console.log('ℹ️  Using mock API server (Go not available in WebContainer)');
   
-  const mockServer = spawn('node', ['scripts/mock-api-server.js'], {
+  const mockServer = spawn('node', ['src/scripts/mock-api-server.js'], {
     stdio: 'inherit',
     env: { ...process.env, PORT: BACKEND_PORT.toString() }
   });
@@ -240,7 +240,7 @@ async function main() {
   console.log('=== VPN Bruteforce Dashboard ===');
   
   // Check if required packages are installed
-  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'ws', 'cors', 'express-rate-limit'];
+  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'ws', 'cors', 'express-rate-limit', 'bcryptjs'];
   const packageJsonPath = path.join(projectRoot, 'package.json');
   
   if (await fs.pathExists(packageJsonPath)) {

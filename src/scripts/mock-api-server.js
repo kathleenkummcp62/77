@@ -4,6 +4,7 @@ import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import { rateLimit } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -13,6 +14,17 @@ const JWT_SECRET = 'vpn-bruteforce-dashboard-secret-key-2025';
 
 // Static authentication token
 const STATIC_AUTH_TOKEN = "d@DMJYXf#5egNh7@3j%=C9vjhs9dH*nv";
+
+// In-memory user store (for demo purposes)
+let users = {
+  admin: {
+    password: bcrypt.hashSync('admin', 10),
+    user: { id: '1', username: 'admin', role: 'admin' }
+  }
+};
+
+// Login attempts tracking
+const loginAttempts = new Map();
 
 // Rate limiting middleware
 const apiLimiter = rateLimit({
@@ -115,6 +127,8 @@ app.post('/api/validate-token', (req, res) => {
 app.post('/api/register', (req, res) => {
   const { username, password, role, token } = req.body;
   
+  console.log('Registration attempt:', { username, role, token: token ? '***' : undefined });
+  
   // Validate required fields
   if (!username || !password || !role || !token) {
     return res.status(400).json({ 
@@ -123,20 +137,54 @@ app.post('/api/register', (req, res) => {
     });
   }
   
+  // Validate username format
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Username must be 3-20 characters and contain only letters, numbers, and underscores'
+    });
+  }
+  
+  // Validate password length
+  if (password.length < 6) {
+    return res.status(400).json({
+      success: false,
+      error: 'Password must be at least 6 characters'
+    });
+  }
+  
   // Validate token
   if (token !== STATIC_AUTH_TOKEN) {
+    console.log('Invalid token provided:', token);
     return res.status(401).json({ 
       success: false, 
       error: 'Invalid authentication token' 
     });
   }
   
-  // In a real implementation, you would check if the username already exists
-  // and store the new user in a database
+  // Check if username already exists
+  if (users[username]) {
+    return res.status(400).json({
+      success: false,
+      error: 'Username already exists'
+    });
+  }
+  
+  // Hash password
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  
+  // Create new user
+  const userId = Date.now().toString();
+  users[username] = {
+    password: hashedPassword,
+    user: { id: userId, username, role }
+  };
+  
+  console.log(`User ${username} registered successfully with role ${role}`);
   
   // Generate JWT token
   const jwtToken = jwt.sign(
-    { user: { id: Date.now().toString(), username, role } }, 
+    { user: { id: userId, username, role } }, 
     JWT_SECRET, 
     { expiresIn: '1h' }
   );
@@ -146,7 +194,7 @@ app.post('/api/register', (req, res) => {
     data: {
       token: jwtToken,
       user: {
-        id: Date.now().toString(),
+        id: userId,
         username,
         role
       }
@@ -157,6 +205,9 @@ app.post('/api/register', (req, res) => {
 // Authentication endpoint
 app.post('/api/login', (req, res) => {
   const { username, password, token } = req.body;
+  const ip = req.ip || req.connection.remoteAddress;
+  
+  console.log('Login attempt:', { username, ip, token: token ? '***' : undefined });
   
   // Validate required fields
   if (!username || !password) {
@@ -166,46 +217,74 @@ app.post('/api/login', (req, res) => {
     });
   }
   
+  // Check login attempts
+  const attempts = loginAttempts.get(ip) || 0;
+  if (attempts >= 5) {
+    return res.status(429).json({
+      success: false,
+      error: 'Too many login attempts. Please try again later.'
+    });
+  }
+  
   // If token is provided, validate it
   if (token && token !== STATIC_AUTH_TOKEN) {
+    console.log('Invalid token provided:', token);
     return res.status(401).json({ 
       success: false, 
       error: 'Invalid authentication token' 
     });
   }
   
-  // Mock user authentication
-  // In a real implementation, you would check against a database
-  const users = {
-    admin: { password: 'admin', role: 'admin' },
-    user: { password: 'user123', role: 'user' },
-    viewer: { password: 'viewer123', role: 'viewer' }
-  };
-  
-  const user = users[username];
-  
-  if (!user || user.password !== password) {
+  // Check if user exists
+  const userRecord = users[username];
+  if (!userRecord) {
+    // Increment login attempts
+    loginAttempts.set(ip, attempts + 1);
+    
+    // Set timeout to reset attempts after 5 minutes
+    setTimeout(() => {
+      loginAttempts.delete(ip);
+    }, 5 * 60 * 1000);
+    
     return res.status(401).json({ 
       success: false, 
       error: 'Invalid username or password' 
     });
   }
   
+  // Verify password
+  if (!bcrypt.compareSync(password, userRecord.password)) {
+    // Increment login attempts
+    loginAttempts.set(ip, attempts + 1);
+    
+    // Set timeout to reset attempts after 5 minutes
+    setTimeout(() => {
+      loginAttempts.delete(ip);
+    }, 5 * 60 * 1000);
+    
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Invalid username or password' 
+    });
+  }
+  
+  // Reset login attempts on successful login
+  loginAttempts.delete(ip);
+  
   // Generate JWT token
   const jwtToken = jwt.sign(
-    { username, role: user.role }, 
+    { user: userRecord.user }, 
     JWT_SECRET, 
     { expiresIn: '1h' }
   );
+  
+  console.log(`User ${username} logged in successfully`);
   
   res.json({
     success: true,
     data: {
       token: jwtToken,
-      user: {
-        username,
-        role: user.role
-      }
+      user: userRecord.user
     }
   });
 });

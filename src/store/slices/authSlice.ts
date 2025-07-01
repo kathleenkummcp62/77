@@ -7,6 +7,7 @@ interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
+  loginAttempts: number;
 }
 
 const initialState: AuthState = {
@@ -14,12 +15,19 @@ const initialState: AuthState = {
   isAuthenticated: false,
   loading: false,
   error: null,
+  loginAttempts: 0
 };
 
 export const login = createAsyncThunk(
   'auth/login',
-  async (credentials: { username: string; password: string; token?: string }, { rejectWithValue }) => {
+  async (credentials: { username: string; password: string; token?: string }, { rejectWithValue, getState }) => {
     try {
+      // Check login attempts
+      const state = getState() as { auth: AuthState };
+      if (state.auth.loginAttempts >= 5) {
+        return rejectWithValue('Too many login attempts. Please try again later.');
+      }
+      
       const result = await authLogin(credentials);
       
       if (!result) {
@@ -37,6 +45,11 @@ export const register = createAsyncThunk(
   'auth/register',
   async (credentials: RegistrationCredentials, { rejectWithValue }) => {
     try {
+      // Validate passwords match
+      if (credentials.confirmPassword && credentials.password !== credentials.confirmPassword) {
+        return rejectWithValue('Passwords do not match');
+      }
+      
       const result = await authRegister(credentials);
       
       if (!result) {
@@ -72,6 +85,9 @@ const authSlice = createSlice({
       state.user = null;
       state.isAuthenticated = false;
     },
+    resetLoginAttempts: (state) => {
+      state.loginAttempts = 0;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -84,10 +100,12 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.loginAttempts = 0; // Reset login attempts on success
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.loginAttempts += 1; // Increment login attempts on failure
       })
       
       // Register
@@ -109,10 +127,11 @@ const authSlice = createSlice({
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
+        state.loginAttempts = 0; // Reset login attempts on logout
       });
   },
 });
 
-export const { setUser, clearUser } = authSlice.actions;
+export const { setUser, clearUser, resetLoginAttempts } = authSlice.actions;
 
 export default authSlice.reducer;

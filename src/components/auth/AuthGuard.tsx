@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { isAuthenticated, getCurrentUser, hasRole } from '../../lib/auth';
+import { isAuthenticated, getCurrentUser, hasRole, initializeDefaultAdmin } from '../../lib/auth';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 import { useAppDispatch } from '../../store';
@@ -17,6 +17,9 @@ export function AuthGuard({ children, requiredRole = 'viewer' }: AuthGuardProps)
   const dispatch = useAppDispatch();
 
   useEffect(() => {
+    // Initialize default admin account
+    initializeDefaultAdmin();
+    
     const checkAuth = () => {
       const authenticated = isAuthenticated();
       
