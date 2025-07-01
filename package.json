@@ -1,7 +1,7 @@
 {
   "name": "vpn-scanner-dashboard",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "frontend": "vite",
-    "mock-server": "node src/scripts/mock-api-server.js"
+    "mock-server": "node src/scripts/mock-api-server.js",
+    "start": "npm run mock-server & npm run dev"
   },
   "dependencies": {
     "react": "^18.2.0",

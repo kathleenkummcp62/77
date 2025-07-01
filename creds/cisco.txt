@@ -1,8 +1,0 @@
-https://74.209.225.52:443:test:test:remote_access
-https://67.202.240.148:443:test:test:ANYCONNECT
-https://72.23.123.187:443:test:test:AnyConnect_HVAC
-https://72.32.124.5:443:test:test:POLITICALDATA-ANYCONNECT-SSL
-https://209.43.59.2:443:test:test:remote_access
-https://204.235.221.57:8443:test:test
-https://184.106.123.244:443:test:test:ANYCONNECT-GAVIOTA-SA
-https://72.73.71.60:443:guest;guest

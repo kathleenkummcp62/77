@@ -1,4 +1,0 @@
-guest:guest
-test:test
-admin:admin
-admin:password

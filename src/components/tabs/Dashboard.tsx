@@ -22,7 +22,7 @@ import { ServerPerformanceGrid } from '../charts/ServerPerformanceGrid';
 
 export function Dashboard() {
   const { isConnected, stats, servers, error } = useWebSocket();
-  
+
   // Real statistics data (starting with zeros)
   const realStats = stats || {
     goods: 0,
