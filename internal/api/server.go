@@ -22,6 +22,20 @@ import (
 	"vpn-bruteforce-client/internal/websocket"
 )
 
+// Cache configuration
+var (
+	cacheEnabled = true
+	cacheTTL     = 60 // seconds
+)
+
+// In-memory cache for API responses
+type cacheItem struct {
+	data      []byte
+	expiresAt time.Time
+}
+
+var responseCache = make(map[string]cacheItem)
+
 type Server struct {
 	stats    *stats.Stats
 	db       *db.DB
@@ -47,6 +61,14 @@ type APIResponse struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
+	Meta    *MetaData   `json:"meta,omitempty"`
+}
+
+type MetaData struct {
+	Page       int `json:"page"`
+	PageSize   int `json:"page_size"`
+	TotalItems int `json:"total_items"`
+	TotalPages int `json:"total_pages"`
 }
 
 // InsertLog сохраняет запись лога в базе данных, если она доступна, или добавляет
@@ -152,6 +174,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/tasks/bulk_delete", s.handleTasksBulkDelete).Methods("POST")
 	api.HandleFunc("/health", s.handleHealth).Methods("GET")
 	api.HandleFunc("/login", s.handleLogin).Methods("POST")
+	api.HandleFunc("/cache", s.handleCache).Methods("GET", "DELETE")
 
 	// WebSocket endpoint
 	s.router.HandleFunc("/ws", s.wsServer.HandleWebSocket)
@@ -327,6 +350,25 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
+func (s *Server) handleCache(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		// Get cache statistics
+		stats := map[string]interface{}{
+			"enabled":     cacheEnabled,
+			"ttl":         cacheTTL,
+			"items":       len(responseCache),
+			"memory_used": calculateCacheSize(),
+		}
+		s.sendJSON(w, APIResponse{Success: true, Data: stats})
+	} else if r.Method == http.MethodDelete {
+		// Clear cache
+		responseCache = make(map[string]cacheItem)
+		s.sendJSON(w, APIResponse{Success: true, Data: map[string]string{
+			"message": "Cache cleared successfully",
+		}})
+	}
+}
+
 func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(data); err != nil {
@@ -335,6 +377,17 @@ func (s *Server) sendJSON(w http.ResponseWriter, data interface{}) {
 }
 
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
+	// Check cache
+	cacheKey := "stats"
+	if cacheEnabled {
+		if cachedResponse, ok := responseCache[cacheKey]; ok && time.Now().Before(cachedResponse.expiresAt) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Cache", "HIT")
+			w.Write(cachedResponse.data)
+			return
+		}
+	}
+
 	stats := map[string]interface{}{
 		"goods":        s.stats.GetGoods(),
 		"bads":         s.stats.GetBads(),
@@ -350,40 +403,71 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 		"success_rate": s.stats.GetSuccessRate(),
 	}
 
-	s.sendJSON(w, APIResponse{Success: true, Data: stats})
+	response := APIResponse{Success: true, Data: stats}
+	
+	// Cache response
+	if cacheEnabled {
+		responseBytes, err := json.Marshal(response)
+		if err == nil {
+			responseCache[cacheKey] = cacheItem{
+				data:      responseBytes,
+				expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+			}
+		}
+	}
+
+	s.sendJSON(w, response)
 }
 
 func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
+	// Parse pagination parameters
+	page, pageSize := getPaginationParams(r)
+
+	// Check cache
+	cacheKey := fmt.Sprintf("servers_page%d_size%d", page, pageSize)
+	if cacheEnabled {
+		if cachedResponse, ok := responseCache[cacheKey]; ok && time.Now().Before(cachedResponse.expiresAt) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Cache", "HIT")
+			w.Write(cachedResponse.data)
+			return
+		}
+	}
+
 	if s.db != nil {
-		rows, err := s.db.Query(`SELECT ip, status, cpu_usage, memory_usage, disk_usage, current_task FROM servers`)
+		// Use optimized query with pagination
+		servers, total, err := s.db.GetServersByFilters(map[string]interface{}{}, page, pageSize)
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer func() {
-			if err := rows.Close(); err != nil {
-				log.Printf("rows close error: %v", err)
-			}
-		}()
 
-		var servers []map[string]interface{}
-		for rows.Next() {
-			var ip, status, task string
-			var cpu, mem, disk float64
-			if err := rows.Scan(&ip, &status, &cpu, &mem, &disk, &task); err != nil {
-				continue
-			}
-			servers = append(servers, map[string]interface{}{
-				"ip":     ip,
-				"status": status,
-				"uptime": "-",
-				"cpu":    int(cpu + 0.5),
-				"memory": int(mem + 0.5),
-				"disk":   int(disk + 0.5),
-				"task":   task,
-			})
+		// Calculate total pages
+		totalPages := (total + pageSize - 1) / pageSize
+
+		response := APIResponse{
+			Success: true, 
+			Data: servers,
+			Meta: &MetaData{
+				Page:       page,
+				PageSize:   pageSize,
+				TotalItems: total,
+				TotalPages: totalPages,
+			},
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: servers})
+		
+		// Cache response
+		if cacheEnabled {
+			responseBytes, err := json.Marshal(response)
+			if err == nil {
+				responseCache[cacheKey] = cacheItem{
+					data:      responseBytes,
+					expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+				}
+			}
+		}
+
+		s.sendJSON(w, response)
 		return
 	}
 
@@ -418,7 +502,29 @@ func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.sendJSON(w, APIResponse{Success: true, Data: servers})
+	response := APIResponse{
+		Success: true, 
+		Data: servers,
+		Meta: &MetaData{
+			Page:       page,
+			PageSize:   pageSize,
+			TotalItems: len(servers),
+			TotalPages: 1,
+		},
+	}
+	
+	// Cache response
+	if cacheEnabled {
+		responseBytes, err := json.Marshal(response)
+		if err == nil {
+			responseCache[cacheKey] = cacheItem{
+				data:      responseBytes,
+				expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+			}
+		}
+	}
+
+	s.sendJSON(w, response)
 }
 
 func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
@@ -478,41 +584,81 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
-	limitStr := r.URL.Query().Get("limit")
-	limit := 100
-	if limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil {
-			limit = l
+	// Parse pagination parameters
+	page, pageSize := getPaginationParams(r)
+	
+	// Parse filter parameters
+	level := r.URL.Query().Get("level")
+	source := r.URL.Query().Get("source")
+	search := r.URL.Query().Get("search")
+	
+	// Check cache
+	cacheKey := fmt.Sprintf("logs_page%d_size%d_level%s_source%s_search%s", 
+		page, pageSize, level, source, search)
+	if cacheEnabled {
+		if cachedResponse, ok := responseCache[cacheKey]; ok && time.Now().Before(cachedResponse.expiresAt) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Cache", "HIT")
+			w.Write(cachedResponse.data)
+			return
 		}
 	}
 
 	if s.db != nil {
-		rows, err := s.db.Query(`SELECT timestamp, level, message, source FROM logs ORDER BY timestamp DESC LIMIT $1`, limit)
+		var logs []map[string]interface{}
+		var total int
+		var err error
+		
+		// Apply filters
+		if search != "" {
+			// Search in logs
+			logs, total, err = s.db.GetLogsWithSearch(search, page, pageSize)
+		} else if level != "" || source != "" {
+			// Filter by level and/or source
+			filters := make(map[string]interface{})
+			if level != "" {
+				filters["level"] = level
+			}
+			if source != "" {
+				filters["source"] = source
+			}
+			logs, total, err = s.db.GetLogsWithFilters(filters, page, pageSize)
+		} else {
+			// Get all logs with pagination
+			logs, total, err = s.db.GetLogsWithPagination(page, pageSize)
+		}
+		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer func() {
-			if err := rows.Close(); err != nil {
-				log.Printf("rows close error: %v", err)
-			}
-		}()
-
-		var logs []map[string]interface{}
-		for rows.Next() {
-			var ts time.Time
-			var level, msg, src string
-			if err := rows.Scan(&ts, &level, &msg, &src); err != nil {
-				continue
-			}
-			logs = append(logs, map[string]interface{}{
-				"timestamp": ts.Format(time.RFC3339),
-				"level":     level,
-				"message":   msg,
-				"source":    src,
-			})
+		
+		// Calculate total pages
+		totalPages := (total + pageSize - 1) / pageSize
+		
+		response := APIResponse{
+			Success: true, 
+			Data: logs,
+			Meta: &MetaData{
+				Page:       page,
+				PageSize:   pageSize,
+				TotalItems: total,
+				TotalPages: totalPages,
+			},
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: logs})
+		
+		// Cache response
+		if cacheEnabled {
+			responseBytes, err := json.Marshal(response)
+			if err == nil {
+				responseCache[cacheKey] = cacheItem{
+					data:      responseBytes,
+					expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+				}
+			}
+		}
+		
+		s.sendJSON(w, response)
 		return
 	}
 
@@ -580,28 +726,70 @@ func (s *Server) handleVendorURLs(w http.ResponseWriter, r *http.Request) {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
 	}
+	
+	// Parse pagination parameters
+	page, pageSize := getPaginationParams(r)
+	
+	// Parse search parameter
+	search := r.URL.Query().Get("search")
+	
 	switch r.Method {
 	case http.MethodGet:
-		rows, err := s.db.Query(`SELECT id, url FROM vendor_urls`)
+		// Check cache
+		cacheKey := fmt.Sprintf("vendor_urls_page%d_size%d_search%s", page, pageSize, search)
+		if cacheEnabled {
+			if cachedResponse, ok := responseCache[cacheKey]; ok && time.Now().Before(cachedResponse.expiresAt) {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("X-Cache", "HIT")
+				w.Write(cachedResponse.data)
+				return
+			}
+		}
+		
+		var vendorURLs []map[string]interface{}
+		var total int
+		var err error
+		
+		if search != "" {
+			// Search vendor URLs
+			vendorURLs, total, err = s.db.GetVendorURLsWithSearch(search, page, pageSize)
+		} else {
+			// Get all vendor URLs with pagination
+			vendorURLs, total, err = s.db.GetVendorURLsWithPagination(page, pageSize)
+		}
+		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer func() {
-			if err := rows.Close(); err != nil {
-				log.Printf("rows close error: %v", err)
-			}
-		}()
-		var list []map[string]interface{}
-		for rows.Next() {
-			var id int
-			var url string
-			if err := rows.Scan(&id, &url); err != nil {
-				continue
-			}
-			list = append(list, map[string]interface{}{"id": id, "url": url})
+		
+		// Calculate total pages
+		totalPages := (total + pageSize - 1) / pageSize
+		
+		response := APIResponse{
+			Success: true, 
+			Data: vendorURLs,
+			Meta: &MetaData{
+				Page:       page,
+				PageSize:   pageSize,
+				TotalItems: total,
+				TotalPages: totalPages,
+			},
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: list})
+		
+		// Cache response
+		if cacheEnabled {
+			responseBytes, err := json.Marshal(response)
+			if err == nil {
+				responseCache[cacheKey] = cacheItem{
+					data:      responseBytes,
+					expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+				}
+			}
+		}
+		
+		s.sendJSON(w, response)
+		
 	case http.MethodPost:
 		var item struct {
 			URL string `json:"url"`
@@ -615,6 +803,10 @@ func (s *Server) handleVendorURLs(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for vendor_urls
+		clearCacheByPrefix("vendor_urls")
+		
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "url": item.URL}})
 	}
 }
@@ -639,12 +831,20 @@ func (s *Server) handleVendorURL(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for vendor_urls
+		clearCacheByPrefix("vendor_urls")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	case http.MethodDelete:
 		if _, err := s.db.Exec(`DELETE FROM vendor_urls WHERE id=$1`, id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for vendor_urls
+		clearCacheByPrefix("vendor_urls")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	}
 }
@@ -670,6 +870,10 @@ func (s *Server) handleVendorURLsBulkDelete(w http.ResponseWriter, r *http.Reque
 		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 		return
 	}
+	
+	// Clear cache for vendor_urls
+	clearCacheByPrefix("vendor_urls")
+	
 	s.sendJSON(w, APIResponse{Success: true})
 }
 
@@ -681,31 +885,70 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
 	}
+	
+	// Parse pagination parameters
+	page, pageSize := getPaginationParams(r)
+	
+	// Parse search parameter
+	search := r.URL.Query().Get("search")
+	
 	switch r.Method {
 	case http.MethodGet:
-		rows, err := s.db.Query(`SELECT id, ip, username, password FROM credentials`)
+		// Check cache
+		cacheKey := fmt.Sprintf("credentials_page%d_size%d_search%s", page, pageSize, search)
+		if cacheEnabled {
+			if cachedResponse, ok := responseCache[cacheKey]; ok && time.Now().Before(cachedResponse.expiresAt) {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("X-Cache", "HIT")
+				w.Write(cachedResponse.data)
+				return
+			}
+		}
+		
+		var credentials []map[string]interface{}
+		var total int
+		var err error
+		
+		if search != "" {
+			// Search credentials
+			credentials, total, err = s.db.GetCredentialsWithSearch(search, page, pageSize)
+		} else {
+			// Get all credentials with pagination
+			credentials, total, err = s.db.GetCredentialsWithPagination(page, pageSize)
+		}
+		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer func() {
-			if err := rows.Close(); err != nil {
-				log.Printf("rows close error: %v", err)
-			}
-		}()
-		var list []map[string]interface{}
-		for rows.Next() {
-			var id int
-			var ip, u, p string
-			if err := rows.Scan(&id, &ip, &u, &p); err != nil {
-				continue
-			}
-			ip, _ = decryptString(ip)
-			u, _ = decryptString(u)
-			p, _ = decryptString(p)
-			list = append(list, map[string]interface{}{"id": id, "ip": ip, "username": u, "password": p})
+		
+		// Calculate total pages
+		totalPages := (total + pageSize - 1) / pageSize
+		
+		response := APIResponse{
+			Success: true, 
+			Data: credentials,
+			Meta: &MetaData{
+				Page:       page,
+				PageSize:   pageSize,
+				TotalItems: total,
+				TotalPages: totalPages,
+			},
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: list})
+		
+		// Cache response
+		if cacheEnabled {
+			responseBytes, err := json.Marshal(response)
+			if err == nil {
+				responseCache[cacheKey] = cacheItem{
+					data:      responseBytes,
+					expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+				}
+			}
+		}
+		
+		s.sendJSON(w, response)
+		
 	case http.MethodPost:
 		var item struct{ IP, Username, Password string }
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -720,6 +963,10 @@ func (s *Server) handleCredentials(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for credentials
+		clearCacheByPrefix("credentials")
+		
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "ip": item.IP, "username": item.Username, "password": item.Password}})
 	}
 }
@@ -748,12 +995,20 @@ func (s *Server) handleCredential(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for credentials
+		clearCacheByPrefix("credentials")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	case http.MethodDelete:
 		if _, err := s.db.Exec(`DELETE FROM credentials WHERE id=$1`, id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for credentials
+		clearCacheByPrefix("credentials")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	}
 }
@@ -781,6 +1036,10 @@ func (s *Server) handleCredentialsBulkDelete(w http.ResponseWriter, r *http.Requ
 		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 		return
 	}
+	
+	// Clear cache for credentials
+	clearCacheByPrefix("credentials")
+	
 	s.sendJSON(w, APIResponse{Success: true})
 }
 
@@ -789,24 +1048,80 @@ func (s *Server) handleWorkers(w http.ResponseWriter, r *http.Request) {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
 	}
+	
+	// Parse pagination parameters
+	page, pageSize := getPaginationParams(r)
+	
 	switch r.Method {
 	case http.MethodGet:
-		rows, err := s.db.Query(`SELECT id, ip, port, username, password FROM workers`)
+		// Check cache
+		cacheKey := fmt.Sprintf("workers_page%d_size%d", page, pageSize)
+		if cacheEnabled {
+			if cachedResponse, ok := responseCache[cacheKey]; ok && time.Now().Before(cachedResponse.expiresAt) {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("X-Cache", "HIT")
+				w.Write(cachedResponse.data)
+				return
+			}
+		}
+		
+		// Build query with pagination
+		query := `SELECT id, ip, port, username, password FROM workers LIMIT $1 OFFSET $2`
+		offset := (page - 1) * pageSize
+		
+		// Get total count
+		var total int
+		err := s.db.QueryRow(`SELECT COUNT(*) FROM workers`).Scan(&total)
+		if err != nil {
+			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		
+		// Execute query
+		rows, err := s.db.Query(query, pageSize, offset)
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
 		defer rows.Close()
-		var list []map[string]interface{}
+		
+		var workers []map[string]interface{}
 		for rows.Next() {
 			var id, port int
 			var ip, u, p string
 			if err := rows.Scan(&id, &ip, &port, &u, &p); err != nil {
 				continue
 			}
-			list = append(list, map[string]interface{}{"id": id, "ip": ip, "port": port, "username": u, "password": p})
+			workers = append(workers, map[string]interface{}{"id": id, "ip": ip, "port": port, "username": u, "password": p})
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: list})
+		
+		// Calculate total pages
+		totalPages := (total + pageSize - 1) / pageSize
+		
+		response := APIResponse{
+			Success: true, 
+			Data: workers,
+			Meta: &MetaData{
+				Page:       page,
+				PageSize:   pageSize,
+				TotalItems: total,
+				TotalPages: totalPages,
+			},
+		}
+		
+		// Cache response
+		if cacheEnabled {
+			responseBytes, err := json.Marshal(response)
+			if err == nil {
+				responseCache[cacheKey] = cacheItem{
+					data:      responseBytes,
+					expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+				}
+			}
+		}
+		
+		s.sendJSON(w, response)
+		
 	case http.MethodPost:
 		var item struct {
 			IP       string `json:"ip"`
@@ -823,6 +1138,10 @@ func (s *Server) handleWorkers(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for workers
+		clearCacheByPrefix("workers")
+		
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "ip": item.IP, "port": item.Port, "username": item.Username, "password": item.Password}})
 	}
 }
@@ -839,6 +1158,10 @@ func (s *Server) handleWorker(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for workers
+		clearCacheByPrefix("workers")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	}
 }
@@ -848,31 +1171,70 @@ func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
 	}
+	
+	// Parse pagination parameters
+	page, pageSize := getPaginationParams(r)
+	
+	// Parse search parameter
+	search := r.URL.Query().Get("search")
+	
 	switch r.Method {
 	case http.MethodGet:
-		rows, err := s.db.Query(`SELECT id, address, username, password FROM proxies`)
+		// Check cache
+		cacheKey := fmt.Sprintf("proxies_page%d_size%d_search%s", page, pageSize, search)
+		if cacheEnabled {
+			if cachedResponse, ok := responseCache[cacheKey]; ok && time.Now().Before(cachedResponse.expiresAt) {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("X-Cache", "HIT")
+				w.Write(cachedResponse.data)
+				return
+			}
+		}
+		
+		var proxies []map[string]interface{}
+		var total int
+		var err error
+		
+		if search != "" {
+			// Search proxies
+			proxies, total, err = s.db.GetProxiesWithSearch(search, page, pageSize)
+		} else {
+			// Get all proxies with pagination
+			proxies, total, err = s.db.GetProxiesWithPagination(page, pageSize)
+		}
+		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer func() {
-			if err := rows.Close(); err != nil {
-				log.Printf("rows close error: %v", err)
-			}
-		}()
-		var list []map[string]interface{}
-		for rows.Next() {
-			var id int
-			var addr, u, p string
-			if err := rows.Scan(&id, &addr, &u, &p); err != nil {
-				continue
-			}
-			addr, _ = decryptString(addr)
-			u, _ = decryptString(u)
-			p, _ = decryptString(p)
-			list = append(list, map[string]interface{}{"id": id, "address": addr, "username": u, "password": p})
+		
+		// Calculate total pages
+		totalPages := (total + pageSize - 1) / pageSize
+		
+		response := APIResponse{
+			Success: true, 
+			Data: proxies,
+			Meta: &MetaData{
+				Page:       page,
+				PageSize:   pageSize,
+				TotalItems: total,
+				TotalPages: totalPages,
+			},
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: list})
+		
+		// Cache response
+		if cacheEnabled {
+			responseBytes, err := json.Marshal(response)
+			if err == nil {
+				responseCache[cacheKey] = cacheItem{
+					data:      responseBytes,
+					expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+				}
+			}
+		}
+		
+		s.sendJSON(w, response)
+		
 	case http.MethodPost:
 		var item struct{ Address, Username, Password string }
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -887,6 +1249,10 @@ func (s *Server) handleProxies(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for proxies
+		clearCacheByPrefix("proxies")
+		
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "address": item.Address, "username": item.Username, "password": item.Password}})
 	}
 }
@@ -912,12 +1278,20 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for proxies
+		clearCacheByPrefix("proxies")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	case http.MethodDelete:
 		if _, err := s.db.Exec(`DELETE FROM proxies WHERE id=$1`, id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for proxies
+		clearCacheByPrefix("proxies")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	}
 }
@@ -942,6 +1316,10 @@ func (s *Server) handleProxiesBulkDelete(w http.ResponseWriter, r *http.Request)
 		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 		return
 	}
+	
+	// Clear cache for proxies
+	clearCacheByPrefix("proxies")
+	
 	s.sendJSON(w, APIResponse{Success: true})
 }
 
@@ -955,68 +1333,82 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		s.sendJSON(w, APIResponse{Success: false, Error: "database unavailable"})
 		return
 	}
+	
+	// Parse pagination parameters
+	page, pageSize := getPaginationParams(r)
+	
+	// Parse filter parameters
+	vpnType := r.URL.Query().Get("vpn_type")
+	status := r.URL.Query().Get("status")
+	search := r.URL.Query().Get("search")
 
 	switch r.Method {
 	case http.MethodGet:
-		if s.useVendorTasks {
-			rows, err := s.db.Query(`
-                                SELECT t.id, t.vpn_type, t.vendor_url_id, COALESCE(v.url, ''), t.server, COALESCE(t.status, '')
-                                FROM tasks t
-                                LEFT JOIN vendor_urls v ON v.id = t.vendor_url_id`)
-			if err != nil {
-				s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
+		// Check cache
+		cacheKey := fmt.Sprintf("tasks_page%d_size%d_vpnType%s_status%s_search%s", 
+			page, pageSize, vpnType, status, search)
+		if cacheEnabled {
+			if cachedResponse, ok := responseCache[cacheKey]; ok && time.Now().Before(cachedResponse.expiresAt) {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("X-Cache", "HIT")
+				w.Write(cachedResponse.data)
 				return
 			}
-			defer rows.Close()
-			var list []map[string]interface{}
-			for rows.Next() {
-				var (
-					id       int
-					vpnType  sql.NullString
-					vendorID sql.NullInt64
-					url      sql.NullString
-					server   sql.NullString
-					status   sql.NullString
-				)
-				if err := rows.Scan(&id, &vpnType, &vendorID, &url, &server, &status); err != nil {
-					continue
-				}
-				list = append(list, map[string]interface{}{
-					"id":            id,
-					"vpn_type":      vpnType.String,
-					"vendor_url_id": vendorID.Int64,
-					"url":           url.String,
-					"server":        server.String,
-					"status":        status.String,
-				})
-			}
-			s.sendJSON(w, APIResponse{Success: true, Data: list})
-			return
 		}
-
-		rows, err := s.db.Query(`SELECT id, vendor, url, login, password, proxy FROM tasks`)
+		
+		var tasks []map[string]interface{}
+		var total int
+		var err error
+		
+		if search != "" {
+			// Search tasks
+			tasks, total, err = s.db.GetTasksWithSearch(search, page, pageSize)
+		} else if vpnType != "" || status != "" {
+			// Filter by vpn_type and/or status
+			filters := make(map[string]interface{})
+			if vpnType != "" {
+				filters["vpn_type"] = vpnType
+			}
+			if status != "" {
+				filters["status"] = status
+			}
+			tasks, total, err = s.db.GetTasksWithFilters(filters, page, pageSize)
+		} else {
+			// Get all tasks with pagination
+			tasks, total, err = s.db.GetTasksWithPagination(page, pageSize)
+		}
+		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
-		defer rows.Close()
-		var list []map[string]interface{}
-		for rows.Next() {
-			var id int
-			var vendor, url, login, password, proxy sql.NullString
-			if err := rows.Scan(&id, &vendor, &url, &login, &password, &proxy); err != nil {
-				continue
-			}
-			list = append(list, map[string]interface{}{
-				"id":       id,
-				"vendor":   vendor.String,
-				"url":      url.String,
-				"login":    login.String,
-				"password": password.String,
-				"proxy":    proxy.String,
-			})
+		
+		// Calculate total pages
+		totalPages := (total + pageSize - 1) / pageSize
+		
+		response := APIResponse{
+			Success: true, 
+			Data: tasks,
+			Meta: &MetaData{
+				Page:       page,
+				PageSize:   pageSize,
+				TotalItems: total,
+				TotalPages: totalPages,
+			},
 		}
-		s.sendJSON(w, APIResponse{Success: true, Data: list})
+		
+		// Cache response
+		if cacheEnabled {
+			responseBytes, err := json.Marshal(response)
+			if err == nil {
+				responseCache[cacheKey] = cacheItem{
+					data:      responseBytes,
+					expiresAt: time.Now().Add(time.Duration(cacheTTL) * time.Second),
+				}
+			}
+		}
+		
+		s.sendJSON(w, response)
 
 	case http.MethodPost:
 		if s.useVendorTasks {
@@ -1037,6 +1429,10 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 				s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 				return
 			}
+			
+			// Clear cache for tasks
+			clearCacheByPrefix("tasks")
+			
 			itemMap := map[string]interface{}{
 				"id":            id,
 				"vpn_type":      item.VPNType,
@@ -1065,6 +1461,10 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for tasks
+		clearCacheByPrefix("tasks")
+		
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id, "vendor": item.Vendor, "url": item.URL, "login": item.Login, "password": item.Password, "proxy": item.Proxy}})
 	}
 }
@@ -1099,6 +1499,10 @@ func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 				s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 				return
 			}
+			
+			// Clear cache for tasks
+			clearCacheByPrefix("tasks")
+			
 			s.sendJSON(w, APIResponse{Success: true})
 			return
 		}
@@ -1120,12 +1524,20 @@ func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for tasks
+		clearCacheByPrefix("tasks")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	case http.MethodDelete:
 		if _, err := s.db.Exec(`DELETE FROM tasks WHERE id=$1`, id); err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		
+		// Clear cache for tasks
+		clearCacheByPrefix("tasks")
+		
 		s.sendJSON(w, APIResponse{Success: true})
 	}
 }
@@ -1154,5 +1566,55 @@ func (s *Server) handleTasksBulkDelete(w http.ResponseWriter, r *http.Request) {
 		s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 		return
 	}
+	
+	// Clear cache for tasks
+	clearCacheByPrefix("tasks")
+	
 	s.sendJSON(w, APIResponse{Success: true})
+}
+
+// Helper functions
+
+// getPaginationParams extracts page and pageSize from request query parameters
+func getPaginationParams(r *http.Request) (page, pageSize int) {
+	pageStr := r.URL.Query().Get("page")
+	pageSizeStr := r.URL.Query().Get("page_size")
+	
+	page = 1
+	if pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	
+	pageSize = 10
+	if pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 {
+			pageSize = ps
+		}
+	}
+	
+	return page, pageSize
+}
+
+// clearCacheByPrefix clears all cache items with keys starting with the given prefix
+func clearCacheByPrefix(prefix string) {
+	if !cacheEnabled {
+		return
+	}
+	
+	for key := range responseCache {
+		if strings.HasPrefix(key, prefix) {
+			delete(responseCache, key)
+		}
+	}
+}
+
+// calculateCacheSize calculates the approximate size of the cache in bytes
+func calculateCacheSize() int {
+	size := 0
+	for _, item := range responseCache {
+		size += len(item.data)
+	}
+	return size
 }

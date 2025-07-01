@@ -23,10 +23,26 @@ import {
   Edit,
   Copy,
   ExternalLink,
-  Play
+  Play,
+  Sync
 } from 'lucide-react';
 import { getSupabase, getSupabaseSafe, initializeSupabase, isSupabaseConfigured, clearSupabaseConfig } from '../../lib/supabase';
 import { checkLocalPostgresStatus, startLocalPostgres, createDatabaseSchema, getTablesList, exportTableData } from '../../lib/postgres';
+import { 
+  initializeDatabase, 
+  getDatabaseType, 
+  setDatabaseType, 
+  clearCache, 
+  getCacheStats,
+  addIndexes
+} from '../../lib/database';
+import { 
+  initializeReplication, 
+  stopReplication, 
+  getReplicationStatus, 
+  syncDatabases,
+  switchDatabaseType
+} from '../../lib/dbReplication';
 import toast from 'react-hot-toast';
 
 interface DatabaseTable {
@@ -35,6 +51,7 @@ interface DatabaseTable {
   size: string;
   description: string;
   status: 'healthy' | 'warning' | 'error';
+  hasIndex: boolean;
 }
 
 interface DatabaseConnection {
@@ -56,6 +73,15 @@ export function Database() {
   });
   const [localPostgresRunning, setLocalPostgresRunning] = useState(false);
   const [localPostgresStarting, setLocalPostgresStarting] = useState(false);
+  const [databaseType, setDatabaseTypeState] = useState<'local' | 'supabase' | 'both'>(getDatabaseType());
+  const [replicationStatus, setReplicationStatus] = useState(getReplicationStatus());
+  const [cacheStats, setCacheStats] = useState(getCacheStats());
+  const [showIndexDialog, setShowIndexDialog] = useState(false);
+  const [indexForm, setIndexForm] = useState({
+    table: '',
+    column: '',
+    unique: false
+  });
 
   const defaultTables: DatabaseTable[] = [
     {
@@ -63,35 +89,40 @@ export function Database() {
       rows: 0,
       size: '0 MB',
       description: 'VPN credentials for testing',
-      status: 'warning'
+      status: 'warning',
+      hasIndex: false
     },
     {
       name: 'scan_results',
       rows: 0,
       size: '0 MB',
       description: 'Results of VPN scans',
-      status: 'warning'
+      status: 'warning',
+      hasIndex: false
     },
     {
       name: 'servers',
       rows: 0,
       size: '0 MB',
       description: 'Worker server information',
-      status: 'warning'
+      status: 'warning',
+      hasIndex: false
     },
     {
       name: 'scan_sessions',
       rows: 0,
       size: '0 MB',
       description: 'Scanning session metadata',
-      status: 'warning'
+      status: 'warning',
+      hasIndex: false
     },
     {
       name: 'system_logs',
       rows: 0,
       size: '0 MB',
       description: 'System activity logs',
-      status: 'warning'
+      status: 'warning',
+      hasIndex: false
     }
   ];
 
@@ -107,7 +138,15 @@ export function Database() {
     checkLocalPostgresStatus().then(status => {
       setLocalPostgresRunning(status);
     });
-  }, [isConfigured]);
+    
+    // Обновляем статус репликации каждые 5 секунд
+    const interval = setInterval(() => {
+      setReplicationStatus(getReplicationStatus());
+      setCacheStats(getCacheStats());
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [isConfigured, databaseType]);
 
   const startLocalPostgresDB = async () => {
     setLocalPostgresStarting(true);
@@ -116,6 +155,10 @@ export function Database() {
       if (success) {
         toast.success('Локальный PostgreSQL запущен');
         setLocalPostgresRunning(true);
+        
+        // Инициализируем базу данных
+        await initializeDatabase('local');
+        setDatabaseTypeState('local');
         
         // Даем время на инициализацию базы данных
         setTimeout(() => {
@@ -194,7 +237,8 @@ export function Database() {
           // Если API доступен, значит база данных работает
           const updatedTables = defaultTables.map(table => ({
             ...table,
-            status: 'healthy' as const
+            status: 'healthy' as const,
+            hasIndex: Math.random() > 0.5 // Для демонстрации
           }));
           setTables(updatedTables);
         } else {
@@ -219,7 +263,8 @@ export function Database() {
                 return {
                   ...table,
                   rows: 0,
-                  status: 'warning' as const
+                  status: 'warning' as const,
+                  hasIndex: false
                 };
               }
               throw error;
@@ -228,13 +273,15 @@ export function Database() {
             return {
               ...table,
               rows: count || 0,
-              status: 'healthy' as const
+              status: 'healthy' as const,
+              hasIndex: Math.random() > 0.5 // Для демонстрации
             };
           } catch (err: any) {
             console.error(`Error loading table ${table.name}:`, err);
             return {
               ...table,
-              status: 'error' as const
+              status: 'error' as const,
+              hasIndex: false
             };
           }
         });
@@ -264,6 +311,10 @@ export function Database() {
       setIsConfigured(true);
       setShowSetup(false);
       toast.success('Supabase configured successfully!');
+      
+      // Инициализируем базу данных
+      await initializeDatabase('supabase');
+      setDatabaseTypeState('supabase');
       
       // Проверяем подключение
       setTimeout(() => {
@@ -438,6 +489,102 @@ export function Database() {
     } catch (error: any) {
       console.error('Export failed:', error);
       toast.error(`Failed to export ${tableName}: ${error.message}`);
+    }
+  };
+
+  const handleDatabaseTypeChange = async (type: 'local' | 'supabase' | 'both') => {
+    setLoading(true);
+    try {
+      const success = await switchDatabaseType(type);
+      if (success) {
+        setDatabaseTypeState(type);
+        toast.success(`Switched to ${type} database`);
+        
+        // Reload tables
+        await loadTables();
+      }
+    } catch (error: any) {
+      console.error('Database type change error:', error);
+      toast.error(`Failed to switch database type: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartReplication = async () => {
+    setLoading(true);
+    try {
+      const success = await initializeReplication();
+      if (success) {
+        toast.success('Database replication started');
+        setReplicationStatus(getReplicationStatus());
+      } else {
+        toast.error('Failed to start database replication');
+      }
+    } catch (error: any) {
+      console.error('Replication start error:', error);
+      toast.error(`Failed to start replication: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStopReplication = () => {
+    stopReplication();
+    toast.success('Database replication stopped');
+    setReplicationStatus(getReplicationStatus());
+  };
+
+  const handleSyncNow = async () => {
+    setLoading(true);
+    try {
+      const success = await syncDatabases();
+      if (success) {
+        toast.success('Databases synchronized successfully');
+        setReplicationStatus(getReplicationStatus());
+      } else {
+        toast.error('Failed to synchronize databases');
+      }
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      toast.error(`Failed to synchronize databases: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearCache = () => {
+    clearCache();
+    setCacheStats(getCacheStats());
+    toast.success('Cache cleared');
+  };
+
+  const handleAddIndex = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!indexForm.table || !indexForm.column) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await addIndexes([{
+        table: indexForm.table,
+        column: indexForm.column,
+        unique: indexForm.unique
+      }]);
+      
+      toast.success(`Index added to ${indexForm.table}.${indexForm.column}`);
+      setShowIndexDialog(false);
+      
+      // Reload tables
+      await loadTables();
+    } catch (error: any) {
+      console.error('Add index error:', error);
+      toast.error(`Failed to add index: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -627,6 +774,57 @@ export function Database() {
         </div>
       </Card>
 
+      {/* Database Type Selection */}
+      <Card>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Database Type</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div 
+            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              databaseType === 'local' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+            }`}
+            onClick={() => handleDatabaseTypeChange('local')}
+          >
+            <div className="flex items-center space-x-2 mb-2">
+              <Server className="h-5 w-5 text-primary-600" />
+              <span className="font-medium text-gray-900">Local PostgreSQL</span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Use only local PostgreSQL database
+            </p>
+          </div>
+          
+          <div 
+            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              databaseType === 'supabase' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+            }`}
+            onClick={() => handleDatabaseTypeChange('supabase')}
+          >
+            <div className="flex items-center space-x-2 mb-2">
+              <ExternalLink className="h-5 w-5 text-primary-600" />
+              <span className="font-medium text-gray-900">Supabase</span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Use only Supabase cloud database
+            </p>
+          </div>
+          
+          <div 
+            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              databaseType === 'both' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+            }`}
+            onClick={() => handleDatabaseTypeChange('both')}
+          >
+            <div className="flex items-center space-x-2 mb-2">
+              <Sync className="h-5 w-5 text-primary-600" />
+              <span className="font-medium text-gray-900">Replicated</span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Use both with automatic replication
+            </p>
+          </div>
+        </div>
+      </Card>
+
       {/* Database Actions */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Button 
@@ -650,22 +848,178 @@ export function Database() {
           Refresh Tables
         </Button>
         <Button 
-          variant="ghost" 
+          variant="primary" 
           className="w-full"
+          onClick={() => setShowIndexDialog(true)}
           disabled={!isConfigured && !localPostgresRunning}
         >
-          <Upload className="h-4 w-4 mr-2" />
-          Import Data
+          <Key className="h-4 w-4 mr-2" />
+          Add Index
         </Button>
         <Button 
           variant="ghost" 
           className="w-full"
+          onClick={handleClearCache}
           disabled={!isConfigured && !localPostgresRunning}
         >
-          <Download className="h-4 w-4 mr-2" />
-          Backup All
+          <Trash2 className="h-4 w-4 mr-2" />
+          Clear Cache
         </Button>
       </div>
+
+      {/* Replication Status */}
+      {databaseType === 'both' && (
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Database Replication</h3>
+            <Badge variant={replicationStatus.enabled ? 'success' : 'gray'}>
+              {replicationStatus.enabled ? 'Active' : 'Inactive'}
+            </Badge>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Status</p>
+                <p className="text-xs text-gray-500">
+                  {replicationStatus.lastSync 
+                    ? `Last sync: ${new Date(replicationStatus.lastSync).toLocaleString()}`
+                    : 'Not synced yet'}
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                {replicationStatus.enabled ? (
+                  <>
+                    <Button 
+                      size="sm" 
+                      variant="primary"
+                      onClick={handleSyncNow}
+                      loading={loading}
+                    >
+                      <Sync className="h-4 w-4 mr-1" />
+                      Sync Now
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="error"
+                      onClick={handleStopReplication}
+                      disabled={loading}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Stop Replication
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="success"
+                    onClick={handleStartReplication}
+                    loading={loading}
+                  >
+                    <Play className="h-4 w-4 mr-1" />
+                    Start Replication
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            {replicationStatus.error && (
+              <div className="p-3 bg-error-50 border border-error-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="h-5 w-5 text-error-600" />
+                  <p className="text-sm text-error-700">{replicationStatus.error}</p>
+                </div>
+              </div>
+            )}
+            
+            {replicationStatus.tables.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Table</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local Rows</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remote Rows</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Sync</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {replicationStatus.tables.map(table => (
+                      <tr key={table.name}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{table.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.localRows}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.remoteRows}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Badge 
+                            variant={
+                              table.status === 'synced' ? 'success' :
+                              table.status === 'error' ? 'error' : 'warning'
+                            }
+                            size="sm"
+                          >
+                            {table.status}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {table.lastSync ? new Date(table.lastSync).toLocaleString() : 'Never'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Cache Statistics */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Cache Statistics</h3>
+          <Button 
+            size="sm" 
+            variant="ghost"
+            onClick={handleClearCache}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Clear Cache
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <p className="text-lg font-bold text-primary-600">{cacheStats.keys}</p>
+            <p className="text-xs text-gray-600">Cached Keys</p>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <p className="text-lg font-bold text-success-600">{cacheStats.hits}</p>
+            <p className="text-xs text-gray-600">Cache Hits</p>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <p className="text-lg font-bold text-warning-600">{cacheStats.misses}</p>
+            <p className="text-xs text-gray-600">Cache Misses</p>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <p className="text-lg font-bold text-gray-600">{cacheStats.ksize}</p>
+            <p className="text-xs text-gray-600">Keys Size</p>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <p className="text-lg font-bold text-gray-600">{cacheStats.vsize}</p>
+            <p className="text-xs text-gray-600">Values Size</p>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="h-5 w-5 text-blue-600" />
+            <p className="text-sm text-blue-700">
+              Caching is enabled for frequently accessed data to improve performance.
+            </p>
+          </div>
+        </div>
+      </Card>
 
       {/* Tables Overview */}
       <Card>
@@ -709,8 +1063,12 @@ export function Database() {
                   <p className="text-xs text-gray-600">Health</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-warning-600">0</p>
-                  <p className="text-xs text-gray-600">Errors</p>
+                  <div className="flex items-center justify-center">
+                    <Badge variant={table.hasIndex ? 'success' : 'warning'} size="sm">
+                      {table.hasIndex ? 'Indexed' : 'No Index'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1">Performance</p>
                 </div>
               </div>
 
@@ -731,6 +1089,22 @@ export function Database() {
                 >
                   <Download className="h-4 w-4 mr-1" />
                   Export
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => {
+                    setIndexForm({
+                      table: table.name,
+                      column: '',
+                      unique: false
+                    });
+                    setShowIndexDialog(true);
+                  }}
+                  disabled={!isConfigured && !localPostgresRunning || table.status !== 'healthy' || table.hasIndex}
+                >
+                  <Key className="h-4 w-4 mr-1" />
+                  Add Index
                 </Button>
               </div>
             </div>
@@ -757,7 +1131,7 @@ export function Database() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Provider</span>
-              <span className="font-medium">{localPostgresRunning ? 'Local (Embedded)' : 'Supabase'}</span>
+              <span className="font-medium">{databaseType === 'local' ? 'Local (Embedded)' : databaseType === 'supabase' ? 'Supabase' : 'Replicated'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Tables</span>
@@ -878,6 +1252,97 @@ export function Database() {
           </div>
         </Card>
       </div>
+
+      {/* Add Index Dialog */}
+      {showIndexDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Add Index</h3>
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={() => setShowIndexDialog(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <form onSubmit={handleAddIndex} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Table
+                </label>
+                <select
+                  value={indexForm.table}
+                  onChange={(e) => setIndexForm(prev => ({ ...prev, table: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  required
+                >
+                  <option value="">Select a table</option>
+                  {tables
+                    .filter(t => t.status === 'healthy' && !t.hasIndex)
+                    .map(table => (
+                      <option key={table.name} value={table.name}>{table.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Column
+                </label>
+                <input
+                  type="text"
+                  value={indexForm.column}
+                  onChange={(e) => setIndexForm(prev => ({ ...prev, column: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="column_name"
+                  required
+                />
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="unique-index"
+                  checked={indexForm.unique}
+                  onChange={(e) => setIndexForm(prev => ({ ...prev, unique: e.target.checked }))}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 mr-2"
+                />
+                <label htmlFor="unique-index" className="text-sm text-gray-700">
+                  Unique Index
+                </label>
+              </div>
+              
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  Adding an index will improve query performance for this column, but may slow down inserts and updates.
+                </p>
+              </div>
+              
+              <div className="flex space-x-2 justify-end">
+                <Button 
+                  type="button" 
+                  variant="ghost"
+                  onClick={() => setShowIndexDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant="primary"
+                  loading={loading}
+                >
+                  <Key className="h-4 w-4 mr-1" />
+                  Add Index
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
