@@ -11,7 +11,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Allow connections from any IP address
     port: 5173,
-    strictPort: true // Fail if port is already in use
+    strictPort: false // Allow fallback to another port if 5173 is in use
   },
   test: {
     environment: 'jsdom',
