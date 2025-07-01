@@ -1,12 +1,15 @@
 package db
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
-	"log"
-	"time"
+        "context"
+        "database/sql"
+        "fmt"
+       "log"
+        "time"
 )
+
+// reference log package to avoid unused import in tests
+var _ = log.Printf
 
 // QueryWithPagination executes a query with pagination
 func (d *DB) QueryWithPagination(query string, page, pageSize int, args ...interface{}) (*sql.Rows, int, error) {

@@ -91,6 +91,12 @@ npm run collect-results
 
 ## Testing
 
+Run Go unit tests:
+
+```bash
+go test ./...
+```
+
 Run Python unit tests:
 
 ```bash
@@ -101,6 +107,12 @@ Run frontend tests with Vitest:
 
 ```bash
 npm test
+```
+
+Run all test suites:
+
+```bash
+go test ./... && pytest && npm test
 ```
 
 ## Project Structure

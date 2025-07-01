@@ -1,8 +1,8 @@
 package api
 
 import (
-	"database/sql"
-	"encoding/json"
+        "database/sql"
+        "encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,8 +19,11 @@ import (
 	"vpn-bruteforce-client/internal/config"
 	"vpn-bruteforce-client/internal/db"
 	"vpn-bruteforce-client/internal/stats"
-	"vpn-bruteforce-client/internal/websocket"
+        "vpn-bruteforce-client/internal/websocket"
 )
+
+// reference sql package when db build tags are disabled
+var _ = sql.ErrNoRows
 
 // Cache configuration
 var (

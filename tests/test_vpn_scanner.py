@@ -1,6 +1,7 @@
 import importlib
 import sys
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -28,25 +29,51 @@ def scanner(tmp_path, monkeypatch):
     creds = tmp_path / "creds.txt"
     creds.write_text("1.1.1.1;user;pass\n")
     sys.argv = ["vpn_scanner.py", "--vpn-type", "fortinet", "--creds-file", str(creds)]
+    sys.modules.setdefault("aiohttp", SimpleNamespace(ClientSession=object, TCPConnector=object, ClientTimeout=object))
+    class _File:
+        def __init__(self, path):
+            self.path = Path(path)
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+        async def write(self, data):
+            self.path.write_text(data)
+    sys.modules.setdefault("aiofiles", SimpleNamespace(open=lambda path, *a, **k: _File(path)))
     mod = importlib.import_module("vpn_scanner")
     yield mod
     importlib.reload(mod)
 
-@pytest.mark.asyncio
-async def test_check_fortinet_success(scanner):
+def test_check_fortinet_success(scanner):
     resp = DummyResponse(status=200, text="welcome.html")
     session = DummySession(resp)
-    result = await scanner.check_fortinet(session, "https://example.com/remote/login", "u", "p")
+    result = asyncio.run(scanner.check_fortinet(session, "https://example.com/remote/login", "u", "p"))
     assert result is True
 
-@pytest.mark.asyncio
-async def test_process_credential_updates_stats(scanner, tmp_path, monkeypatch):
+def test_process_credential_updates_stats(scanner, tmp_path, monkeypatch):
     async def fake_check(*args, **kwargs):
         return True
     monkeypatch.setattr(scanner, "check_fortinet", fake_check)
     out = tmp_path / "valid.txt"
     session = object()
     scanner.stats = {k:0 for k in scanner.stats}
-    await scanner.process_credential(session, "ip;u;p", str(out))
+    asyncio.run(scanner.process_credential(session, "ip;u;p", str(out)))
     assert scanner.stats["goods"] == 1
     assert out.read_text().strip() == "ip;u;p"
+
+def test_check_fortinet_redirect(scanner):
+    resp = DummyResponse(status=302, headers={'Location': '/portal'})
+    session = DummySession(resp)
+    result = asyncio.run(scanner.check_fortinet(session, 'https://example.com/remote/login', 'u', 'p'))
+    assert result is True
+
+def test_check_paloalto_failure(scanner):
+    resp = DummyResponse(status=200, text='no success')
+    session = DummySession(resp)
+    result = asyncio.run(scanner.check_paloalto(session, 'https://example.com', 'u', 'p'))
+    assert result is False
+
+def test_check_watchguard_invalid_format(scanner):
+    with pytest.raises(ValueError):
+        asyncio.run(scanner.check_watchguard(None, 'badformat', '', ''))
