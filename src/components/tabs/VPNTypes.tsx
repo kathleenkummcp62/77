@@ -226,7 +226,7 @@ export function VPNTypes() {
             <div>
               <h4 className="font-medium text-warning-800">Server Connection Required</h4>
               <p className="text-sm text-warning-600">
-                Connect to the backend server to start/stop scanners. Check if the Go server is running on port 8080.
+                Connect to the backend server to start/stop scanners. Check if the mock server is running with: npm run mock-server
               </p>
             </div>
           </div>

@@ -21,15 +21,8 @@ import { PerformanceChart } from '../charts/PerformanceChart';
 import { ServerPerformanceGrid } from '../charts/ServerPerformanceGrid';
 
 export function Dashboard() {
-  const { isConnected, stats, servers, error } = useAppSelector(state => ({
-    isConnected: state.scanner.isConnected,
-    stats: state.scanner.stats,
-    servers: state.servers.servers,
-    error: state.scanner.error
-  }));
+  const { isConnected, stats, servers, error } = useWebSocket();
   
-  const websocket = useWebSocket();
-
   // Real statistics data (starting with zeros)
   const realStats = stats || {
     goods: 0,

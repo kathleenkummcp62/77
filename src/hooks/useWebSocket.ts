@@ -135,7 +135,7 @@ export function useWebSocket(url?: string) {
             connect();
           }, delay);
         } else if (reconnectAttempts.current >= maxReconnectAttempts) {
-          dispatch(setError('Failed to connect to server. Please check if the Go server is running on port 8080.'));
+          dispatch(setError('Failed to connect to server. Please check if the mock server is running with: npm run mock-server'));
         }
       };
       
@@ -147,7 +147,7 @@ export function useWebSocket(url?: string) {
         if (reconnectAttempts.current > 0) {
           dispatch(setError('Connection error. Please check if the server is running.'));
         } else {
-          dispatch(setError('Server not available. Make sure the Go server is running.'));
+          dispatch(setError('Server not available. Make sure the mock server is running with: npm run mock-server'));
         }
       };
     } catch (err) {
@@ -287,6 +287,9 @@ export function useWebSocket(url?: string) {
     startScanner,
     stopScanner,
     getLogs,
-    isConnected: useAppSelector(state => state.scanner.isConnected)
+    isConnected: useAppSelector(state => state.scanner.isConnected),
+    stats: useAppSelector(state => state.scanner.stats),
+    servers: useAppSelector(state => state.servers.servers),
+    error: useAppSelector(state => state.scanner.error)
   };
 }
