@@ -719,8 +719,8 @@ func (s *Server) detectSchema() {
 		`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tasks' AND column_name='vendor_url_id')`,
 	).Scan(&exists)
 	if err == nil && exists {
-		s.useVendorTasks = true
 		s.db.UseVendorTasks = true
+		s.useVendorTasks = true
 	}
 }
 
@@ -1642,7 +1642,7 @@ func (s *Server) handleScheduledTasks(w http.ResponseWriter, r *http.Request) {
 			Description      string   `json:"description"`
 			TaskType         string   `json:"taskType"`
 			VPNType          string   `json:"vpnType"`
-			ScheduledDateTime string   `json:"scheduledDateTime"`
+			ScheduledAt      string   `json:"scheduledDateTime"`
 			Repeat           string   `json:"repeat"`
 			Servers          []string `json:"servers"`
 			Active           bool     `json:"active"`
@@ -1656,29 +1656,31 @@ func (s *Server) handleScheduledTasks(w http.ResponseWriter, r *http.Request) {
 		// Convert servers array to comma-separated string
 		serversStr := strings.Join(item.Servers, ",")
 		
-		// Parse scheduled date time
-		scheduledAt, err := time.Parse(time.RFC3339, item.ScheduledDateTime)
+		// Parse scheduled time
+		scheduledAt, err := time.Parse(time.RFC3339, item.ScheduledAt)
 		if err != nil {
-			s.sendJSON(w, APIResponse{Success: false, Error: "invalid scheduled date time format"})
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid scheduled time format"})
 			return
 		}
 		
 		var id int
 		err = s.db.QueryRow(`
 			INSERT INTO scheduled_tasks(
-				title, description, task_type, vpn_type, scheduled_at, repeat, 
-				servers, active, executed, created_at
+				title, description, task_type, vpn_type, 
+				scheduled_at, repeat, servers, active, executed, created_at
 			) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
 			RETURNING id
-		`, item.Title, item.Description, item.TaskType, item.VPNType, scheduledAt, 
-		   item.Repeat, serversStr, item.Active, item.Executed, time.Now()).Scan(&id)
+		`, 
+			item.Title, item.Description, item.TaskType, item.VPNType,
+			scheduledAt, item.Repeat, serversStr, item.Active, item.Executed, time.Now(),
+		).Scan(&id)
 		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
 		
-		// Clear cache for scheduled tasks
+		// Clear cache for scheduled_tasks
 		clearCacheByPrefix("scheduled_tasks")
 		
 		s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{"id": id}})
@@ -1705,7 +1707,7 @@ func (s *Server) handleScheduledTask(w http.ResponseWriter, r *http.Request) {
 			Description      string   `json:"description"`
 			TaskType         string   `json:"taskType"`
 			VPNType          string   `json:"vpnType"`
-			ScheduledDateTime string   `json:"scheduledDateTime"`
+			ScheduledAt      string   `json:"scheduledDateTime"`
 			Repeat           string   `json:"repeat"`
 			Servers          []string `json:"servers"`
 			Active           bool     `json:"active"`
@@ -1719,34 +1721,29 @@ func (s *Server) handleScheduledTask(w http.ResponseWriter, r *http.Request) {
 		// Convert servers array to comma-separated string
 		serversStr := strings.Join(item.Servers, ",")
 		
-		// Parse scheduled date time
-		scheduledAt, err := time.Parse(time.RFC3339, item.ScheduledDateTime)
+		// Parse scheduled time
+		scheduledAt, err := time.Parse(time.RFC3339, item.ScheduledAt)
 		if err != nil {
-			s.sendJSON(w, APIResponse{Success: false, Error: "invalid scheduled date time format"})
+			s.sendJSON(w, APIResponse{Success: false, Error: "invalid scheduled time format"})
 			return
 		}
 		
 		_, err = s.db.Exec(`
-			UPDATE scheduled_tasks SET 
-				title = $1, 
-				description = $2, 
-				task_type = $3, 
-				vpn_type = $4, 
-				scheduled_at = $5, 
-				repeat = $6, 
-				servers = $7, 
-				active = $8, 
-				executed = $9
+			UPDATE scheduled_tasks SET
+				title = $1, description = $2, task_type = $3, vpn_type = $4,
+				scheduled_at = $5, repeat = $6, servers = $7, active = $8, executed = $9
 			WHERE id = $10
-		`, item.Title, item.Description, item.TaskType, item.VPNType, scheduledAt, 
-		   item.Repeat, serversStr, item.Active, item.Executed, id)
+		`,
+			item.Title, item.Description, item.TaskType, item.VPNType,
+			scheduledAt, item.Repeat, serversStr, item.Active, item.Executed, id,
+		)
 		
 		if err != nil {
 			s.sendJSON(w, APIResponse{Success: false, Error: err.Error()})
 			return
 		}
 		
-		// Clear cache for scheduled tasks
+		// Clear cache for scheduled_tasks
 		clearCacheByPrefix("scheduled_tasks")
 		
 		s.sendJSON(w, APIResponse{Success: true})
@@ -1757,7 +1754,7 @@ func (s *Server) handleScheduledTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		
-		// Clear cache for scheduled tasks
+		// Clear cache for scheduled_tasks
 		clearCacheByPrefix("scheduled_tasks")
 		
 		s.sendJSON(w, APIResponse{Success: true})

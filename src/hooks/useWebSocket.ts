@@ -33,7 +33,7 @@ export function useWebSocket(url?: string) {
     
     // For WebContainer/StackBlitz environments
     if (host.includes('webcontainer') || host.includes('stackblitz') || host.includes('local-credentialless')) {
-      // Use the same hostname but with ws:// protocol
+      // Use the same hostname but with ws:// protocol and path /ws
       return `ws://${host}/ws`;
     }
     
@@ -86,6 +86,7 @@ export function useWebSocket(url?: string) {
               data: {},
               timestamp: Date.now()
             }));
+            console.log('📡 Sending ping to server');
           }
         }, 30000); // Send ping every 30 seconds
         

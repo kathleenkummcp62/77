@@ -4,7 +4,6 @@ import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import { rateLimit } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
-import { networkInterfaces } from 'os';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -246,6 +245,66 @@ app.get('/api/logs', (req, res) => {
       { timestamp: new Date().toISOString(), level: 'info', message: 'System started', source: 'system' },
       { timestamp: new Date().toISOString(), level: 'info', message: 'Database connected', source: 'database' }
     ]
+  });
+});
+
+// Scheduled tasks endpoint
+app.get('/api/scheduled_tasks', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { 
+        id: 1, 
+        title: 'Daily Fortinet Scan',
+        description: 'Scan Fortinet VPNs every day',
+        taskType: 'scan',
+        vpnType: 'fortinet',
+        scheduledDateTime: new Date(Date.now() + 86400000).toISOString(),
+        repeat: 'daily',
+        servers: ['192.168.1.100', '10.0.0.50'],
+        active: true,
+        executed: false,
+        createdAt: new Date().toISOString()
+      }
+    ]
+  });
+});
+
+app.post('/api/scheduled_tasks', (req, res) => {
+  // Input validation
+  const { title, taskType } = req.body;
+  if (!title || !taskType) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required fields: title, taskType'
+    });
+  }
+  
+  res.json({
+    success: true,
+    data: { id: 2, ...req.body }
+  });
+});
+
+app.put('/api/scheduled_tasks/:id', (req, res) => {
+  // Input validation
+  if (Object.keys(req.body).length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Request body cannot be empty'
+    });
+  }
+  
+  res.json({
+    success: true,
+    data: { id: parseInt(req.params.id), ...req.body }
+  });
+});
+
+app.delete('/api/scheduled_tasks/:id', (req, res) => {
+  res.json({
+    success: true,
+    data: { id: parseInt(req.params.id) }
   });
 });
 
@@ -582,6 +641,14 @@ wss.on('connection', (ws, request) => {
           data: logs,
           timestamp: Date.now()
         }));
+      } else if (data.type === 'ping') {
+        // Handle ping message with pong response
+        ws.send(JSON.stringify({
+          type: 'pong',
+          data: { status: 'ok' },
+          timestamp: Date.now()
+        }));
+        console.log('Received ping, sent pong response');
       }
     } catch (error) {
       console.error('Error processing message:', error);
@@ -603,22 +670,6 @@ wss.on('connection', (ws, request) => {
     clearInterval(interval);
   });
 });
-
-// Get server IP
-function getServerIP() {
-  const nets = networkInterfaces();
-  
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      // Skip internal and non-IPv4 addresses
-      if (!net.internal && net.family === 'IPv4') {
-        return net.address;
-      }
-    }
-  }
-  
-  return 'localhost';
-}
 
 // Start server - bind to 0.0.0.0 to ensure accessibility from all interfaces
 server.listen(PORT, '0.0.0.0', () => {
