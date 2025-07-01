@@ -103,7 +103,7 @@ async function startUnifiedServer() {
       resources: [`http://127.0.0.1:${FRONTEND_PORT}`],
       timeout: 120000, // 120 seconds (increased from 60 seconds)
       interval: 2000, // Check every 2 seconds
-      window: 2000
+      window: 5000 // Increased from 2000 to 5000 to allow more time for server stabilization
     });
     console.log('✅ Frontend server is ready');
   } catch (error) {
