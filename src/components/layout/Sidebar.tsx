@@ -16,6 +16,8 @@ import {
   PieChart,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  Bell
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAppSelector, useAppDispatch } from "../../store";
@@ -37,6 +39,7 @@ const menuItems = [
   { id: "results", label: "Results", icon: Download, role: "viewer" },
   { id: "monitoring", label: "Monitoring", icon: Activity, role: "viewer" },
   { id: "reports", label: "Reports", icon: PieChart, role: "viewer" },
+  { id: "scheduler", label: "Task Scheduler", icon: Calendar, role: "user" },
   { id: "data", label: "Data Store", icon: FileText, role: "user" },
   { id: "database", label: "Database", icon: Database, role: "admin" },
   { id: "terminal", label: "Terminal", icon: Terminal, role: "admin" },

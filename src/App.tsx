@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { Sidebar } from "./components/layout/Sidebar";
+import { Header } from "./components/layout/Header";
 import { Dashboard } from "./components/tabs/Dashboard";
 import { VPNTypes } from "./components/tabs/VPNTypes";
 import { Servers } from "./components/tabs/Servers";
@@ -16,6 +17,7 @@ import { Settings } from "./components/tabs/Settings";
 import { TestSuite } from "./components/testing/TestSuite";
 import { SecurityAudit } from "./components/testing/SecurityAudit";
 import { ScanResultsReport } from "./components/reports/ScanResultsReport";
+import { TaskScheduler } from "./components/scheduling/TaskScheduler";
 import { useAppSelector, useAppDispatch } from "./store";
 import { setActiveTab } from "./store/slices/uiSlice";
 import { AuthGuard } from "./components/auth/AuthGuard";
@@ -60,6 +62,8 @@ function App() {
         return <SecurityAudit />;
       case "reports":
         return <ScanResultsReport />;
+      case "scheduler":
+        return <TaskScheduler />;
       default:
         return <Dashboard />;
     }
@@ -69,9 +73,12 @@ function App() {
     <AuthGuard>
       <div className="flex h-screen bg-gray-50">
         <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
-        <main className="flex-1 overflow-auto">
-          <div className="p-8">{renderContent()}</div>
-        </main>
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-auto">
+            <div className="p-8">{renderContent()}</div>
+          </main>
+        </div>
         <Toaster
           position="top-right"
           toastOptions={{

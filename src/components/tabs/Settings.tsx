@@ -20,8 +20,9 @@ import {
   User,
   Key
 } from 'lucide-react';
-import { useAppSelector } from '../../store';
+import { useAppSelector, useAppDispatch } from '../../store';
 import { getUsers, updateUserPassword, getCurrentUser } from '../../lib/auth';
+import { updateSettings } from '../../store/slices/notificationsSlice';
 import toast from 'react-hot-toast';
 
 interface ConfigSection {
@@ -35,6 +36,8 @@ export function Settings() {
   const [activeSection, setActiveSection] = useState('security');
   const [hasChanges, setHasChanges] = useState(false);
   const currentUser = useAppSelector(state => state.auth.user);
+  const notificationSettings = useAppSelector(state => state.notifications.settings);
+  const dispatch = useAppDispatch();
 
   const [config, setConfig] = useState({
     // Performance Settings
@@ -351,134 +354,67 @@ export function Settings() {
     </div>
   );
 
-  const renderPerformanceSettings = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Thread Count
-          </label>
-          <input
-            type="number"
-            value={config.threads}
-            onChange={(e) => handleConfigChange('threads', parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            min="100"
-            max="10000"
-          />
-          <p className="text-xs text-gray-500 mt-1">Number of concurrent threads (100-10000)</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Rate Limit (RPS)
-          </label>
-          <input
-            type="number"
-            value={config.rateLimit}
-            onChange={(e) => handleConfigChange('rateLimit', parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            min="100"
-            max="20000"
-          />
-          <p className="text-xs text-gray-500 mt-1">Maximum requests per second</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Timeout (seconds)
-          </label>
-          <input
-            type="number"
-            value={config.timeout}
-            onChange={(e) => handleConfigChange('timeout', parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            min="1"
-            max="30"
-          />
-          <p className="text-xs text-gray-500 mt-1">Connection timeout in seconds</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Max Retries
-          </label>
-          <input
-            type="number"
-            value={config.maxRetries}
-            onChange={(e) => handleConfigChange('maxRetries', parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            min="0"
-            max="10"
-          />
-          <p className="text-xs text-gray-500 mt-1">Number of retry attempts</p>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Auto-scaling</h4>
-            <p className="text-sm text-gray-600">Automatically adjust thread count based on performance</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.autoScale}
-              onChange={(e) => handleConfigChange('autoScale', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        {config.autoScale && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Min Threads
-              </label>
-              <input
-                type="number"
-                value={config.minThreads}
-                onChange={(e) => handleConfigChange('minThreads', parseInt(e.target.value))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                min="100"
-                max={config.maxThreads}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Max Threads
-              </label>
-              <input
-                type="number"
-                value={config.maxThreads}
-                onChange={(e) => handleConfigChange('maxThreads', parseInt(e.target.value))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                min={config.minThreads}
-                max="10000"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   const renderNotificationSettings = () => (
     <div className="space-y-6">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="font-medium text-gray-900">Email Notifications</h4>
-            <p className="text-sm text-gray-600">Send email alerts for important events</p>
+            <h4 className="font-medium text-gray-900">Show Popup Notifications</h4>
+            <p className="text-sm text-gray-600">Display toast notifications in the app</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
-              checked={config.emailNotifications}
-              onChange={(e) => handleConfigChange('emailNotifications', e.target.checked)}
+              checked={notificationSettings.showPopups}
+              onChange={(e) => dispatch(updateSettings({ showPopups: e.target.checked }))}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Notification Sounds</h4>
+            <p className="text-sm text-gray-600">Play sound when notifications arrive</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notificationSettings.sound}
+              onChange={(e) => dispatch(updateSettings({ sound: e.target.checked }))}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Desktop Notifications</h4>
+            <p className="text-sm text-gray-600">Show browser notifications</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notificationSettings.desktop}
+              onChange={(e) => {
+                if (e.target.checked && 'Notification' in window) {
+                  if (Notification.permission !== 'granted') {
+                    Notification.requestPermission().then(permission => {
+                      if (permission === 'granted') {
+                        dispatch(updateSettings({ desktop: true }));
+                      } else {
+                        toast.error('Permission for desktop notifications was denied');
+                      }
+                    });
+                  } else {
+                    dispatch(updateSettings({ desktop: true }));
+                  }
+                } else {
+                  dispatch(updateSettings({ desktop: e.target.checked }));
+                }
+              }}
               className="sr-only peer"
             />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
@@ -487,320 +423,70 @@ export function Settings() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Webhook URL
+            Notification Filter Level
+          </label>
+          <select
+            value={notificationSettings.filterLevel}
+            onChange={(e) => dispatch(updateSettings({ filterLevel: e.target.value as any }))}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            <option value="all">All notifications</option>
+            <option value="important">Important only (warnings & errors)</option>
+            <option value="critical">Critical only (errors)</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Control which notifications you receive</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Notification Retention (days)
           </label>
           <input
-            type="url"
+            type="number"
+            value={notificationSettings.retention}
+            onChange={(e) => dispatch(updateSettings({ retention: parseInt(e.target.value) || 30 }))}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            min="1"
+            max="365"
+          />
+          <p className="text-xs text-gray-500 mt-1">How long to keep notifications before auto-deleting</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Email for Notifications
+          </label>
+          <input
+            type="email"
             value={config.webhookUrl}
             onChange={(e) => handleConfigChange('webhookUrl', e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="https://your-webhook-url.com/endpoint"
+            placeholder="your@email.com"
           />
-          <p className="text-xs text-gray-500 mt-1">Send notifications to this webhook URL</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Alert Threshold
-            </label>
-            <input
-              type="number"
-              value={config.alertThreshold}
-              onChange={(e) => handleConfigChange('alertThreshold', parseInt(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              min="1"
-            />
-            <p className="text-xs text-gray-500 mt-1">Alert when valid credentials found</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Report Interval (seconds)
-            </label>
-            <input
-              type="number"
-              value={config.reportInterval}
-              onChange={(e) => handleConfigChange('reportInterval', parseInt(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              min="60"
-            />
-            <p className="text-xs text-gray-500 mt-1">How often to send status reports</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderDisplaySettings = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Theme
-          </label>
-          <select
-            value={config.theme}
-            onChange={(e) => handleConfigChange('theme', e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="auto">Auto</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Refresh Interval (ms)
-          </label>
-          <input
-            type="number"
-            value={config.refreshInterval}
-            onChange={(e) => handleConfigChange('refreshInterval', parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            min="500"
-            max="10000"
-            step="500"
-          />
+          <p className="text-xs text-gray-500 mt-1">Receive important notifications via email</p>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg">
+        <div className="flex items-start space-x-3">
+          <Bell className="h-5 w-5 text-primary-600 mt-0.5" />
           <div>
-            <h4 className="font-medium text-gray-900">Show Advanced Metrics</h4>
-            <p className="text-sm text-gray-600">Display detailed performance metrics</p>
+            <h4 className="font-medium text-primary-800">Notification Types</h4>
+            <ul className="mt-2 text-sm text-primary-700 space-y-1">
+              <li>• <span className="font-medium">Success:</span> Completed operations, valid credentials found</li>
+              <li>• <span className="font-medium">Info:</span> System status, general information</li>
+              <li>• <span className="font-medium">Warning:</span> Potential issues, performance concerns</li>
+              <li>• <span className="font-medium">Error:</span> Failed operations, connection issues</li>
+            </ul>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.showAdvancedMetrics}
-              onChange={(e) => handleConfigChange('showAdvancedMetrics', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Compact Mode</h4>
-            <p className="text-sm text-gray-600">Use compact layout for smaller screens</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.compactMode}
-              onChange={(e) => handleConfigChange('compactMode', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
         </div>
       </div>
-    </div>
-  );
-
-  const renderServerSettings = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            SSH Timeout (s)
-          </label>
-          <input
-            type="number"
-            value={config.sshTimeout}
-            onChange={(e) => handleConfigChange('sshTimeout', parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            min="1"
-            max="120"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            SSH Port
-          </label>
-          <input
-            type="number"
-            value={config.sshPort}
-            onChange={(e) => handleConfigChange('sshPort', parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            min="1"
-            max="65535"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Max Connections
-          </label>
-          <input
-            type="number"
-            value={config.maxConnections}
-            onChange={(e) => handleConfigChange('maxConnections', parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            min="1"
-          max="100"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Default User
-          </label>
-          <input
-            type="text"
-            value={config.sshUser}
-            onChange={(e) => handleConfigChange('sshUser', e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="root"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Private Key Path
-          </label>
-          <input
-            type="text"
-            value={config.sshKeyPath}
-            onChange={(e) => handleConfigChange('sshKeyPath', e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="/path/to/id_rsa"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Keep Alive</h4>
-            <p className="text-sm text-gray-600">Maintain persistent SSH connections</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.keepAlive}
-              onChange={(e) => handleConfigChange('keepAlive', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Auto Reconnect</h4>
-            <p className="text-sm text-gray-600">Reconnect dropped SSH sessions automatically</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.autoReconnect}
-              onChange={(e) => handleConfigChange('autoReconnect', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Compression</h4>
-            <p className="text-sm text-gray-600">Use compression for SSH transfers</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.compression}
-              onChange={(e) => handleConfigChange('compression', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-      </div>
-      <p className="text-sm text-gray-500 ml-0.5">More server management options will be available soon.</p>
-    </div>
-  );
-
-  const renderAdvancedSettings = () => (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Debug Logging</h4>
-            <p className="text-sm text-gray-600">Log verbose output for troubleshooting</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.debugLogging}
-              onChange={(e) => handleConfigChange('debugLogging', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Experimental Features</h4>
-            <p className="text-sm text-gray-600">Enable beta functionality</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.experimentalFeatures}
-              onChange={(e) => handleConfigChange('experimentalFeatures', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-          </label>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Log Level
-          </label>
-          <select
-            value={config.logLevel}
-            onChange={(e) => handleConfigChange('logLevel', e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="info">Info</option>
-            <option value="debug">Debug</option>
-            <option value="trace">Trace</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Custom Config Path
-          </label>
-          <input
-            type="text"
-            value={config.customConfigPath}
-            onChange={(e) => handleConfigChange('customConfigPath', e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="/etc/vpn-extra.conf"
-          />
-        </div>
-      </div>
-      <p className="text-sm text-gray-500 ml-0.5">Additional advanced options are under development.</p>
     </div>
   );
 
   const renderContentMap: Record<string, () => JSX.Element> = {
     security: renderSecuritySettings,
-    performance: renderPerformanceSettings,
     notifications: renderNotificationSettings,
-    display: renderDisplaySettings,
-    servers: renderServerSettings,
-    advanced: renderAdvancedSettings,
   };
 
   const renderContent = () => {

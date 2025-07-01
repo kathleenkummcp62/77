@@ -26,6 +26,7 @@ import {
   selectAllFiles 
 } from '../../store/slices/resultsSlice';
 import { ScanResultsOverview } from '../charts/ScanResultsOverview';
+import { ExportReportModal } from '../reports/ExportReportModal';
 
 export function Results() {
   const dispatch = useAppDispatch();
@@ -33,6 +34,7 @@ export function Results() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'valid' | 'invalid' | 'errors' | 'logs'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     dispatch(fetchResults());
@@ -79,6 +81,8 @@ export function Results() {
       selectedFiles.forEach(fileId => {
         dispatch(downloadFile(fileId));
       });
+    } else if (action === 'export') {
+      setShowExportModal(true);
     }
   };
 
@@ -91,6 +95,25 @@ export function Results() {
     totalFiles: files.length,
     totalSize: '12.1 MB',
     lastUpdate: '2 minutes ago'
+  };
+
+  // Prepare data for export
+  const getExportData = () => {
+    // For this example, we'll just use the selected files or all filtered files
+    const exportFiles = selectedFiles.length > 0 
+      ? filteredFiles.filter(f => selectedFiles.includes(f.id))
+      : filteredFiles;
+    
+    return exportFiles.map(file => ({
+      Name: file.name,
+      Type: file.type,
+      Server: file.server,
+      'VPN Type': file.vpnType,
+      Size: file.size,
+      Count: file.count,
+      Created: file.created,
+      'Last Modified': file.lastModified
+    }));
   };
 
   return (
@@ -116,10 +139,10 @@ export function Results() {
           </Button>
           <Button 
             variant="secondary"
-            onClick={() => window.location.hash = '#reports'}
+            onClick={() => setShowExportModal(true)}
           >
             <PieChart className="h-4 w-4 mr-2" />
-            View Reports
+            Export Report
           </Button>
         </div>
       </div>
@@ -231,9 +254,9 @@ export function Results() {
                 <Download className="h-4 w-4 mr-1" />
                 Download
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => handleBulkAction('archive')}>
-                <Archive className="h-4 w-4 mr-1" />
-                Archive
+              <Button size="sm" variant="secondary" onClick={() => handleBulkAction('export')}>
+                <PieChart className="h-4 w-4 mr-1" />
+                Export Report
               </Button>
               <Button size="sm" variant="error" onClick={() => handleBulkAction('delete')}>
                 <Trash2 className="h-4 w-4 mr-1" />
@@ -320,7 +343,7 @@ export function Results() {
       <Card>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Button variant="secondary" className="w-full">
+          <Button variant="secondary" className="w-full" onClick={() => setShowExportModal(true)}>
             <Download className="h-4 w-4 mr-2" />
             Export to CSV
           </Button>
@@ -338,6 +361,14 @@ export function Results() {
           </Button>
         </div>
       </Card>
+
+      {/* Export Modal */}
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        data={getExportData()}
+        title="Scan Results Report"
+      />
     </div>
   );
 }

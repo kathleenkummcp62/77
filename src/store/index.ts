@@ -5,6 +5,9 @@ import serversReducer from './slices/serversSlice';
 import resultsReducer from './slices/resultsSlice';
 import uiReducer from './slices/uiSlice';
 import authReducer from './slices/authSlice';
+import dataStoreReducer from './slices/dataStoreSlice';
+import schedulerReducer from './slices/schedulerSlice';
+import notificationsReducer from './slices/notificationsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +16,9 @@ export const store = configureStore({
     results: resultsReducer,
     ui: uiReducer,
     auth: authReducer,
+    dataStore: dataStoreReducer,
+    scheduler: schedulerReducer,
+    notifications: notificationsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
