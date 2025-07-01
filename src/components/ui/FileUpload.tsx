@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Button } from './Button';
 import { Upload, X, File, CheckCircle, AlertTriangle } from 'lucide-react';
-import { formatFileSize } from '../../lib/fileUtils';
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
@@ -128,6 +127,15 @@ export function FileUpload({
 
   const handleClearErrors = () => {
     setErrors([]);
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (

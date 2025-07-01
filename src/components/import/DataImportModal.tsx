@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -6,8 +6,8 @@ import {
   Upload, 
   FileText, 
   X, 
-  Check, 
-  AlertCircle,
+  Check,
+  AlertTriangle,
   Copy,
   Save,
   Server,
@@ -392,7 +392,7 @@ export function DataImportModal({
           {parseError && (
             <div className="mt-4 p-3 bg-error-50 border border-error-200 rounded-lg">
               <div className="flex items-start space-x-2">
-                <AlertCircle className="h-5 w-5 text-error-600 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-error-600 mt-0.5" />
                 <div>
                   <h4 className="font-medium text-error-800">Parse Error</h4>
                   <p className="text-sm text-error-600">{parseError}</p>

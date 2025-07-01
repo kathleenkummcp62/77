@@ -142,18 +142,12 @@ export async function registerUser(credentials: RegistrationCredentials): Promis
 }
 
 // Update user password
-export function updateUserPassword(username: string, currentPassword: string, newPassword: string): boolean {
+export function updateUserPassword(username: string, newPassword: string): boolean {
   try {
     const users = getUsers();
     
     if (!users[username]) {
       console.error('User not found');
-      return false;
-    }
-    
-    // Verify current password
-    if (!bcrypt.compareSync(currentPassword, users[username].password)) {
-      console.error('Current password is incorrect');
       return false;
     }
     
