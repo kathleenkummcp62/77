@@ -4,27 +4,13 @@ import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import { rateLimit } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import { networkInterfaces } from 'os';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 // JWT Secret (in production, this should be in environment variables)
 const JWT_SECRET = 'vpn-bruteforce-dashboard-secret-key-2025';
-
-// Static authentication token
-const STATIC_AUTH_TOKEN = "d@DMJYXf#5egNh7@3j%=C9vjhs9dH*nv";
-
-// In-memory user store (for demo purposes)
-let users = {
-  admin: {
-    password: bcrypt.hashSync('admin', 10),
-    user: { id: '1', username: 'admin', role: 'admin' }
-  }
-};
-
-// Login attempts tracking
-const loginAttempts = new Map();
 
 // Rate limiting middleware
 const apiLimiter = rateLimit({
@@ -65,8 +51,8 @@ app.use('/api', apiLimiter);
 
 // Validate JWT token middleware
 const authenticateToken = (req, res, next) => {
-  // Skip authentication for health check and auth endpoints
-  if (req.path === '/health' || req.path === '/login' || req.path === '/register' || req.path === '/validate-token') {
+  // Skip authentication for health check and login endpoints
+  if (req.path === '/health' || req.path === '/login') {
     return next();
   }
   
@@ -88,7 +74,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Apply authentication middleware to API routes
-app.use('/api', authenticateToken);
+// app.use('/api', authenticateToken);
 
 // Health check endpoint - this is critical for the startup process
 app.get('/api/health', (req, res) => {
@@ -102,189 +88,41 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Token validation endpoint
-app.post('/api/validate-token', (req, res) => {
-  const { token } = req.body;
-  
-  if (!token) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'Token is required' 
-    });
-  }
-  
-  const isValid = token === STATIC_AUTH_TOKEN;
-  
-  res.json({
-    success: true,
-    data: {
-      valid: isValid
-    }
-  });
-});
-
-// Registration endpoint
-app.post('/api/register', (req, res) => {
-  const { username, password, role, token } = req.body;
-  
-  console.log('Registration attempt:', { username, role, token: token ? '***' : undefined });
-  
-  // Validate required fields
-  if (!username || !password || !role || !token) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'All fields are required' 
-    });
-  }
-  
-  // Validate username format
-  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Username must be 3-20 characters and contain only letters, numbers, and underscores'
-    });
-  }
-  
-  // Validate password length
-  if (password.length < 6) {
-    return res.status(400).json({
-      success: false,
-      error: 'Password must be at least 6 characters'
-    });
-  }
-  
-  // Validate token
-  if (token !== STATIC_AUTH_TOKEN) {
-    console.log('Invalid token provided:', token);
-    return res.status(401).json({ 
-      success: false, 
-      error: 'Invalid authentication token' 
-    });
-  }
-  
-  // Check if username already exists
-  if (users[username]) {
-    return res.status(400).json({
-      success: false,
-      error: 'Username already exists'
-    });
-  }
-  
-  // Hash password
-  const hashedPassword = bcrypt.hashSync(password, 10);
-  
-  // Create new user
-  const userId = Date.now().toString();
-  users[username] = {
-    password: hashedPassword,
-    user: { id: userId, username, role }
-  };
-  
-  console.log(`User ${username} registered successfully with role ${role}`);
-  
-  // Generate JWT token
-  const jwtToken = jwt.sign(
-    { user: { id: userId, username, role } }, 
-    JWT_SECRET, 
-    { expiresIn: '1h' }
-  );
-  
-  res.json({
-    success: true,
-    data: {
-      token: jwtToken,
-      user: {
-        id: userId,
-        username,
-        role
-      }
-    }
-  });
-});
-
 // Authentication endpoint
 app.post('/api/login', (req, res) => {
-  const { username, password, token } = req.body;
-  const ip = req.ip || req.connection.remoteAddress;
+  const { username, password } = req.body;
   
-  console.log('Login attempt:', { username, ip, token: token ? '***' : undefined });
+  // Mock user authentication
+  const users = {
+    admin: { password: 'admin', role: 'admin' },
+    user: { password: 'user123', role: 'user' },
+    viewer: { password: 'viewer123', role: 'viewer' }
+  };
   
-  // Validate required fields
-  if (!username || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'Username and password are required' 
-    });
-  }
+  const user = users[username];
   
-  // Check login attempts
-  const attempts = loginAttempts.get(ip) || 0;
-  if (attempts >= 5) {
-    return res.status(429).json({
-      success: false,
-      error: 'Too many login attempts. Please try again later.'
-    });
-  }
-  
-  // If token is provided, validate it
-  if (token && token !== STATIC_AUTH_TOKEN) {
-    console.log('Invalid token provided:', token);
-    return res.status(401).json({ 
-      success: false, 
-      error: 'Invalid authentication token' 
-    });
-  }
-  
-  // Check if user exists
-  const userRecord = users[username];
-  if (!userRecord) {
-    // Increment login attempts
-    loginAttempts.set(ip, attempts + 1);
-    
-    // Set timeout to reset attempts after 5 minutes
-    setTimeout(() => {
-      loginAttempts.delete(ip);
-    }, 5 * 60 * 1000);
-    
+  if (!user || user.password !== password) {
     return res.status(401).json({ 
       success: false, 
       error: 'Invalid username or password' 
     });
   }
-  
-  // Verify password
-  if (!bcrypt.compareSync(password, userRecord.password)) {
-    // Increment login attempts
-    loginAttempts.set(ip, attempts + 1);
-    
-    // Set timeout to reset attempts after 5 minutes
-    setTimeout(() => {
-      loginAttempts.delete(ip);
-    }, 5 * 60 * 1000);
-    
-    return res.status(401).json({ 
-      success: false, 
-      error: 'Invalid username or password' 
-    });
-  }
-  
-  // Reset login attempts on successful login
-  loginAttempts.delete(ip);
   
   // Generate JWT token
-  const jwtToken = jwt.sign(
-    { user: userRecord.user }, 
+  const token = jwt.sign(
+    { username, role: user.role }, 
     JWT_SECRET, 
     { expiresIn: '1h' }
   );
   
-  console.log(`User ${username} logged in successfully`);
-  
   res.json({
     success: true,
     data: {
-      token: jwtToken,
-      user: userRecord.user
+      token,
+      user: {
+        username,
+        role: user.role
+      }
     }
   });
 });
@@ -608,10 +446,11 @@ wss.on('connection', (ws, request) => {
   console.log('WebSocket client connected');
   
   // Authenticate WebSocket connection
-  if (!authenticateWebSocket(ws, request)) {
-    ws.close(1008, 'Unauthorized');
-    return;
-  }
+  // Uncomment to enable WebSocket authentication
+  // if (!authenticateWebSocket(ws, request)) {
+  //   ws.close(1008, 'Unauthorized');
+  //   return;
+  // }
   
   // Send initial data
   ws.send(JSON.stringify({
@@ -764,6 +603,22 @@ wss.on('connection', (ws, request) => {
     clearInterval(interval);
   });
 });
+
+// Get server IP
+function getServerIP() {
+  const nets = networkInterfaces();
+  
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // Skip internal and non-IPv4 addresses
+      if (!net.internal && net.family === 'IPv4') {
+        return net.address;
+      }
+    }
+  }
+  
+  return 'localhost';
+}
 
 // Start server - bind to 0.0.0.0 to ensure accessibility from all interfaces
 server.listen(PORT, '0.0.0.0', () => {

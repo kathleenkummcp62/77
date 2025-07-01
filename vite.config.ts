@@ -30,7 +30,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     // Disable dependency optimization during dev to avoid cache issues
-    disabled: process.env.NODE_ENV === 'test',
+    disabled: false,
     include: ['@supabase/supabase-js']
   },
   resolve: {

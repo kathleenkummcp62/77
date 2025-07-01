@@ -1,0 +1,95 @@
+{
+    "name": "Тестирование VPN вендоров",
+    "workers": [
+        "194.0.234.203:22:root:1jt5a7p4FZTM0vY",
+        "77.90.185.26:22:root:2dF9bS7UV6wvHy3", 
+        "185.93.89.206:22:root:G6t8NnHgI4i0x7K",
+        "185.93.89.35:22:root:2asI5uvS047AqHM"
+    ],
+    "tasks": {
+        "fortinet": {
+            "type": "fortinet_check",
+            "targets": [
+                "https://200.113.15.26:4443;guest;guest",
+                "https://195.150.192.5:443;guest;guest",
+                "https://88.117.174.186:443;guest;guest",
+                "https://118.238.205.22:10443;guest;guest",
+                "https://49.205.180.172:10443;guest;guest",
+                "https://37.142.24.153:10443;guest;guest", 
+                "https://206.74.89.110:10443;guest;guest",
+                "https://222.119.99.24:10443;guest;guest",
+                "https://220.241.67.242:3443;guest;guest"
+            ],
+            "expected_results": ["Good", "Bad", "Error", "Offline"]
+        },
+        "paloalto": {
+            "type": "paloalto_check",
+            "targets": [
+                "https://216.229.124.44:443;test;test",
+                "https://72.26.131.86:443;test;test",
+                "https://216.247.223.23:443;test;test",
+                "https://216.229.124.44:443;test;test",
+                "https://72.26.131.86:443;test;test",
+                "https://216.247.223.23:443;test;test"
+            ],
+            "expected_results": ["Good", "Bad", "Error", "Offline"]
+        },
+        "sonicwall": {
+            "type": "sonicwall_check", 
+            "targets": [
+                "https://69.21.239.19:4433;test;test;LocalDomain",
+                "https://68.189.7.50:4433;test;test;hudmech.local",
+                "https://74.92.44.25:4433;test;test;microgroup.local",
+                "https://96.70.252.65:4433;test;test;fm.local",
+                "https://24.55.137.209:443;test;test;CMAAA15",
+                "https://50.198.63.225:4433;test;test;MADISON",
+                "https://96.89.127.141:4433;test;test;maloneysocular",
+                "https://12.215.186.74:443;guest;guest;parksprings.com",
+                "https://131.148.177.186:4433;guest;guest;dhte.dhtellc.com"
+            ],
+            "expected_results": ["Good", "Bad", "Error", "Offline"]
+        },
+        "sophos": {
+            "type": "sophos_check",
+            "targets": [
+                "https://213.139.132.204:6443;test;test;intern.gutenberg-shop.de",
+                "https://124.254.117.194:8443;test;test;fcc.wa.edu.au",
+                "https://80.151.100.43:4433;test;test;bilstein.local",
+                "https://213.139.132.205:6443;test;test;intern.gutenberg-shop.de",
+                "https://167.98.99.132:443;test;test;unknown_domain",
+                "https://212.100.41.190:4445;test;test;verwaltung.local"
+            ],
+            "expected_results": ["Good", "Bad", "Error", "Offline"]
+        },
+        "watchguard": {
+            "type": "watchguard_check",
+            "targets": [
+                "https://96.92.230.186:443:Firebox-DB:mpbchicago.masterpaperbox.com:printer:P@55w0rd",
+                "https://75.146.37.105:444:Firebox-DB:comercial:P@ssw0rd123",
+                "https://50.86.120.107:443:Firebox-DB:comercial:P@ssw0rd123",
+                "https://35.131.180.112:443:Firebox-DB:engineer:eng1neer1",
+                "https://98.100.209.218:443:Firebox-DB:chris:Welcome1!",
+                "https://96.56.65.26:4100:AuthPoint:Firebox-DB:hudsonss.com:media:Password@1",
+                "https://35.21.135.132:443:Firebox-DB:intranet:Password@1",
+                "https://98.63.175.96:8595:Firebox-DB:download:Download#",
+                "https://72.23.172.37:443:Firebox-DB:luis:pa$$w0rd",
+                "https://12.2.120.90:4100:AuthPoint:Firebox-DB:RADIUS:banneroak.local:default:password@1"
+            ],
+            "expected_results": ["Good", "Bad", "Error", "Offline"]
+        },
+        "cisco": {
+            "type": "cisco_check",
+            "targets": [
+                "https://74.209.225.52:443:test:test:remote_access",
+                "https://67.202.240.148:443:test:test:ANYCONNECT",
+                "https://72.23.123.187:443:test:test:AnyConnect_HVAC",
+                "https://72.32.124.5:443:test:test:POLITICALDATA-ANYCONNECT-SSL",
+                "https://209.43.59.2:443:test:test:remote_access",
+                "https://204.235.221.57:8443:test:test",
+                "https://184.106.123.244:443:test:test:ANYCONNECT-GAVIOTA-SA",
+                "https://72.73.71.60:443:guest:guest"
+            ],
+            "expected_results": ["Good", "Bad", "Error", "Offline"]
+        }
+    }
+}

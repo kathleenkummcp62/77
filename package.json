@@ -12,7 +12,8 @@
     "setup-env": "node scripts/setup-environment.js",
     "test": "vitest",
     "setup": "node scripts/setup.js",
-    "create-admin": "node scripts/create-admin.js"
+    "create-admin": "node scripts/create-admin.js",
+    "test-vpn": "node scripts/test-vpn.js"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.0.1",
