@@ -8,6 +8,7 @@ import authReducer from './slices/authSlice';
 import dataStoreReducer from './slices/dataStoreSlice';
 import schedulerReducer from './slices/schedulerSlice';
 import notificationsReducer from './slices/notificationsSlice';
+import tasksReducer from './slices/tasksSlice';
 
 export const store = configureStore({
   reducer: {
@@ -19,6 +20,7 @@ export const store = configureStore({
     dataStore: dataStoreReducer,
     scheduler: schedulerReducer,
     notifications: notificationsReducer,
+    tasks: tasksReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
