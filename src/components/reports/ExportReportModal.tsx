@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { 
-  Download, 
-  FileText, 
-  FileSpreadsheet, 
-  FilePdf, 
-  X,
-  Check
-} from 'lucide-react';
+import { Download, FileText, FileSpreadsheet, File as FilePdf, X, Check } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { utils, writeFile } from 'xlsx';
 import { jsPDF } from 'jspdf';
