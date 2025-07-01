@@ -1,14 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Pool, PoolClient, QueryResult } from 'pg';
-import NodeCache from 'node-cache';
 import toast from 'react-hot-toast';
-
-// Cache configuration
-const cache = new NodeCache({
-  stdTTL: 60, // Default TTL in seconds
-  checkperiod: 120, // Check for expired keys every 2 minutes
-  useClones: false, // Don't clone objects (for performance)
-});
 
 // PostgreSQL connection pool
 let pgPool: Pool | null = null;
@@ -112,37 +104,14 @@ export function setDatabaseType(type: DatabaseType): void {
  */
 export async function queryLocal<T = any>(
   sql: string, 
-  params: any[] = [], 
-  options: { 
-    useCache?: boolean; 
-    cacheTTL?: number;
-    cacheKey?: string;
-  } = {}
+  params: any[] = []
 ): Promise<QueryResult<T>> {
   if (!pgPool) {
     throw new Error('Local PostgreSQL not initialized');
   }
   
-  const { useCache = false, cacheTTL = 60, cacheKey } = options;
-  
-  // Generate cache key if not provided
-  const generatedCacheKey = cacheKey || `sql:${sql}:${JSON.stringify(params)}`;
-  
-  // Check cache
-  if (useCache) {
-    const cachedResult = cache.get<QueryResult<T>>(generatedCacheKey);
-    if (cachedResult) {
-      return cachedResult;
-    }
-  }
-  
   // Execute query
   const result = await pgPool.query<T>(sql, params);
-  
-  // Cache result
-  if (useCache) {
-    cache.set(generatedCacheKey, result, cacheTTL);
-  }
   
   return result;
 }
@@ -161,9 +130,6 @@ export async function querySupabase<T = any>(
     order?: Record<string, 'asc' | 'desc'>;
     limit?: number;
     offset?: number;
-    useCache?: boolean;
-    cacheTTL?: number;
-    cacheKey?: string;
   } = {}
 ): Promise<T[]> {
   if (!supabaseClient) {
@@ -178,22 +144,8 @@ export async function querySupabase<T = any>(
     lt = {}, 
     order = {}, 
     limit, 
-    offset,
-    useCache = false,
-    cacheTTL = 60,
-    cacheKey
+    offset
   } = options;
-  
-  // Generate cache key if not provided
-  const generatedCacheKey = cacheKey || `supabase:${table}:${JSON.stringify(options)}`;
-  
-  // Check cache
-  if (useCache) {
-    const cachedResult = cache.get<T[]>(generatedCacheKey);
-    if (cachedResult) {
-      return cachedResult;
-    }
-  }
   
   // Build query
   let query = supabaseClient.from(table).select(select);
@@ -236,11 +188,6 @@ export async function querySupabase<T = any>(
     throw error;
   }
   
-  // Cache result
-  if (useCache && data) {
-    cache.set(generatedCacheKey, data, cacheTTL);
-  }
-  
   return data as T[];
 }
 
@@ -251,14 +198,11 @@ export async function query<T = any>(
   sql: string,
   params: any[] = [],
   options: {
-    useCache?: boolean;
-    cacheTTL?: number;
-    cacheKey?: string;
     table?: string; // For Supabase
     pagination?: { page: number; pageSize: number };
   } = {}
 ): Promise<{ rows: T[]; count?: number }> {
-  const { useCache = false, cacheTTL = 60, cacheKey, table, pagination } = options;
+  const { table, pagination } = options;
   
   // Handle pagination
   let paginatedSql = sql;
@@ -278,7 +222,7 @@ export async function query<T = any>(
   try {
     if (currentDbType === 'local') {
       // Query local PostgreSQL
-      const result = await queryLocal<T>(paginatedSql, params, { useCache, cacheTTL, cacheKey });
+      const result = await queryLocal<T>(paginatedSql, params);
       
       let count: number | undefined;
       if (countSql) {
@@ -296,9 +240,6 @@ export async function query<T = any>(
       // For Supabase, we need to convert the SQL to Supabase's query builder
       // This is a simplified implementation and may not work for complex queries
       const data = await querySupabase<T>(table, {
-        useCache,
-        cacheTTL,
-        cacheKey,
         limit: pagination?.pageSize,
         offset: pagination ? (pagination.page - 1) * pagination.pageSize : undefined
       });
@@ -317,7 +258,7 @@ export async function query<T = any>(
       return { rows: data, count };
     } else if (currentDbType === 'both') {
       // Query both and return local results (Supabase is used for replication)
-      const localResult = await queryLocal<T>(paginatedSql, params, { useCache, cacheTTL, cacheKey });
+      const localResult = await queryLocal<T>(paginatedSql, params);
       
       let count: number | undefined;
       if (countSql) {
@@ -327,7 +268,7 @@ export async function query<T = any>(
       
       // Also query Supabase for replication purposes, but don't wait for it
       if (table) {
-        querySupabase(table, { useCache, cacheTTL, cacheKey }).catch(console.error);
+        querySupabase(table, {}).catch(console.error);
       }
       
       return { rows: localResult.rows, count };
@@ -348,11 +289,9 @@ export async function insert<T = any>(
   data: Record<string, any> | Record<string, any>[],
   options: {
     returning?: string;
-    clearCache?: boolean;
-    clearCachePattern?: string;
   } = {}
 ): Promise<T[]> {
-  const { returning = '*', clearCache = false, clearCachePattern } = options;
+  const { returning = '*' } = options;
   
   try {
     if (currentDbType === 'local' || currentDbType === 'both') {
@@ -386,15 +325,6 @@ export async function insert<T = any>(
         supabaseClient.from(table).insert(data).select(returning).catch(console.error);
       }
       
-      // Clear cache if needed
-      if (clearCache) {
-        if (clearCachePattern) {
-          cache.del(new RegExp(clearCachePattern));
-        } else {
-          cache.flushAll();
-        }
-      }
-      
       return result.rows;
     } else if (currentDbType === 'supabase') {
       // Insert into Supabase
@@ -409,15 +339,6 @@ export async function insert<T = any>(
       
       if (error) {
         throw error;
-      }
-      
-      // Clear cache if needed
-      if (clearCache) {
-        if (clearCachePattern) {
-          cache.del(new RegExp(clearCachePattern));
-        } else {
-          cache.flushAll();
-        }
       }
       
       return result as T[];
@@ -440,11 +361,9 @@ export async function update<T = any>(
   options: {
     idColumn?: string;
     returning?: string;
-    clearCache?: boolean;
-    clearCachePattern?: string;
   } = {}
 ): Promise<T[]> {
-  const { idColumn = 'id', returning = '*', clearCache = false, clearCachePattern } = options;
+  const { idColumn = 'id', returning = '*' } = options;
   
   try {
     if (currentDbType === 'local' || currentDbType === 'both') {
@@ -474,15 +393,6 @@ export async function update<T = any>(
           .catch(console.error);
       }
       
-      // Clear cache if needed
-      if (clearCache) {
-        if (clearCachePattern) {
-          cache.del(new RegExp(clearCachePattern));
-        } else {
-          cache.flushAll();
-        }
-      }
-      
       return result.rows;
     } else if (currentDbType === 'supabase') {
       // Update in Supabase
@@ -498,15 +408,6 @@ export async function update<T = any>(
       
       if (error) {
         throw error;
-      }
-      
-      // Clear cache if needed
-      if (clearCache) {
-        if (clearCachePattern) {
-          cache.del(new RegExp(clearCachePattern));
-        } else {
-          cache.flushAll();
-        }
       }
       
       return result as T[];
@@ -527,11 +428,9 @@ export async function remove(
   id: number | string | (number | string)[],
   options: {
     idColumn?: string;
-    clearCache?: boolean;
-    clearCachePattern?: string;
   } = {}
 ): Promise<void> {
-  const { idColumn = 'id', clearCache = false, clearCachePattern } = options;
+  const { idColumn = 'id' } = options;
   
   try {
     if (currentDbType === 'local' || currentDbType === 'both') {
@@ -596,15 +495,6 @@ export async function remove(
     } else {
       throw new Error(`Unsupported database type: ${currentDbType}`);
     }
-    
-    // Clear cache if needed
-    if (clearCache) {
-      if (clearCachePattern) {
-        cache.del(new RegExp(clearCachePattern));
-      } else {
-        cache.flushAll();
-      }
-    }
   } catch (error) {
     console.error('Delete error:', error);
     throw error;
@@ -642,21 +532,42 @@ export async function rollbackTransaction(client: PoolClient): Promise<void> {
 }
 
 /**
- * Clear the cache
+ * Clear the cache via backend API
  */
-export function clearCache(pattern?: string): void {
-  if (pattern) {
-    cache.del(new RegExp(pattern));
-  } else {
-    cache.flushAll();
+export async function clearCache(pattern?: string): Promise<void> {
+  try {
+    const url = pattern ? `/api/cache?pattern=${encodeURIComponent(pattern)}` : '/api/cache';
+    const response = await fetch(url, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to clear cache: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Clear cache error:', error);
+    throw error;
   }
 }
 
 /**
- * Get cache statistics
+ * Get cache statistics via backend API
  */
-export function getCacheStats(): { keys: number; hits: number; misses: number; ksize: number; vsize: number } {
-  return cache.getStats();
+export async function getCacheStats(): Promise<{ keys: number; hits: number; misses: number; ksize: number; vsize: number }> {
+  try {
+    const response = await fetch('/api/cache');
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get cache stats: ${response.statusText}`);
+    }
+    
+    const stats = await response.json();
+    return stats;
+  } catch (error) {
+    console.error('Get cache stats error:', error);
+    // Return default stats if API call fails
+    return { keys: 0, hits: 0, misses: 0, ksize: 0, vsize: 0 };
+  }
 }
 
 /**
