@@ -415,6 +415,16 @@ func (s *Server) handleMessage(conn *websocket.Conn, msg Message) {
 		data, _ := json.Marshal(response)
 		conn.WriteMessage(websocket.TextMessage, data)
 
+	case "ping":
+		// Handle ping message with pong response
+		response := Message{
+			Type:      "pong",
+			Data:      map[string]string{"status": "ok"},
+			Timestamp: time.Now().Unix(),
+		}
+		data, _ := json.Marshal(response)
+		conn.WriteMessage(websocket.TextMessage, data)
+
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
 		s.logEvent("warn", fmt.Sprintf("unknown message: %s", msg.Type), "websocket")

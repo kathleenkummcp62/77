@@ -22,6 +22,7 @@ export function useWebSocket(url?: string) {
   const maxReconnectAttempts = 5;
   const isConnecting = useRef(false);
   const reconnectBackoff = useRef(1000); // Start with 1 second
+  const pingIntervalRef = useRef<NodeJS.Timeout>();
 
   // Determine WebSocket URL based on environment
   const getWebSocketUrl = useCallback(() => {
@@ -72,6 +73,22 @@ export function useWebSocket(url?: string) {
         isConnecting.current = false;
         console.log('🔌 WebSocket connected successfully');
         
+        // Start ping interval to keep connection alive
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+        }
+        
+        pingIntervalRef.current = setInterval(() => {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            // Send ping message
+            wsRef.current.send(JSON.stringify({
+              type: 'ping',
+              data: {},
+              timestamp: Date.now()
+            }));
+          }
+        }, 30000); // Send ping every 30 seconds
+        
         // Show notification only on reconnection
         if (reconnectAttempts.current > 0) {
           toast.success('Reconnected to server');
@@ -91,6 +108,12 @@ export function useWebSocket(url?: string) {
         dispatch(setConnected(false));
         isConnecting.current = false;
         console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+        
+        // Clear ping interval
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = undefined;
+        }
         
         // Don't show error on first connection attempt
         if (reconnectAttempts.current > 0) {
@@ -190,6 +213,11 @@ export function useWebSocket(url?: string) {
           toast.error('WebSocket authentication failed');
           break;
           
+        case 'pong':
+          // Received pong response from server
+          console.log('📡 Received pong from server');
+          break;
+          
         default:
           console.log('📨 Unknown message type:', message.type, message.data);
       }
@@ -208,6 +236,9 @@ export function useWebSocket(url?: string) {
       clearTimeout(timer);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
       }
       if (wsRef.current) {
         wsRef.current.close(1000); // Normal closure
