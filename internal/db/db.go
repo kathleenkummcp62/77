@@ -42,7 +42,8 @@ func ConnectFromApp(c config.Config) (*DB, error) {
 // DB wraps the SQL database with optional embedded instance.
 type DB struct {
 	*sql.DB
-	embedded *embeddedpostgres.EmbeddedPostgres
+	embedded       *embeddedpostgres.EmbeddedPostgres
+	UseVendorTasks bool
 }
 
 // Connect tries to connect to the provided DSN. If it fails,
