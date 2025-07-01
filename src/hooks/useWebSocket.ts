@@ -252,6 +252,7 @@ export function useWebSocket(url?: string) {
     sendMessage,
     startScanner,
     stopScanner,
-    getLogs
+    getLogs,
+    isConnected: useAppSelector(state => state.scanner.isConnected)
   };
 }

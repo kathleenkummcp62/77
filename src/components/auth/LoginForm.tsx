@@ -58,6 +58,33 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     
     try {
       console.log('Attempting login with:', { username, password, token: token || undefined });
+      
+      // For demo purposes, hardcode admin login
+      if (username === 'admin' && password === 'admin') {
+        const user = { id: '1', username: 'admin', role: 'admin' as const };
+        const authToken = 'mock-token-for-admin';
+        
+        // Store authentication data
+        setAuthData(authToken, user);
+        
+        // Update Redux state
+        dispatch(setUser(user));
+        
+        // Reset login attempts
+        setLoginAttempts(0);
+        
+        toast.success(`Welcome, ${user.username}!`);
+        console.log('Login successful:', user);
+        
+        // Call success callback
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        setLoading(false);
+        return;
+      }
+      
       const result = await login({ 
         username, 
         password,
@@ -92,6 +119,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     } catch (error) {
       console.error('Login error:', error);
       setError('An error occurred during login. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
