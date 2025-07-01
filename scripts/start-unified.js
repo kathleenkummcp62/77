@@ -21,6 +21,7 @@ import waitOn from 'wait-on';
 import { createServer } from 'http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -117,6 +118,47 @@ async function startUnifiedServer() {
   // Create a proxy server to unify the frontend and backend
   const app = express();
   
+  // Add rate limiting middleware
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+  });
+  
+  // Apply rate limiting to API routes
+  app.use('/api', apiLimiter);
+  
+  // Add CORS headers middleware
+  app.use((req, res, next) => {
+    // Define allowed origins
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173'
+    ];
+    
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      // For development, allow any origin
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Token');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    
+    next();
+  });
+  
   // Proxy API requests to the backend
   app.use('/api', createProxyMiddleware({
     target: `http://127.0.0.1:${BACKEND_PORT}`,
@@ -198,7 +240,7 @@ async function main() {
   console.log('=== VPN Bruteforce Dashboard ===');
   
   // Check if required packages are installed
-  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'ws', 'cors'];
+  const requiredPackages = ['http-proxy-middleware', 'express', 'wait-on', 'ws', 'cors', 'express-rate-limit'];
   const packageJsonPath = path.join(projectRoot, 'package.json');
   
   if (await fs.pathExists(packageJsonPath)) {

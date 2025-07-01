@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -78,7 +79,26 @@ func NewServer(stats *stats.Stats, database *db.DB) *Server {
 		clients: make(map[*websocket.Conn]bool),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				return true // Allow all origins for development
+				// Get allowed origins from environment
+				allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+				if allowedOrigins == "" {
+					return true // Allow all origins for development
+				}
+				
+				// Check if origin is in allowed list
+				origin := r.Header.Get("Origin")
+				if origin == "" {
+					return true // Allow requests with no origin
+				}
+				
+				for _, allowed := range strings.Split(allowedOrigins, ",") {
+					if strings.TrimSpace(allowed) == origin {
+						return true
+					}
+				}
+				
+				log.Printf("WebSocket connection rejected from origin: %s", origin)
+				return false
 			},
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -123,8 +143,9 @@ func (s *Server) handleConnections() {
 			s.clientsMux.Lock()
 			for client := range s.clients {
 				if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
-					delete(s.clients, client)
+					log.Printf("WebSocket write error: %v", err)
 					client.Close()
+					delete(s.clients, client)
 				}
 			}
 			s.clientsMux.Unlock()
@@ -240,13 +261,56 @@ func (s *Server) getServerInfo() []ServerInfo {
 	return result
 }
 
+// Authenticate WebSocket connection
+func (s *Server) authenticateConnection(r *http.Request) bool {
+	// Get token from query parameter
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		// Get token from Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			token = strings.TrimPrefix(authHeader, "Bearer ")
+		}
+	}
+	
+	// Skip authentication in development mode
+	if os.Getenv("NODE_ENV") != "production" {
+		return true
+	}
+	
+	// Check if token is required
+	authToken := os.Getenv("API_AUTH_TOKEN")
+	if authToken == "" {
+		return true
+	}
+	
+	// Validate token
+	return token == authToken
+}
+
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	// Authenticate connection
+	if !s.authenticateConnection(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		s.logEvent("error", "websocket authentication failed", "websocket")
+		return
+	}
+	
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
 		s.logEvent("error", fmt.Sprintf("websocket upgrade error: %v", err), "websocket")
 		return
 	}
+
+	// Set read deadline to detect stale connections
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	
+	// Set ping handler to extend read deadline
+	conn.SetPingHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return conn.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(10*time.Second))
+	})
 
 	s.register <- conn
 
@@ -268,6 +332,22 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 			// Handle different message types
 			s.handleMessage(conn, msg)
+		}
+	}()
+	
+	// Start ping-pong to keep connection alive
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		
+		for {
+			select {
+			case <-ticker.C:
+				if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+					log.Printf("WebSocket ping error: %v", err)
+					return
+				}
+			}
 		}
 	}()
 }

@@ -18,6 +18,7 @@ import { SecurityAudit } from "./components/testing/SecurityAudit";
 import { ScanResultsReport } from "./components/reports/ScanResultsReport";
 import { useAppSelector, useAppDispatch } from "./store";
 import { setActiveTab } from "./store/slices/uiSlice";
+import { AuthGuard } from "./components/auth/AuthGuard";
 
 function App() {
   const activeTab = useAppSelector(state => state.ui.activeTab);
@@ -65,36 +66,38 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
-      <main className="flex-1 overflow-auto">
-        <div className="p-8">{renderContent()}</div>
-      </main>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: "#363636",
-            color: "#fff",
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: "#22c55e",
-              secondary: "#fff",
+    <AuthGuard>
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
+        <main className="flex-1 overflow-auto">
+          <div className="p-8">{renderContent()}</div>
+        </main>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: "#363636",
+              color: "#fff",
             },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: "#ef4444",
-              secondary: "#fff",
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: "#22c55e",
+                secondary: "#fff",
+              },
             },
-          },
-        }}
-      />
-    </div>
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: "#ef4444",
+                secondary: "#fff",
+              },
+            },
+          }}
+        />
+      </div>
+    </AuthGuard>
   );
 }
 

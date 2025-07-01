@@ -4,6 +4,7 @@ import scannerReducer from './slices/scannerSlice';
 import serversReducer from './slices/serversSlice';
 import resultsReducer from './slices/resultsSlice';
 import uiReducer from './slices/uiSlice';
+import authReducer from './slices/authSlice';
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     servers: serversReducer,
     results: resultsReducer,
     ui: uiReducer,
+    auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

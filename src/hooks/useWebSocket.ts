@@ -4,6 +4,7 @@ import { useAppDispatch } from '../store';
 import { setStats, setConnected, setError } from '../store/slices/scannerSlice';
 import { setServers } from '../store/slices/serversSlice';
 import { StatsData, ServerInfo } from '../types';
+import { getAuthToken } from '../lib/auth';
 
 interface WebSocketMessage {
   type: string;
@@ -20,6 +21,7 @@ export function useWebSocket(url?: string) {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
   const isConnecting = useRef(false);
+  const reconnectBackoff = useRef(1000); // Start with 1 second
 
   // Determine WebSocket URL based on environment
   const getWebSocketUrl = useCallback(() => {
@@ -56,10 +58,17 @@ export function useWebSocket(url?: string) {
       isConnecting.current = true;
       wsRef.current = new WebSocket(wsUrl);
       
+      // Add authentication token to the connection if available
+      const token = getAuthToken();
+      if (token && wsRef.current.url.indexOf('?') === -1) {
+        wsRef.current.url = `${wsRef.current.url}?token=${token}`;
+      }
+      
       wsRef.current.onopen = () => {
         dispatch(setConnected(true));
         dispatch(setError(null));
         reconnectAttempts.current = 0;
+        reconnectBackoff.current = 1000; // Reset backoff on successful connection
         isConnecting.current = false;
         console.log('🔌 WebSocket connected successfully');
         
@@ -90,11 +99,15 @@ export function useWebSocket(url?: string) {
         
         // Auto-reconnect only if not intentionally closed
         if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
-          const delay = Math.min(Math.pow(2, reconnectAttempts.current) * 1000, 10000);
-          console.log(`🔌 Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
+          // Exponential backoff with jitter
+          const jitter = Math.random() * 0.3 + 0.85; // Random between 0.85 and 1.15
+          const delay = Math.min(reconnectBackoff.current * jitter, 30000); // Cap at 30 seconds
+          
+          console.log(`🔌 Reconnecting in ${Math.round(delay)}ms (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttempts.current++;
+            reconnectBackoff.current *= 2; // Exponential backoff
             connect();
           }, delay);
         } else if (reconnectAttempts.current >= maxReconnectAttempts) {
@@ -158,6 +171,21 @@ export function useWebSocket(url?: string) {
         case 'error':
           console.error('Server error:', message.data);
           toast.error(message.data.message || 'Server error occurred');
+          break;
+          
+        case 'auth_required':
+          console.log('🔒 Authentication required');
+          // Handle authentication required
+          break;
+          
+        case 'auth_success':
+          console.log('🔓 Authentication successful');
+          toast.success('WebSocket authentication successful');
+          break;
+          
+        case 'auth_failure':
+          console.error('🔒 Authentication failed:', message.data);
+          toast.error('WebSocket authentication failed');
           break;
           
         default:

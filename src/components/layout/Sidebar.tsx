@@ -14,9 +14,13 @@ import {
   TestTube,
   ShieldCheck,
   PieChart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { clsx } from "clsx";
-import { useAppSelector } from "../../store";
+import { useAppSelector, useAppDispatch } from "../../store";
+import { toggleSidebar } from "../../store/slices/uiSlice";
+import { hasRole } from "../../lib/auth";
 
 interface SidebarProps {
   activeTab: string;
@@ -24,30 +28,40 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-  { id: "vpn-types", label: "VPN Types", icon: Shield },
-  { id: "servers", label: "Servers", icon: Server },
-  { id: "generation", label: "Generation", icon: FileText },
-  { id: "upload", label: "Upload", icon: Upload },
-  { id: "processing", label: "Processing", icon: Activity },
-  { id: "results", label: "Results", icon: Download },
-  { id: "monitoring", label: "Monitoring", icon: Activity },
-  { id: "reports", label: "Reports", icon: PieChart },
-  { id: "data", label: "Data Store", icon: FileText },
-  { id: "database", label: "Database", icon: Database },
-  { id: "terminal", label: "Terminal", icon: Terminal },
-  { id: "testing", label: "Testing", icon: TestTube },
-  { id: "security", label: "Security Audit", icon: ShieldCheck },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "dashboard", label: "Dashboard", icon: BarChart3, role: "viewer" },
+  { id: "vpn-types", label: "VPN Types", icon: Shield, role: "viewer" },
+  { id: "servers", label: "Servers", icon: Server, role: "user" },
+  { id: "generation", label: "Generation", icon: FileText, role: "user" },
+  { id: "upload", label: "Upload", icon: Upload, role: "user" },
+  { id: "processing", label: "Processing", icon: Activity, role: "user" },
+  { id: "results", label: "Results", icon: Download, role: "viewer" },
+  { id: "monitoring", label: "Monitoring", icon: Activity, role: "viewer" },
+  { id: "reports", label: "Reports", icon: PieChart, role: "viewer" },
+  { id: "data", label: "Data Store", icon: FileText, role: "user" },
+  { id: "database", label: "Database", icon: Database, role: "admin" },
+  { id: "terminal", label: "Terminal", icon: Terminal, role: "admin" },
+  { id: "testing", label: "Testing", icon: TestTube, role: "user" },
+  { id: "security", label: "Security Audit", icon: ShieldCheck, role: "admin" },
+  { id: "settings", label: "Settings", icon: Settings, role: "user" },
 ];
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const isConnected = useAppSelector(state => state.scanner.isConnected);
   const sidebarCollapsed = useAppSelector(state => state.ui.sidebarCollapsed);
+  const dispatch = useAppDispatch();
+
+  const handleToggleSidebar = () => {
+    dispatch(toggleSidebar());
+  };
+
+  // Filter menu items based on user role
+  const filteredMenuItems = menuItems.filter(item => 
+    hasRole(item.role as 'admin' | 'user' | 'viewer')
+  );
 
   return (
     <div className={clsx(
-      "bg-gray-900 text-white h-screen flex flex-col transition-all duration-300",
+      "bg-gray-900 text-white h-screen flex flex-col transition-all duration-300 relative",
       sidebarCollapsed ? "w-20" : "w-64"
     )}>
       <div className="p-6 border-b border-gray-700">
@@ -65,7 +79,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {menuItems.map((item) => {
+        {filteredMenuItems.map((item) => {
           const Icon = item.icon;
           return (
             <button
@@ -78,9 +92,9 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   : "text-gray-300 hover:bg-gray-800 hover:text-white",
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5 flex-shrink-0" />
               {!sidebarCollapsed && (
-                <span className="font-medium">{item.label}</span>
+                <span className="font-medium truncate">{item.label}</span>
               )}
             </button>
           );
@@ -98,6 +112,17 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           )}
         </div>
       </div>
+      
+      {/* Collapse/Expand button */}
+      <button 
+        className="absolute -right-3 top-20 bg-gray-800 text-white p-1 rounded-full border border-gray-700"
+        onClick={handleToggleSidebar}
+      >
+        {sidebarCollapsed ? 
+          <ChevronRight className="h-4 w-4" /> : 
+          <ChevronLeft className="h-4 w-4" />
+        }
+      </button>
     </div>
   );
 }

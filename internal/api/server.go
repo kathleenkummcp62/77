@@ -151,6 +151,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/tasks/{id}", s.handleTask).Methods("PUT", "DELETE")
 	api.HandleFunc("/tasks/bulk_delete", s.handleTasksBulkDelete).Methods("POST")
 	api.HandleFunc("/health", s.handleHealth).Methods("GET")
+	api.HandleFunc("/login", s.handleLogin).Methods("POST")
 
 	// WebSocket endpoint
 	s.router.HandleFunc("/ws", s.wsServer.HandleWebSocket)
@@ -204,6 +205,12 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip authentication for health check and login endpoints
+		if r.URL.Path == "/api/health" || r.URL.Path == "/api/login" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		
 		t := r.Header.Get("X-API-Token")
 		if t == "" {
 			auth := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
@@ -277,6 +284,46 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":    "ok",
 		"timestamp": time.Now().Format(time.RFC3339),
 		"service":   "vpn-bruteforce-dashboard",
+	}})
+}
+
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	var credentials struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
+		s.sendJSON(w, APIResponse{Success: false, Error: "Invalid JSON"})
+		return
+	}
+	
+	// Mock user authentication
+	users := map[string]struct {
+		Password string
+		Role     string
+	}{
+		"admin":  {"admin123", "admin"},
+		"user":   {"user123", "user"},
+		"viewer": {"viewer123", "viewer"},
+	}
+	
+	user, exists := users[credentials.Username]
+	if !exists || user.Password != credentials.Password {
+		w.WriteHeader(http.StatusUnauthorized)
+		s.sendJSON(w, APIResponse{Success: false, Error: "Invalid username or password"})
+		return
+	}
+	
+	// In a real implementation, generate a JWT token here
+	token := "mock-jwt-token-" + credentials.Username
+	
+	s.sendJSON(w, APIResponse{Success: true, Data: map[string]interface{}{
+		"token": token,
+		"user": map[string]string{
+			"username": credentials.Username,
+			"role":     user.Role,
+		},
 	}})
 }
 
