@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { login, setAuthData } from '../../lib/auth';
 import toast from 'react-hot-toast';
-import { Lock, User, AlertTriangle } from 'lucide-react';
+import { Lock, User, AlertTriangle, Key } from 'lucide-react';
 import { useAppDispatch } from '../../store';
 import { setUser } from '../../store/slices/authSlice';
 
@@ -12,10 +12,12 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showTokenField, setShowTokenField] = useState(false);
   
   const dispatch = useAppDispatch();
 
@@ -25,17 +27,18 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setLoading(true);
     
     try {
-      const result = await login({ username, password });
+      const result = await login({ username, password, token });
       
       if (!result) {
         setError('Invalid username or password');
+        setLoading(false);
         return;
       }
       
-      const { token, user } = result;
+      const { token: authToken, user } = result;
       
       // Store authentication data
-      setAuthData(token, user);
+      setAuthData(authToken, user);
       
       // Update Redux state
       dispatch(setUser(user));
@@ -49,7 +52,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     } catch (error) {
       console.error('Login error:', error);
       setError('An error occurred during login');
-    } finally {
       setLoading(false);
     }
   };
@@ -112,11 +114,39 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           </div>
         </div>
         
-        <div>
+        {showTokenField && (
+          <div>
+            <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-1">
+              Authentication Token
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Key className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="token"
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                placeholder="Enter authentication token"
+              />
+            </div>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setShowTokenField(!showTokenField)}
+            className="text-sm text-primary-600 hover:text-primary-500"
+          >
+            {showTokenField ? 'Hide token field' : 'Show token field'}
+          </button>
+          
           <Button
             type="submit"
             variant="primary"
-            className="w-full"
             loading={loading}
           >
             Sign In
@@ -124,22 +154,15 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         </div>
       </form>
       
-      <div className="mt-6 text-center text-sm text-gray-600">
-        <p>Default credentials:</p>
-        <div className="grid grid-cols-3 gap-2 mt-2">
-          <div className="p-2 bg-gray-50 rounded border border-gray-200">
-            <p className="font-medium">admin</p>
-            <p className="text-xs text-gray-500">admin</p>
-          </div>
-          <div className="p-2 bg-gray-50 rounded border border-gray-200">
-            <p className="font-medium">user</p>
-            <p className="text-xs text-gray-500">user123</p>
-          </div>
-          <div className="p-2 bg-gray-50 rounded border border-gray-200">
-            <p className="font-medium">viewer</p>
-            <p className="text-xs text-gray-500">viewer123</p>
-          </div>
-        </div>
+      <div className="mt-6 text-center">
+        <p className="text-sm text-gray-600">
+          Don't have an account? <button 
+            onClick={() => window.location.href = '/register'} 
+            className="text-primary-600 hover:text-primary-500"
+          >
+            Register
+          </button>
+        </p>
       </div>
     </Card>
   );

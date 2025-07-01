@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { User, login as authLogin, clearAuthData } from '../../lib/auth';
+import { User, login as authLogin, clearAuthData, registerUser as authRegister, RegistrationCredentials } from '../../lib/auth';
 import toast from 'react-hot-toast';
 
 interface AuthState {
@@ -18,7 +18,7 @@ const initialState: AuthState = {
 
 export const login = createAsyncThunk(
   'auth/login',
-  async (credentials: { username: string; password: string }, { rejectWithValue }) => {
+  async (credentials: { username: string; password: string; token?: string }, { rejectWithValue }) => {
     try {
       const result = await authLogin(credentials);
       
@@ -29,6 +29,23 @@ export const login = createAsyncThunk(
       return result.user;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Login failed');
+    }
+  }
+);
+
+export const register = createAsyncThunk(
+  'auth/register',
+  async (credentials: RegistrationCredentials, { rejectWithValue }) => {
+    try {
+      const result = await authRegister(credentials);
+      
+      if (!result) {
+        return rejectWithValue('Registration failed. Invalid token or username already exists.');
+      }
+      
+      return result.user;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Registration failed');
     }
   }
 );
@@ -58,6 +75,7 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Login
       .addCase(login.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -71,6 +89,23 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+      
+      // Register
+      .addCase(register.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(register.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.isAuthenticated = true;
+      })
+      .addCase(register.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Logout
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;

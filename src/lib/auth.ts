@@ -7,6 +7,9 @@ const JWT_SECRET = new TextEncoder().encode(
   import.meta.env.VITE_JWT_SECRET || 'vpn-bruteforce-dashboard-secret-key-2025'
 );
 
+// Static authentication token for account creation and admin actions
+const STATIC_AUTH_TOKEN = "d@DMJYXf#5egNh7@3j%=C9vjhs9dH*nv";
+
 // Token expiration time (1 hour)
 const TOKEN_EXPIRATION = '1h';
 
@@ -21,9 +24,18 @@ export interface User {
 export interface LoginCredentials {
   username: string;
   password: string;
+  token?: string;
 }
 
-// Get users from localStorage or use defaults
+// Registration credentials interface
+export interface RegistrationCredentials {
+  username: string;
+  password: string;
+  role: 'admin' | 'user' | 'viewer';
+  token: string;
+}
+
+// Get users from localStorage
 export function getUsers(): Record<string, { password: string; user: User }> {
   const storedUsers = localStorage.getItem('auth_users');
   
@@ -35,21 +47,8 @@ export function getUsers(): Record<string, { password: string; user: User }> {
     }
   }
   
-  // Default users
-  return {
-    admin: {
-      password: 'admin',
-      user: { id: '1', username: 'admin', role: 'admin' }
-    },
-    user: {
-      password: 'user123',
-      user: { id: '2', username: 'user', role: 'user' }
-    },
-    viewer: {
-      password: 'viewer123',
-      user: { id: '3', username: 'viewer', role: 'viewer' }
-    }
-  };
+  // Default empty users object
+  return {};
 }
 
 // Save users to localStorage
@@ -57,8 +56,54 @@ export function saveUsers(users: Record<string, { password: string; user: User }
   localStorage.setItem('auth_users', JSON.stringify(users));
 }
 
+// Validate static token
+export function validateToken(token: string): boolean {
+  return token === STATIC_AUTH_TOKEN;
+}
+
+// Register a new user
+export async function registerUser(credentials: RegistrationCredentials): Promise<{ token: string; user: User } | null> {
+  // Validate token
+  if (!validateToken(credentials.token)) {
+    return null;
+  }
+  
+  const { username, password, role } = credentials;
+  
+  // Check if username already exists
+  const users = getUsers();
+  if (users[username]) {
+    return null;
+  }
+  
+  // Create new user
+  const newUser: User = {
+    id: Date.now().toString(),
+    username,
+    role
+  };
+  
+  // Save user
+  users[username] = {
+    password,
+    user: newUser
+  };
+  
+  saveUsers(users);
+  
+  // Generate token
+  const token = await generateToken(newUser);
+  
+  return { token, user: newUser };
+}
+
 // Update user password
-export function updateUserPassword(username: string, newPassword: string): boolean {
+export function updateUserPassword(username: string, newPassword: string, token: string): boolean {
+  // Validate token
+  if (!validateToken(token)) {
+    return false;
+  }
+  
   const users = getUsers();
   
   if (!users[username]) {
