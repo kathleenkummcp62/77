@@ -14,6 +14,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Ensure non-root
+        run: |
+          if [ "$(id -u)" = 0 ]; then
+            echo "Do not run tests as root"
+            exit 1
+          fi
       - run: make fmt
       - run: make vet
       - run: go test ./...
