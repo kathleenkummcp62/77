@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 // Secret key for JWT signing and verification
 // In production, this should be stored in environment variables
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'vpn-bruteforce-dashboard-secret-key-2025'
+  import.meta.env.VITE_JWT_SECRET || 'vpn-bruteforce-dashboard-secret-key-2025'
 );
 
 // Token expiration time (1 hour)
