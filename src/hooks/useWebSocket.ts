@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '../store';
 import { setStats, setConnected, setError } from '../store/slices/scannerSlice';
-import { setServers } from '../store/slices/serversSlice';
+import { setServers, updateServerHistory } from '../store/slices/serversSlice';
 import { StatsData, ServerInfo } from '../types';
 import { getAuthToken } from '../lib/auth';
 
@@ -142,7 +142,9 @@ export function useWebSocket(url?: string) {
           break;
           
         case 'server_info':
-          dispatch(setServers(message.data as ServerInfo[]));
+          const serverData = message.data as ServerInfo[];
+          dispatch(setServers(serverData));
+          dispatch(updateServerHistory(serverData));
           break;
           
         case 'logs_data':

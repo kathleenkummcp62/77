@@ -105,6 +105,14 @@ export interface ServerInfo {
   current_task: string;
 }
 
+export interface ServerHistoryPoint {
+  ip: string;
+  cpu: number;
+  memory: number;
+  rps: number;
+  timestamp: number;
+}
+
 export interface ChartDataPoint {
   timestamp: number;
   value: number;
