@@ -3,29 +3,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
-import { 
-  Database as DatabaseIcon, 
-  Plus, 
-  Trash2, 
-  RefreshCw,
-  Settings,
-  Download,
-  Upload,
-  AlertTriangle,
-  CheckCircle,
-  Server,
-  Table,
-  Key,
-  Users,
-  Activity,
-  BarChart3,
-  Eye,
-  Edit,
-  Copy,
-  ExternalLink,
-  Play,
-  Sync
-} from 'lucide-react';
+import { Database as DatabaseIcon, Plus, Trash2, RefreshCw, Settings, Download, Upload, AlertTriangle, CheckCircle, Server, Table, Key, Users, Activity, BarChart3, Eye, Edit, Copy, ExternalLink, Play, FolderSync as Sync } from 'lucide-react';
 import { getSupabase, getSupabaseSafe, initializeSupabase, isSupabaseConfigured, clearSupabaseConfig } from '../../lib/supabase';
 import { checkLocalPostgresStatus, startLocalPostgres, createDatabaseSchema, getTablesList, exportTableData } from '../../lib/postgres';
 import { 
